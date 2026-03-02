@@ -2,24 +2,19 @@
  * Session Types
  *
  * Defines the session state machine and related types for browser automation tasks.
- * The session tracks the full lifecycle from task creation through planning,
- * info gathering, execution, and completion.
  */
-import type { ExecutionPlan } from "./plan.js";
-import type { SiteKnowledge } from "./knowledge.js";
 /**
  * All possible states a session can be in.
  *
  * State transitions:
- *   CREATED → PLANNING → NEEDS_INFO ↔ PLANNING → READY → EXECUTING → COMPLETED
- *                     ↘ READY ────────────────────────↗      ↓
- *                                                         BLOCKED → PLANNING
+ *   CREATED → EXECUTING → COMPLETED
+ *                ↓
+ *             WAITING_FOR_USER → EXECUTING
  *   Any state can transition to FAILED or CANCELLED
  */
-export type SessionState = "CREATED" | "PLANNING" | "NEEDS_INFO" | "READY" | "EXECUTING" | "BLOCKED" | "COMPLETED" | "FAILED" | "CANCELLED";
+export type SessionState = "CREATED" | "EXECUTING" | "WAITING_FOR_USER" | "COMPLETED" | "FAILED" | "CANCELLED";
 /**
  * Valid state transitions for the session state machine.
- * Used to enforce valid state changes.
  */
 export declare const VALID_TRANSITIONS: Record<SessionState, SessionState[]>;
 /**
@@ -43,73 +38,37 @@ export interface Question {
 }
 /**
  * A single entry in the execution trace.
- * Used for debugging and learning from successful executions.
  */
 export interface TraceEntry {
-    /** Timestamp of the action */
     timestamp: string;
-    /** Type of trace entry - prefixed by agent that produced it */
-    type: "browser_agent:navigation" | "browser_agent:click" | "browser_agent:fill" | "browser_agent:screenshot" | "browser_agent:thinking" | "browser_agent:error" | "browser_agent:info" | "planning_agent:search_knowledge" | "planning_agent:read_knowledge" | "planning_agent:query_memory" | "planning_agent:list_domains" | "planning_agent:finish" | "planning_agent:info" | "planning_agent:error" | "explorer_agent:explore" | "explorer_agent:complete" | "explorer_agent:learn" | "explorer_agent:info" | "explorer_agent:error" | "navigation" | "click" | "fill" | "screenshot" | "thinking" | "error" | "info" | "planning";
-    /** Human-readable description */
+    type: "navigation" | "click" | "fill" | "screenshot" | "thinking" | "error" | "info";
     description: string;
-    /** For navigation: the URL */
     url?: string;
-    /** For click/fill: the selector used */
     selector?: string;
-    /** For fill: the value entered (may be redacted for sensitive data) */
     value?: string;
-    /** For screenshot: base64 data or file path */
     screenshot?: string;
-    /** Whether this action succeeded */
     success: boolean;
-    /** Error message if failed */
     error?: string;
-    /** Additional metadata */
     metadata?: Record<string, unknown>;
 }
 /**
  * Main session object tracking a browser automation task.
  */
 export interface Session {
-    /** Unique session identifier */
     id: string;
-    /** User identifier (for Mem0 scoping) */
-    userId: string;
-    /** Current state in the state machine */
     state: SessionState;
-    /** Original task description from user */
     task: string;
-    /** Optional starting URL */
     url?: string;
-    /** Optional context provided by user (stored in Mem0) */
     context?: string;
-    /** Target domain for this task (e.g., "united.com") */
     domain?: string;
-    /** Execution plan created by planning agent */
-    plan?: ExecutionPlan;
-    /** Site knowledge loaded for this domain */
-    siteKnowledge?: SiteKnowledge;
-    /**
-     * Information collected for this task.
-     * Keys are field names (e.g., "email", "departure_date")
-     * Values are the collected data
-     */
     collectedInfo: Record<string, string>;
-    /** Questions currently pending user response */
     pendingQuestions: Question[];
-    /** Full execution trace for debugging and learning */
     executionTrace: TraceEntry[];
-    /** Current step description (for status display) */
     currentStep?: string;
-    /** Final answer/result when completed */
     answer?: string;
-    /** Error message if failed */
     error?: string;
-    /** Session creation timestamp */
     createdAt: Date;
-    /** Last update timestamp */
     updatedAt: Date;
-    /** Completion timestamp (for COMPLETED/FAILED/CANCELLED) */
     completedAt?: Date;
 }
 /**
@@ -118,14 +77,11 @@ export interface Session {
  */
 export interface SerializedSession {
     id: string;
-    userId: string;
     state: SessionState;
     task: string;
     url?: string;
     context?: string;
     domain?: string;
-    plan?: ExecutionPlan;
-    siteKnowledge?: SiteKnowledge;
     collectedInfo: Record<string, string>;
     pendingQuestions: Question[];
     executionTrace: TraceEntry[];
@@ -140,14 +96,9 @@ export interface SerializedSession {
  * Options for creating a new session.
  */
 export interface CreateSessionOptions {
-    /** The task to perform */
     task: string;
-    /** Optional starting URL */
     url?: string;
-    /** Optional context with user info/preferences */
     context?: string;
-    /** Optional user ID (defaults to session ID) */
-    userId?: string;
 }
 /**
  * Result of a state transition attempt.

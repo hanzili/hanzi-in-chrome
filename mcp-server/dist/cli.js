@@ -111,8 +111,8 @@ async function cmdStart() {
         context,
     });
     console.log(`\n[CLI] Session: ${sessionId}`);
-    console.log(`  Status: ~/.llm-in-chrome/sessions/${sessionId}.json`);
-    console.log(`  Logs:   ~/.llm-in-chrome/sessions/${sessionId}.log`);
+    console.log(`  Status: ~/.hanzi-in-chrome/sessions/${sessionId}.json`);
+    console.log(`  Logs:   ~/.hanzi-in-chrome/sessions/${sessionId}.log`);
     console.log('\nWaiting for completion...\n');
     // Block until task completes
     await new Promise((resolve) => {

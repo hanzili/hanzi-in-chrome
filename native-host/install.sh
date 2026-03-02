@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Native Bridge Installation Script
-# Installs the native messaging host for LLM in Chrome extension
+# Installs the native messaging host for Hanzi in Chrome extension
 # (Enables IPC between MCP server and Chrome extension)
 
 set -e
 
 echo "╔════════════════════════════════════════════════════════╗"
-echo "║  LLM in Chrome - Native Bridge Installer              ║"
+echo "║  Hanzi in Chrome - Native Bridge Installer              ║"
 echo "╚════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -75,14 +75,14 @@ CHROME_STORE_ID="iklpkemlmbhemkiojndpbhoakgikpmcd"  # Production (Chrome Web Sto
 DEV_ID="dnajlkacmnpfmilkeialficajdgkkkfo"          # Development (replace with your own if different)
 
 # Create manifest with both production and development IDs
-MANIFEST_FILE="$MANIFEST_DIR/com.llm_in_chrome.oauth_host.json"
+MANIFEST_FILE="$MANIFEST_DIR/com.hanzi_in_chrome.oauth_host.json"
 
 echo ""
 echo "Creating manifest file..."
 cat > "$MANIFEST_FILE" << EOF
 {
-  "name": "com.llm_in_chrome.oauth_host",
-  "description": "Native bridge for LLM in Chrome extension (IPC between MCP server and extension)",
+  "name": "com.hanzi_in_chrome.oauth_host",
+  "description": "Native bridge for Hanzi in Chrome extension (IPC between MCP server and extension)",
   "path": "$WRAPPER_SCRIPT",
   "type": "stdio",
   "allowed_origins": [
@@ -127,7 +127,7 @@ echo "╚═══════════════════════�
 echo ""
 echo "Next steps:"
 echo "  1. Go to chrome://extensions"
-echo "  2. Click the reload button (↻) on 'LLM in Chrome'"
+echo "  2. Click the reload button (↻) on 'Hanzi in Chrome'"
 echo "  3. Open the extension and try OAuth login"
 echo ""
 echo "Troubleshooting:"

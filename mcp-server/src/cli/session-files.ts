@@ -2,7 +2,7 @@
  * Session Files Module
  *
  * Manages file-based session storage for the CLI.
- * Sessions are stored as JSON files in ~/.llm-in-chrome/sessions/
+ * Sessions are stored as JSON files in ~/.hanzi-in-chrome/sessions/
  */
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync, appendFileSync, unlinkSync } from 'fs';
@@ -10,7 +10,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 
 // Session directory
-const SESSION_DIR = join(homedir(), '.llm-in-chrome', 'sessions');
+const SESSION_DIR = join(homedir(), '.hanzi-in-chrome', 'sessions');
 
 export interface SessionFileStatus {
   session_id: string;

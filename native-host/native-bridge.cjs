@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Native Messaging Host for LLM in Chrome
+ * Native Messaging Host for Hanzi in Chrome
  *
  * Provides two services to the Chrome extension via native messaging:
  * 1. Credential reading (Claude CLI + Codex CLI)
@@ -21,7 +21,7 @@ const OAUTH_CONFIG = {
 };
 
 // Debug log directory
-const MCP_DIR = path.join(os.homedir(), '.llm-in-chrome');
+const MCP_DIR = path.join(os.homedir(), '.hanzi-in-chrome');
 try {
   if (!fs.existsSync(MCP_DIR)) {
     fs.mkdirSync(MCP_DIR, { recursive: true });
@@ -174,7 +174,7 @@ function refreshClaudeToken(refreshToken) {
                 errorMessage = 'Refresh token expired or revoked. Your Claude CLI session has ended.';
                 break;
               case 'invalid_client':
-                errorMessage = 'OAuth client configuration error. Please reinstall LLM in Chrome.';
+                errorMessage = 'OAuth client configuration error. Please reinstall Hanzi in Chrome.';
                 break;
               case 'unauthorized_client':
                 errorMessage = 'Client not authorized for this operation. Try: claude logout && claude login';

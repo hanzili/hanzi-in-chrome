@@ -13,7 +13,7 @@ export function EmptyState({ onSelectExample }) {
           <path d="M12 6v6l4 2" />
         </svg>
       </div>
-      <h2>LLM in Chrome</h2>
+      <h2>Hanzi in Chrome</h2>
       <p>Describe what you want to accomplish and the AI will browse autonomously to complete your task.</p>
       <div class="empty-examples">
         {EXAMPLES.map((example, i) => (

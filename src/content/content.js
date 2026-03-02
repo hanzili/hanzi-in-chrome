@@ -92,9 +92,9 @@ function handleReadPage(payload, sendResponse) {
 }
 
 /**
- * Handle form_input tool
+ * Handle form_input tool (async for custom dropdown polling)
  */
-function handleFormInput(payload, sendResponse) {
+async function handleFormInput(payload, sendResponse) {
   try {
     const { ref, value } = payload;
 
@@ -119,15 +119,16 @@ function handleFormInput(payload, sendResponse) {
     // Scroll element into view first
     element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    // Handle SELECT elements
+    // Handle native SELECT elements — case-insensitive matching
     if (element instanceof HTMLSelectElement) {
-      const previousValue = element.value;
+      const prev = element.value;
       const options = Array.from(element.options);
-      let found = false;
       const valueStr = String(value);
+      let found = false;
 
       for (let i = 0; i < options.length; i++) {
-        if (options[i].value === valueStr || options[i].text === valueStr) {
+        if (options[i].value === valueStr || options[i].text === valueStr ||
+            options[i].text.toLowerCase() === valueStr.toLowerCase()) {
           element.selectedIndex = i;
           found = true;
           break;
@@ -138,49 +139,199 @@ function handleFormInput(payload, sendResponse) {
         element.focus();
         element.dispatchEvent(new Event('change', { bubbles: true }));
         element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
         sendResponse({
           success: true,
-          output: `Selected option "${valueStr}" in dropdown (previous: "${previousValue}")`
+          output: 'Selected "' + valueStr + '" (previous: "' + prev + '")'
         });
       } else {
         const optionsList = options.map(o => '"' + o.text + '" (value: "' + o.value + '")').join(', ');
         sendResponse({
           success: false,
-          error: 'Option "' + valueStr + '" not found. Available options: ' + optionsList
+          error: 'Option "' + valueStr + '" not found. Available: ' + optionsList
         });
       }
       return;
     }
 
-    // Handle CHECKBOX inputs
-    if (element instanceof HTMLInputElement && element.type === 'checkbox') {
-      const previousValue = element.checked;
-      if (typeof value !== 'boolean') {
-        sendResponse({ success: false, error: 'Checkbox requires a boolean value (true/false)' });
+    // CUSTOM DROPDOWN / COMBOBOX (React Select, MUI, Workday, etc.)
+    const isCombobox = element.getAttribute('role') === 'combobox' ||
+                       element.getAttribute('aria-autocomplete') === 'list';
+    const comboboxAncestor = !isCombobox ? element.closest('[role="combobox"]') : null;
+    const hasComboboxInput = !isCombobox && !comboboxAncestor && element.tagName !== 'INPUT'
+      ? element.querySelector('input[role="combobox"], input[aria-autocomplete="list"]')
+      : null;
+    const haspopup = element.getAttribute('aria-haspopup');
+    const isDropdownTrigger = !isCombobox && !comboboxAncestor && !hasComboboxInput &&
+      (haspopup === 'listbox' || haspopup === 'true' ||
+       element.getAttribute('role') === 'listbox' ||
+       (element.tagName === 'BUTTON' && element.closest('[data-automation-id]') &&
+        (element.querySelector('[data-automation-id*="select"]') || element.closest('[data-automation-id*="select"]') ||
+         element.closest('[data-automation-id*="dropdown"]'))));
+
+    if (isCombobox || comboboxAncestor || hasComboboxInput || isDropdownTrigger) {
+      let input = null;
+      let hasSearchInput = false;
+
+      if (isDropdownTrigger) {
+        element.click();
+        await new Promise(r => setTimeout(r, 500));
+        const popup = document.querySelector('[role="listbox"]');
+        const searchInput = popup
+          ? popup.querySelector('input') || popup.parentElement?.querySelector('input')
+          : document.querySelector('[role="combobox"]:not([aria-hidden="true"])') ||
+            document.querySelector('input[aria-activedescendant]');
+        if (searchInput && searchInput instanceof HTMLInputElement) {
+          input = searchInput;
+          hasSearchInput = true;
+        }
+      } else {
+        input = element;
+        if (comboboxAncestor) {
+          input = comboboxAncestor.querySelector('input') || comboboxAncestor;
+        } else if (hasComboboxInput) {
+          input = hasComboboxInput;
+        } else if (element.tagName !== 'INPUT') {
+          input = element.querySelector('input') || element;
+        }
+        hasSearchInput = input instanceof HTMLInputElement;
+        input.focus();
+        input.click();
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      // Type search text if there's an input field
+      if (hasSearchInput && input) {
+        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        if (nativeSetter) {
+          nativeSetter.call(input, '');
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          await new Promise(r => setTimeout(r, 100));
+          nativeSetter.call(input, String(value));
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+          input.value = String(value);
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+
+      // Poll for dropdown options to appear (max 2s)
+      // Scope query: use aria-owns/aria-controls if available, else fall back to global
+      const comboEl = input || element;
+      const ownedId = comboEl.getAttribute('aria-owns') || comboEl.getAttribute('aria-controls');
+      let options = [];
+      for (let attempt = 0; attempt < 10; attempt++) {
+        await new Promise(r => setTimeout(r, 200));
+        const container = ownedId ? document.getElementById(ownedId) : null;
+        const scope = container || document;
+        options = Array.from(scope.querySelectorAll('[role="option"]:not([aria-disabled="true"])'));
+        options = options.filter(o => o.offsetParent !== null || o.offsetHeight > 0);
+        if (options.length > 0) break;
+      }
+
+      if (options.length === 0) {
+        sendResponse({
+          success: false,
+          error: 'No dropdown options appeared after typing "' + value + '". Try clicking the container first, then use form_input on the input inside it.'
+        });
         return;
       }
-      element.checked = value;
-      element.focus();
-      element.dispatchEvent(new Event('change', { bubbles: true }));
-      element.dispatchEvent(new Event('input', { bubbles: true }));
+
+      // Multi-pass matching algorithm
+      const searchStr = String(value).trim().toLowerCase();
+      let matched = null;
+
+      // Pass 1: Exact match
+      for (const opt of options) {
+        const text = (opt.textContent || '').trim().toLowerCase();
+        if (text === searchStr) { matched = opt; break; }
+      }
+      // Pass 2: Option contains search string (prefer shorter = more specific)
+      if (!matched) {
+        let bestLen = Infinity;
+        for (const opt of options) {
+          const text = (opt.textContent || '').trim().toLowerCase();
+          if (text.includes(searchStr) && text.length < bestLen) {
+            matched = opt;
+            bestLen = text.length;
+          }
+        }
+      }
+      // Pass 3: Search string contains option text (min 3 chars to avoid nonsense matches)
+      if (!matched) {
+        let bestLen = 0;
+        for (const opt of options) {
+          const text = (opt.textContent || '').trim().toLowerCase();
+          if (text.length >= 3 && searchStr.includes(text) && text.length > bestLen) {
+            matched = opt;
+            bestLen = text.length;
+          }
+        }
+      }
+      // Pass 4: All words match
+      if (!matched) {
+        const words = searchStr.split(/[\s,]+/).filter(Boolean);
+        if (words.length > 1) {
+          for (const opt of options) {
+            const text = (opt.textContent || '').trim().toLowerCase();
+            if (words.every(w => text.includes(w))) { matched = opt; break; }
+          }
+        }
+      }
+      // Pass 5: Single result — just take it
+      if (!matched && options.length === 1) {
+        matched = options[0];
+      }
+
+      if (!matched) {
+        const available = options.map(o => (o.textContent || '').trim()).filter(Boolean).slice(0, 15);
+        sendResponse({
+          success: false,
+          error: 'No matching option for "' + value + '". Available: ' + available.join(', ')
+        });
+        return;
+      }
+
+      matched.scrollIntoView({ block: 'nearest' });
+      matched.click();
+      await new Promise(r => setTimeout(r, 300));
       sendResponse({
         success: true,
-        output: `Checkbox ${element.checked ? 'checked' : 'unchecked'} (previous: ${previousValue})`
+        output: 'Selected "' + (matched.textContent || '').trim() + '" from dropdown (searched: "' + value + '")'
       });
       return;
     }
 
-    // Handle RADIO inputs
-    if (element instanceof HTMLInputElement && element.type === 'radio') {
-      const groupName = element.name;
-      element.checked = true;
-      element.focus();
+    // Handle CHECKBOX inputs — use click() for React/framework compatibility (same as radio)
+    if (element instanceof HTMLInputElement && element.type === 'checkbox') {
+      if (typeof value !== 'boolean') {
+        sendResponse({ success: false, error: 'Checkbox requires a boolean value (true/false)' });
+        return;
+      }
+      const prev = element.checked;
+      // Only click if the current state differs from desired
+      if (element.checked !== value) {
+        element.click();
+      }
       element.dispatchEvent(new Event('change', { bubbles: true }));
       element.dispatchEvent(new Event('input', { bubbles: true }));
-      const groupText = groupName ? ' in group "' + groupName + '"' : '';
+      element.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
       sendResponse({
         success: true,
-        output: 'Radio button selected' + groupText
+        output: 'Checkbox ' + (element.checked ? 'checked' : 'unchecked') + ' (was: ' + prev + ')'
+      });
+      return;
+    }
+
+    // Handle RADIO inputs — use click() for React compatibility
+    if (element instanceof HTMLInputElement && element.type === 'radio') {
+      element.click();
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      const group = element.name ? ' in group "' + element.name + '"' : '';
+      sendResponse({
+        success: true,
+        output: 'Radio button selected' + group
       });
       return;
     }
@@ -188,75 +339,99 @@ function handleFormInput(payload, sendResponse) {
     // Handle DATE/TIME inputs
     if (element instanceof HTMLInputElement &&
         ['date', 'time', 'datetime-local', 'month', 'week'].includes(element.type)) {
-      const previousValue = element.value;
+      const prev = element.value;
       element.value = String(value);
       element.focus();
       element.dispatchEvent(new Event('change', { bubbles: true }));
       element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
       sendResponse({
         success: true,
-        output: `Set ${element.type} to "${element.value}" (previous: ${previousValue})`
+        output: 'Set ' + element.type + ' to "' + element.value + '" (was: "' + prev + '")'
       });
       return;
     }
 
     // Handle RANGE inputs
     if (element instanceof HTMLInputElement && element.type === 'range') {
-      const numValue = Number(value);
-      if (isNaN(numValue)) {
+      const num = Number(value);
+      if (isNaN(num)) {
         sendResponse({ success: false, error: 'Range input requires a numeric value' });
         return;
       }
-      element.value = String(numValue);
+      const prev = element.value;
+      element.value = String(num);
       element.focus();
       element.dispatchEvent(new Event('change', { bubbles: true }));
       element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
       sendResponse({
         success: true,
-        output: `Set range to ${element.value} (min: ${element.min}, max: ${element.max})`
+        output: 'Set range to ' + element.value + ' (was: ' + prev + ', min: ' + element.min + ', max: ' + element.max + ')'
       });
       return;
     }
 
     // Handle NUMBER inputs
     if (element instanceof HTMLInputElement && element.type === 'number') {
-      const previousValue = element.value;
-      const numValue = Number(value);
-      if (isNaN(numValue) && value !== '') {
+      const num = Number(value);
+      if (isNaN(num) && value !== '') {
         sendResponse({ success: false, error: 'Number input requires a numeric value' });
         return;
       }
+      const prev = element.value;
       element.value = String(value);
       element.focus();
       element.dispatchEvent(new Event('change', { bubbles: true }));
       element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
       sendResponse({
         success: true,
-        output: `Set number input to ${element.value} (previous: ${previousValue})`
+        output: 'Set number to ' + element.value + ' (was: "' + prev + '")'
       });
       return;
     }
 
-    // Handle TEXT inputs and TEXTAREAs
+    // Handle TEXT inputs and TEXTAREAs — use native setter to bypass React
     if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
-      const previousValue = element.value;
-      element.value = String(value);
-      element.focus();
-
-      // Move cursor to end
-      if (element instanceof HTMLTextAreaElement ||
-          (element instanceof HTMLInputElement &&
-           ['text', 'search', 'url', 'tel', 'password'].includes(element.type))) {
-        element.setSelectionRange(element.value.length, element.value.length);
+      const prev = element.value;
+      const proto = element instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype;
+      const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+      if (nativeSetter) {
+        nativeSetter.call(element, String(value));
+      } else {
+        element.value = String(value);
       }
-
-      element.dispatchEvent(new Event('change', { bubbles: true }));
+      element.focus();
       element.dispatchEvent(new Event('input', { bubbles: true }));
-
-      const inputType = element instanceof HTMLTextAreaElement ? 'textarea' : (element.type || 'text');
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+      element.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+      if ((element instanceof HTMLTextAreaElement ||
+           (element instanceof HTMLInputElement &&
+            ['text', 'search', 'url', 'tel', 'password', 'email'].includes(element.type))) &&
+          element.setSelectionRange) {
+        try { element.setSelectionRange(element.value.length, element.value.length); } catch(e) {}
+      }
+      const type = element instanceof HTMLTextAreaElement ? 'textarea' : (element.type || 'text');
       sendResponse({
         success: true,
-        output: `Set ${inputType} value to "${element.value}" (previous: "${previousValue}")`
+        output: 'Set ' + type + ' to "' + element.value + '" (was: "' + prev + '")'
+      });
+      return;
+    }
+
+    // Handle CONTENTEDITABLE
+    if (element.contentEditable === 'true' || element.isContentEditable) {
+      const prev = element.textContent;
+      element.textContent = String(value);
+      element.focus();
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+      sendResponse({
+        success: true,
+        output: 'Set contenteditable to "' + element.textContent + '" (was: "' + prev + '")'
       });
       return;
     }
@@ -607,4 +782,4 @@ function handleFindAndScroll(payload, sendResponse) {
   }
 }
 
-console.log('[LLM in Chrome] Content script loaded');
+console.log('[Hanzi in Chrome] Content script loaded');

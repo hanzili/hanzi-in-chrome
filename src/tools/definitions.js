@@ -13,39 +13,26 @@ export const CLAUDE_ONLY_TOOLS = ['turn_answer_start', 'update_plan'];
 export const TOOL_DEFINITIONS = [
   {
     name: 'read_page',
-    description: `Get an accessibility tree representation of elements on the page. By default returns only interactive elements (buttons, links, inputs). IMPORTANT: Only use ref IDs that appear in the current output - do not use refs from previous calls as they may no longer be valid. If you don't have a valid tab ID, use tabs_context first.`,
+    description: `Get a rich DOM tree of the page via Chrome DevTools Protocol. Returns interactive elements with numeric backendNodeId references (e.g., [42]<button>Submit</button>). IMPORTANT: Only use element IDs from the CURRENT output — IDs change between calls. Pierces shadow DOM and iframes automatically. tabId is optional — if omitted, the active tab is used automatically.`,
     input_schema: {
       type: 'object',
       properties: {
-        filter: {
-          type: 'string',
-          enum: ['interactive', 'all'],
-          description: 'Filter elements: "interactive" for buttons/links/inputs only (default), "all" for all elements including semantic/structural ones',
-        },
         tabId: {
           type: 'number',
-          description: 'Tab ID to read from. Must be a tab in the current group. Use tabs_context first if you don\'t have a valid tab ID.',
-        },
-        depth: {
-          type: 'number',
-          description: 'Maximum depth of the tree to traverse (default: 15). Use a smaller depth if output is too large.',
-        },
-        ref_id: {
-          type: 'string',
-          description: 'Reference ID of a parent element to read. Will return the specified element and all its children. Use this to focus on a specific part of the page when output is too large.',
+          description: 'Tab ID to target. Optional — if omitted, uses the active tab in your window.',
         },
         max_chars: {
           type: 'number',
           description: 'Maximum characters for output (default: 50000). Set to a higher value if your client can handle large outputs.',
         },
       },
-      required: ['tabId'],
+      required: [],
     },
   },
 
   {
     name: 'find',
-    description: `Find elements on the page using natural language. Can search for elements by their purpose (e.g., "search bar", "login button") or by text content (e.g., "organic mango product"). Returns up to 20 matching elements with references that can be used with other tools. If more than 20 matches exist, you'll be notified to use a more specific query. If you don't have a valid tab ID, use tabs_context first to get available tabs.`,
+    description: `Find elements on the page using natural language. Can search for elements by their purpose (e.g., "search bar", "login button") or by text content (e.g., "organic mango product"). Returns up to 20 matching elements with references that can be used with other tools. If more than 20 matches exist, you'll be notified to use a more specific query. tabId is optional — if omitted, the active tab in your window is used automatically.`,
     input_schema: {
       type: 'object',
       properties: {
@@ -55,39 +42,39 @@ export const TOOL_DEFINITIONS = [
         },
         tabId: {
           type: 'number',
-          description: 'Tab ID to search in. Must be a tab in the current group. Use tabs_context first if you don\'t have a valid tab ID.',
+          description: 'Tab ID to search in. Optional — if omitted, uses the active tab in your window.',
         },
       },
-      required: ['query', 'tabId'],
+      required: ['query'],
     },
   },
 
   {
     name: 'form_input',
-    description: `Set values in form elements using element reference ID from the read_page tool. If you don't have a valid tab ID, use tabs_context first to get available tabs.`,
+    description: `Set values in ANY form element — text inputs, textareas, native <select> dropdowns, custom React/Workday/MUI dropdown comboboxes, checkboxes, radio buttons, date pickers, and number inputs. For dropdowns (both native and custom), just pass the desired option text as the value — the tool automatically opens the dropdown, searches, and selects the match. This is the FASTEST way to fill any form field (1 tool call vs 5-10 with computer clicks). ALWAYS prefer form_input over computer clicks for form fields. tabId is optional — if omitted, the active tab in your window is used automatically.`,
     input_schema: {
       type: 'object',
       properties: {
         ref: {
           type: 'string',
-          description: 'Element reference ID from the read_page tool (e.g., "ref_1", "ref_2")',
+          description: 'Element reference from read_page (numeric backendNodeId, e.g., "42") or find tool (e.g., "ref_1")',
         },
         value: {
           type: ['string', 'boolean', 'number'],
-          description: 'The value to set. For checkboxes use boolean, for selects use option value or text, for other inputs use appropriate string/number',
+          description: 'The value to set. For checkboxes use boolean, for selects/dropdowns use option text, for other inputs use appropriate string/number',
         },
         tabId: {
           type: 'number',
-          description: 'Tab ID to set form value in. Must be a tab in the current group. Use tabs_context first if you don\'t have a valid tab ID.',
+          description: 'Tab ID to set form value in. Optional — if omitted, uses the active tab in your window.',
         },
       },
-      required: ['ref', 'value', 'tabId'],
+      required: ['ref', 'value'],
     },
   },
 
   {
     name: 'computer',
-    description: `Use a mouse and keyboard to interact with a web browser, and take screenshots. If you don't have a valid tab ID, use tabs_context first to get available tabs.
+    description: `Use a mouse and keyboard to interact with a web browser, and take screenshots. tabId is optional — if omitted, the active tab in your window is used automatically.
 * Whenever you intend to click on an element like an icon, you should consult a screenshot to determine the coordinates of the element before moving the cursor.
 * If you tried clicking on a program or link but it failed to load, even after waiting, try adjusting your click location so that the tip of the cursor visually falls on the element that you want to click.
 * Make sure to click any buttons, links, icons, etc with the cursor tip in the center of the element. Don't click boxes on their edges unless asked.`,
@@ -176,7 +163,7 @@ export const TOOL_DEFINITIONS = [
         },
         ref: {
           type: 'string',
-          description: 'Element reference ID from read_page or find tools (e.g., "ref_1", "ref_2"). Required for `scroll_to` action. Can be used as alternative to `coordinate` for click actions.',
+          description: 'Element reference from read_page (numeric backendNodeId, e.g., "42") or find tool (e.g., "ref_1"). Required for `scroll_to` action. Can be used as alternative to `coordinate` for click actions.',
         },
         modifiers: {
           type: 'string',
@@ -184,16 +171,16 @@ export const TOOL_DEFINITIONS = [
         },
         tabId: {
           type: 'number',
-          description: 'Tab ID to execute the action on. Must be a tab in the current group. Use tabs_context first if you don\'t have a valid tab ID.',
+          description: 'Tab ID to execute the action on. Optional — if omitted, uses the active tab in your window.',
         },
       },
-      required: ['action', 'tabId'],
+      required: ['action'],
     },
   },
 
   {
     name: 'navigate',
-    description: `Navigate to a URL, or go forward/back in browser history. If you don't have a valid tab ID, use tabs_context first to get available tabs.`,
+    description: `Navigate to a URL, or go forward/back in browser history. tabId is optional — if omitted, the active tab in your window is used automatically.`,
     input_schema: {
       type: 'object',
       properties: {
@@ -203,29 +190,29 @@ export const TOOL_DEFINITIONS = [
         },
         tabId: {
           type: 'number',
-          description: 'Tab ID to navigate. Must be a tab in the current group. Use tabs_context first if you don\'t have a valid tab ID.',
+          description: 'Tab ID to navigate. Optional — if omitted, uses the active tab in your window.',
         },
       },
-      required: ['url', 'tabId'],
+      required: ['url'],
     },
   },
 
   {
     name: 'get_page_text',
-    description: `Extract raw text content from the page, prioritizing article content. Ideal for reading articles, blog posts, or other text-heavy pages. Returns plain text without HTML formatting. If you don't have a valid tab ID, use tabs_context first to get available tabs. Output is limited to 50000 characters by default. If the output exceeds this limit, you will receive an error suggesting alternatives.`,
+    description: `Extract raw text content from the page, prioritizing article content. Ideal for reading articles, blog posts, or other text-heavy pages. Returns plain text without HTML formatting. tabId is optional — if omitted, the active tab in your window is used automatically. Output is limited to 50000 characters by default. If the output exceeds this limit, you will receive an error suggesting alternatives.`,
     input_schema: {
       type: 'object',
       properties: {
         tabId: {
           type: 'number',
-          description: 'Tab ID to extract text from. Must be a tab in the current group. Use tabs_context first if you don\'t have a valid tab ID.',
+          description: 'Tab ID to extract text from. Optional — if omitted, uses the active tab in your window.',
         },
         max_chars: {
           type: 'number',
           description: 'Maximum characters for output (default: 50000). Set to a higher value if your client can handle large outputs.',
         },
       },
-      required: ['tabId'],
+      required: [],
     },
   },
 
@@ -273,13 +260,13 @@ export const TOOL_DEFINITIONS = [
 
   {
     name: 'tabs_close',
-    description: 'Close a tab or popup window. Use this to close popup windows after completing actions in them, or to clean up tabs that are no longer needed.',
+    description: 'Close a tab or popup window. Use this to close popup windows after completing actions in them, or to clean up tabs that are no longer needed. You MUST specify the tabId — use tabs_context to find it.',
     input_schema: {
       type: 'object',
       properties: {
         tabId: {
           type: 'number',
-          description: 'Tab ID to close. Use tabs_context first to get available tabs.',
+          description: 'Tab ID to close. Required. Use tabs_context to see available tabs.',
         },
       },
       required: ['tabId'],
@@ -288,13 +275,13 @@ export const TOOL_DEFINITIONS = [
 
   {
     name: 'read_console_messages',
-    description: `Read browser console messages (console.log, console.error, console.warn, etc.) from a specific tab. Useful for debugging JavaScript errors, viewing application logs, or understanding what's happening in the browser console. Returns console messages from the current domain only. If you don't have a valid tab ID, use tabs_context first to get available tabs. IMPORTANT: Always provide a pattern to filter messages - without a pattern, you may get too many irrelevant messages.`,
+    description: `Read browser console messages (console.log, console.error, console.warn, etc.) from a specific tab. Useful for debugging JavaScript errors, viewing application logs, or understanding what's happening in the browser console. Returns console messages from the current domain only. tabId is optional — if omitted, the active tab in your window is used automatically. IMPORTANT: Always provide a pattern to filter messages - without a pattern, you may get too many irrelevant messages.`,
     input_schema: {
       type: 'object',
       properties: {
         tabId: {
           type: 'number',
-          description: 'Tab ID to read console messages from. Must be a tab in the current group. Use tabs_context first if you don\'t have a valid tab ID.',
+          description: 'Tab ID to read console messages from. Optional — if omitted, uses the active tab in your window.',
         },
         onlyErrors: {
           type: 'boolean',
@@ -313,19 +300,19 @@ export const TOOL_DEFINITIONS = [
           description: 'Maximum number of messages to return. Defaults to 100. Increase only if you need more results.',
         },
       },
-      required: ['tabId'],
+      required: [],
     },
   },
 
   {
     name: 'read_network_requests',
-    description: `Read HTTP network requests (XHR, Fetch, documents, images, etc.) from a specific tab. Useful for debugging API calls, monitoring network activity, or understanding what requests a page is making. Returns all network requests made by the current page, including cross-origin requests. Requests are automatically cleared when the page navigates to a different domain. If you don't have a valid tab ID, use tabs_context first to get available tabs.`,
+    description: `Read HTTP network requests (XHR, Fetch, documents, images, etc.) from a specific tab. Useful for debugging API calls, monitoring network activity, or understanding what requests a page is making. Returns all network requests made by the current page, including cross-origin requests. Requests are automatically cleared when the page navigates to a different domain. tabId is optional — if omitted, the active tab in your window is used automatically.`,
     input_schema: {
       type: 'object',
       properties: {
         tabId: {
           type: 'number',
-          description: 'Tab ID to read network requests from. Must be a tab in the current group. Use tabs_context first if you don\'t have a valid tab ID.',
+          description: 'Tab ID to read network requests from. Optional — if omitted, uses the active tab in your window.',
         },
         urlPattern: {
           type: 'string',
@@ -340,7 +327,7 @@ export const TOOL_DEFINITIONS = [
           description: 'Maximum number of requests to return. Defaults to 100. Increase only if you need more results.',
         },
       },
-      required: ['tabId'],
+      required: [],
     },
   },
 
@@ -352,10 +339,10 @@ export const TOOL_DEFINITIONS = [
       properties: {
         tabId: {
           type: 'number',
-          description: 'Tab ID where the CAPTCHA is displayed.',
+          description: 'Tab ID where the CAPTCHA is displayed. Optional — if omitted, uses the active tab in your window.',
         },
       },
-      required: ['tabId'],
+      required: [],
     },
     // Domain-specific tool: only show on matching domains
     _domains: ['deckathon-concordia.com'],
@@ -363,7 +350,7 @@ export const TOOL_DEFINITIONS = [
 
   {
     name: 'resize_window',
-    description: `Resize the current browser window to specified dimensions. Useful for testing responsive designs or setting up specific screen sizes. If you don't have a valid tab ID, use tabs_context first to get available tabs.`,
+    description: `Resize the current browser window to specified dimensions. Useful for testing responsive designs or setting up specific screen sizes. tabId is optional — if omitted, the active tab in your window is used automatically.`,
     input_schema: {
       type: 'object',
       properties: {
@@ -377,10 +364,10 @@ export const TOOL_DEFINITIONS = [
         },
         tabId: {
           type: 'number',
-          description: 'Tab ID to get the window for. Must be a tab in the current group. Use tabs_context first if you don\'t have a valid tab ID.',
+          description: 'Tab ID to get the window for. Optional — if omitted, uses the active tab in your window.',
         },
       },
-      required: ['width', 'height', 'tabId'],
+      required: ['width', 'height'],
     },
   },
 
@@ -397,7 +384,7 @@ export const TOOL_DEFINITIONS = [
 
   {
     name: 'javascript_tool',
-    description: `Execute JavaScript code in the context of the current page. The code runs in the page's context and can interact with the DOM, window object, and page variables. Returns the result of the last expression or any thrown errors. If you don't have a valid tab ID, use tabs_context first to get available tabs.`,
+    description: `Execute JavaScript code in the context of the current page. The code runs in the page's context and can interact with the DOM, window object, and page variables. Returns the result of the last expression or any thrown errors. tabId is optional — if omitted, the active tab in your window is used automatically.`,
     input_schema: {
       type: 'object',
       properties: {
@@ -411,10 +398,10 @@ export const TOOL_DEFINITIONS = [
         },
         tabId: {
           type: 'number',
-          description: 'Tab ID to execute the code in. Must be a tab in the current group. Use tabs_context first if you don\'t have a valid tab ID.',
+          description: 'Tab ID to execute the code in. Optional — if omitted, uses the active tab in your window.',
         },
       },
-      required: ['action', 'text', 'tabId'],
+      required: ['action', 'text'],
     },
   },
 
@@ -441,7 +428,7 @@ export const TOOL_DEFINITIONS = [
       properties: {
         ref: {
           type: 'string',
-          description: 'Reference ID of the file input element (e.g., "ref_123"). Get this from read_page.',
+          description: 'Element reference from read_page (numeric backendNodeId, e.g., "42") or find tool (e.g., "ref_1")',
         },
         selector: {
           type: 'string',
@@ -453,10 +440,10 @@ export const TOOL_DEFINITIONS = [
         },
         tabId: {
           type: 'number',
-          description: 'Tab ID where the file input is located.',
+          description: 'Tab ID where the file input is located. Optional — if omitted, uses the active tab in your window.',
         },
       },
-      required: ['tabId', 'filePath'],
+      required: ['filePath'],
     },
     cache_control: {
       type: 'ephemeral',

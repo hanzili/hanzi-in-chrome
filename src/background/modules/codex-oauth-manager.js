@@ -5,7 +5,7 @@
  * to use ChatGPT Pro/Plus subscription quota instead of API rate limits.
  */
 
-const NATIVE_HOST_NAME = 'com.llm_in_chrome.oauth_host';
+const NATIVE_HOST_NAME = 'com.hanzi_in_chrome.oauth_host';
 
 /**
  * Import OAuth credentials from Codex CLI installation

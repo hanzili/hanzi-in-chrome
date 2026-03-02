@@ -1,38 +1,48 @@
-## Browser Automation CLI
+## Browser Automation MCP Server + Chrome Extension
 
-This project includes a CLI tool for browser automation. It runs a 3-agent pipeline (planning agent → explorer agent → browser agent) that controls a Chrome extension via WebSocket relay.
+This project is an MCP server that controls a Chrome extension for browser automation. Send a task, the browser agent executes it autonomously. If it needs user input, it pauses and asks.
 
-### Usage
+### MCP Tools
 
-```bash
-# Start a task (runs in background, monitors until complete)
-node mcp-server/dist/cli.js start "task description" --url <url> --context "extra context"
+| Tool | What it does |
+|------|-------------|
+| `browser_start` | Start a task (blocks until complete or waiting) |
+| `browser_message` | Send follow-up or answer the agent's question |
+| `browser_status` | Check session status |
+| `browser_stop` | Stop a session (optionally close browser window) |
+| `browser_screenshot` | Capture current page as PNG |
 
-# Check status of all sessions or a specific one
-node mcp-server/dist/cli.js status
-node mcp-server/dist/cli.js status <session_id>
+### Architecture
 
-# Watch logs in real-time
-node mcp-server/dist/cli.js logs <session_id> --follow
-
-# Send a follow-up message to a running/completed session
-node mcp-server/dist/cli.js message <session_id> "do something else"
-
-# Stop a session (--remove to also delete session files)
-node mcp-server/dist/cli.js stop <session_id> --remove
+```
+Claude Code / Cursor (MCP client)
+  → MCP Server (mcp-server/src/index.ts) via stdio
+  → WebSocket relay (ws://localhost:7862)
+  → Chrome Extension (service-worker.js)
+  → Browser agent makes LLM calls via native host
+  → Native host reads local credentials + proxies API calls
 ```
 
-### How it works
+All LLM calls happen in the extension via `api.js` → native host. The MCP server does NOT call LLMs directly — it only routes tasks to the extension.
 
-1. **Planning agent** (Sonnet) — checks site knowledge, decides if exploration is needed
-2. **Explorer agent** — learns unknown site workflows before executing (auto-triggered)
-3. **Browser agent** — controls the browser via the Chrome extension to complete the task
+### CLI Usage
 
-The CLI connects to the WebSocket relay at `ws://localhost:7862`. The Chrome extension must be loaded and running. Session state is stored in `~/.llm-in-chrome/sessions/`.
+```bash
+node mcp-server/dist/cli.js start "task description" --url <url> --context "extra context"
+node mcp-server/dist/cli.js status [session_id]
+node mcp-server/dist/cli.js message <session_id> "follow-up"
+node mcp-server/dist/cli.js stop <session_id> [--remove]
+```
+
+### Build
+
+```bash
+cd mcp-server && npm run build
+```
 
 ### Tips
 
-- Run `start` commands in the background since they block until completion
-- Use `--context` to pass tone guidelines, form data, or other info the agent needs
-- The `--url` flag sets the starting page — without it, the agent navigates based on the task description
-- Build the CLI with `cd mcp-server && npm run build` if source changes are made
+- The `--context` flag passes info the agent needs (form data, preferences, tone)
+- The `--url` flag sets the starting page
+- The Chrome extension must be loaded and running
+- Session state is stored in `~/.hanzi-in-chrome/sessions/`

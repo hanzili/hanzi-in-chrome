@@ -9,7 +9,7 @@
 import { BaseProvider } from './base-provider.js';
 import { filterClaudeOnlyTools } from '../../../tools/definitions.js';
 
-const NATIVE_HOST_NAME = 'com.llm_in_chrome.oauth_host';
+const NATIVE_HOST_NAME = 'com.hanzi_in_chrome.oauth_host';
 const CODEX_API_URL = 'https://chatgpt.com/backend-api/codex/responses';
 
 export class CodexProvider extends BaseProvider {

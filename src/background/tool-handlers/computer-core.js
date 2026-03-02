@@ -9,8 +9,12 @@
 
 import { cdpHelper } from '../modules/cdp-helper.js';
 import { screenshotContextManager, scaleCoordinates } from '../modules/screenshot-context.js';
-import { ensureDebugger } from '../managers/debugger-manager.js';
+import { ensureDebugger, sendDebuggerCommand } from '../managers/debugger-manager.js';
 import { isAntiBotEnabled } from '../modules/domain-skills.js';
+import { createElementResolver } from '../dom-service/element-resolver.js';
+
+// CDP-based element resolver (stable backendNodeId refs, no WeakRef GC issues)
+const elementResolver = createElementResolver(sendDebuggerCommand);
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -56,73 +60,66 @@ async function securityCheck(tabId, originalUrl, actionName) {
 }
 
 /**
- * Get element coordinates from ref
- * Resolves element reference to screen coordinates for clicking
+ * Resolves element reference to screen coordinates for clicking.
+ *
+ * Supports two ref formats:
+ * - Numeric backendNodeId (from CDP read_page): "857" or 857 → resolved via CDP
+ * - Legacy ref_N (from content script find): "ref_42" → resolved via WeakRef
  *
  * @param {number} tabId - Tab ID
- * @param {string} ref - Element reference (e.g., "ref_1")
- * @returns {Promise<{success: boolean, coordinates?: [number, number], error?: string}>}
+ * @param {string|number} ref - Element reference
+ * @returns {Promise<{success: boolean, coordinates?: [number, number], directClicked?: boolean, error?: string}>}
  */
 async function getElementFromRef(tabId, ref) {
+  // Try CDP path first (numeric backendNodeId)
+  const backendNodeId = elementResolver.parseRef(ref);
+  if (backendNodeId) {
+    try {
+      await ensureDebugger(tabId);
+      const coords = await elementResolver.getCoordinates(tabId, backendNodeId);
+      if (coords.directClicked) {
+        return { success: true, coordinates: [coords.x, coords.y], directClicked: true };
+      }
+      return { success: true, coordinates: [coords.x, coords.y] };
+    } catch (err) {
+      return {
+        success: false,
+        error: `Element ${backendNodeId}: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      };
+    }
+  }
+
+  // Legacy path: ref_N format via content script WeakRef
   try {
     const result = await chrome.scripting.executeScript({
       target: { tabId },
-      world: 'ISOLATED',  // Run in content script's world to access __elementRefMap
+      world: 'ISOLATED',
       func: (refId) => {
         try {
           let element = null;
           if (window.__elementRefMap && window.__elementRefMap[refId]) {
             element = window.__elementRefMap[refId].deref() || null;
-
             if (!element || !document.contains(element)) {
               delete window.__elementRefMap[refId];
               element = null;
             }
           }
           if (!element) {
-            return {
-              success: false,
-              error: `No element found with reference: "${refId}". The element may have been removed from the page.`,
-            };
+            return { success: false, error: `No element found with reference: "${refId}". The element may have been removed from the page.` };
           }
-
-          element.scrollIntoView({
-            behavior: "instant",
-            block: "center",
-            inline: "center",
-          });
-
-          if (element instanceof HTMLElement) {
-            element.offsetHeight; // Force reflow
-          }
-
+          element.scrollIntoView({ behavior: "instant", block: "center", inline: "center" });
+          if (element instanceof HTMLElement) element.offsetHeight;
           const rect = element.getBoundingClientRect();
-          const centerX = rect.left + rect.width / 2;
-          return { success: true, coordinates: [centerX, rect.top + rect.height / 2] };
+          return { success: true, coordinates: [rect.left + rect.width / 2, rect.top + rect.height / 2] };
         } catch (err) {
-          return {
-            success: false,
-            error: `Error getting element coordinates: ${
-              err instanceof Error ? err.message : "Unknown error"
-            }`,
-          };
+          return { success: false, error: `Error getting element coordinates: ${err instanceof Error ? err.message : "Unknown error"}` };
         }
       },
       args: [ref],
     });
-    return result && result.length !== 0
-      ? result[0].result
-      : {
-          success: false,
-          error: "Failed to execute script to get element coordinates",
-        };
+    return result?.[0]?.result || { success: false, error: "Failed to execute script to get element coordinates" };
   } catch (err) {
-    return {
-      success: false,
-      error: `Failed to get element coordinates from ref: ${
-        err instanceof Error ? err.message : "Unknown error"
-      }`,
-    };
+    return { success: false, error: `Failed to get element coordinates from ref: ${err instanceof Error ? err.message : "Unknown error"}` };
   }
 }
 
@@ -210,6 +207,10 @@ async function handleClick(tabId, input, clickCount = 1, originalUrl, antiBot = 
     const refResult = await getElementFromRef(tabId, input.ref);
     if (!refResult.success) {
       return { error: refResult.error };
+    }
+    if (refResult.directClicked) {
+      // Element had no box model — was clicked directly via JS by the resolver
+      return { output: `Clicked element ${input.ref} (direct JS click — element has no visual bounds)` };
     }
     [x, y] = refResult.coordinates;
   } else {

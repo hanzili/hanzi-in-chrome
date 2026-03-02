@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * LLM in Chrome MCP Server
+ * Hanzi in Chrome MCP Server
  *
  * Simple browser automation: send a task, get back the result.
  * The browser agent in the Chrome extension handles everything autonomously.

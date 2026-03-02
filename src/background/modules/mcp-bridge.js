@@ -11,7 +11,7 @@
  */
 
 
-const NATIVE_HOST_NAME = 'com.llm_in_chrome.oauth_host';
+const NATIVE_HOST_NAME = 'com.hanzi_in_chrome.oauth_host';
 const POLL_INTERVAL_MS = 500;
 const WS_RELAY_URL = 'ws://localhost:7862';
 const WS_RECONNECT_DELAY_MS = 5000;
@@ -274,7 +274,7 @@ async function handleMcpCommand(command) {
         debugLog('Adding session to mcpSessions', command.sessionId);
         mcpSessions.set(command.sessionId, { status: 'starting', context: command.context });
         debugLog('mcpSessions now has', Array.from(mcpSessions.keys()));
-        onStartTask(command.sessionId, command.task, command.url, command.context);
+        onStartTask(command.sessionId, command.task, command.url, command.context, command.licenseKey);
       }
       break;
 

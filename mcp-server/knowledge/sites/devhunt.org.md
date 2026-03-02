@@ -6,7 +6,7 @@
 
 
 ### submit-llm-chrome
-*Task: Submit LLM in Chrome to DevHunt*
+*Task: Submit Hanzi in Chrome to DevHunt*
 
 **Required Information:**
 - GitHub or Google account credentials: Needed to authenticate via OAuth and access the submission form.
@@ -37,7 +37,7 @@
 
 
 ### submit-llm-chrome
-*Task: Submit LLM in Chrome to DevHunt. Explore the full submission flow but DO NOT click the final submit button — stop just before submitting.*
+*Task: Submit Hanzi in Chrome to DevHunt. Explore the full submission flow but DO NOT click the final submit button — stop just before submitting.*
 
 **Required Information:**
 - Tool logo: Square image file (~220×220 px minimum) uploaded via "Select an image" file picker

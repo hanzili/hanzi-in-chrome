@@ -168,8 +168,8 @@ Here's an example of how your output should be structured:
 
 Please provide your summary based on the conversation so far, following this structure and ensuring precision and thoroughness in your response.`;
 
-// Estimate 1600 tokens per image
-const IMAGE_TOKEN_ESTIMATE = 1600;
+// Estimate ~800 tokens per image (maxTargetTokens is 768, slight buffer for encoding)
+const IMAGE_TOKEN_ESTIMATE = 800;
 
 // Overhead tokens that must be counted but aren't in messages:
 // - System prompt: ~1000 tokens
@@ -243,20 +243,27 @@ export function calculateContextTokens(messages, includeOverhead = true) {
 }
 
 /**
- * Preserve recent context (last 3 user messages with screenshots)
- * Implements compaction logic
+ * Preserve recent context — last N complete turns (user+assistant pairs)
+ * plus any user messages with screenshots.
+ * This ensures the agent retains recent tool results, page state,
+ * and visual context after compaction.
+ *
  * @param {Array<Object>} messages - Full conversation history
- * @returns {Array<Object>} Last 3 user messages with screenshots
+ * @returns {Array<Object>} Recent messages to preserve
  */
 function preserveRecentContext(messages) {
+  // Keep the last 6 messages (typically 3 complete user/assistant turns)
+  // This preserves the most recent tool calls, results, and page state
+  const RECENT_MSG_COUNT = 6;
+  const recentMessages = messages.slice(-RECENT_MSG_COUNT);
+
+  // Also grab any earlier user messages with screenshots (up to 2 more)
   const preserved = [];
-  let userMessagesWithImages = 0;
+  let extraScreenshots = 0;
+  const recentStartIdx = messages.length - RECENT_MSG_COUNT;
 
-  // Walk backwards through messages
-  for (let i = messages.length - 1; i >= 0 && userMessagesWithImages < 3; i--) {
+  for (let i = recentStartIdx - 1; i >= 0 && extraScreenshots < 2; i--) {
     const msg = messages[i];
-
-    // Only preserve USER messages that have screenshots
     if (
       msg &&
       msg.role === 'user' &&
@@ -268,12 +275,12 @@ function preserveRecentContext(messages) {
           (block.source.type === 'base64' || block.source.data)
       )
     ) {
-      preserved.unshift(msg); // Add to front to maintain order
-      userMessagesWithImages++;
+      preserved.unshift(msg);
+      extraScreenshots++;
     }
   }
 
-  return preserved;
+  return [...preserved, ...recentMessages];
 }
 
 /**
@@ -373,17 +380,34 @@ I'll continue from where we left off without asking additional questions.`;
 
   // Build compacted conversation
   // Note: Don't add metadata fields like isCompactionMessage - they'll be rejected by the API
+  // Ensure the first message is from 'user' (API requirement) and messages alternate correctly
   const compactedMessages = [
-    {
-      role: 'assistant',
-      content: 'This conversation has been summarized so we can keep going.',
-    },
     {
       role: 'user',
       content: formattedSummary,
     },
+    {
+      role: 'assistant',
+      content: 'Understood. I have the full context from the summary above. Continuing from where we left off.',
+    },
     ...recentContext,
   ];
+
+  // Ensure valid message alternation (user/assistant must alternate)
+  // Fix any consecutive same-role messages from recentContext
+  for (let i = 1; i < compactedMessages.length; i++) {
+    if (compactedMessages[i].role === compactedMessages[i - 1].role) {
+      if (compactedMessages[i].role === 'user') {
+        // Insert a minimal assistant message to fix alternation
+        compactedMessages.splice(i, 0, { role: 'assistant', content: 'Continuing.' });
+        i++; // Skip the inserted message
+      } else {
+        // Insert a minimal user message to fix alternation
+        compactedMessages.splice(i, 0, { role: 'user', content: 'Continue.' });
+        i++;
+      }
+    }
+  }
 
   const newTokens = calculateContextTokens(compactedMessages);
 

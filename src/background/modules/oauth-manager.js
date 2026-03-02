@@ -16,7 +16,7 @@ const OAUTH_CONFIG = {
   redirectUri: 'http://127.0.0.1:8080/callback'
 };
 
-const NATIVE_HOST_NAME = 'com.llm_in_chrome.oauth_host';
+const NATIVE_HOST_NAME = 'com.hanzi_in_chrome.oauth_host';
 
 /**
  * Generate cryptographically random string for PKCE

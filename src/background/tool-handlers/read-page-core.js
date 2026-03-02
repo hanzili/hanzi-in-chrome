@@ -1,77 +1,67 @@
 /**
  * Read page tool handler
- * Generates accessibility tree representation of the page
+ * Extracts DOM state via Chrome DevTools Protocol (CDP).
+ *
+ * Uses browser-use's 3-way merge approach:
+ *   DOM.getDocument + Accessibility.getFullAXTree + DOMSnapshot.captureSnapshot
+ * to produce a rich, serialized DOM tree with [backendNodeId] references.
  */
 
+import { extractDomState } from '../dom-service/index.js';
+import { ensureDebugger, sendDebuggerCommand } from '../managers/debugger-manager.js';
+
 /**
- * Handle read_page tool - get accessibility tree representation
+ * Handle read_page tool - get serialized DOM representation via CDP
  *
  * @param {Object} input - Tool input
- * @param {string} [input.filter] - 'interactive' or 'all' (default: 'all')
  * @param {number} input.tabId - Tab ID to read from
- * @param {number} [input.depth] - Max tree depth (default: 15)
- * @param {string} [input.ref_id] - Focus on specific element by ref
  * @param {number} [input.max_chars] - Max output chars (default: 50000)
  * @returns {Promise<{output?: string, error?: string}>}
  */
 export async function handleReadPage(input) {
-  const { filter, tabId, depth, ref_id, max_chars } = input || {};
+  const { tabId, max_chars } = input || {};
 
   if (!tabId) {
-    throw new Error("No active tab found");
+    throw new Error('No active tab found');
   }
 
   const tab = await chrome.tabs.get(tabId);
   if (!tab.id) {
-    throw new Error("Active tab has no ID");
+    throw new Error('Active tab has no ID');
   }
 
   try {
-    const result = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      world: 'ISOLATED',  // Run in content script's world to access __generateAccessibilityTree
-      func: (filterArg, depthArg, maxCharsArg, refIdArg) => {
-        if (typeof window.__generateAccessibilityTree !== "function") {
-          throw new Error(
-            "Accessibility tree function not found. Please refresh the page."
-          );
-        }
-        return window.__generateAccessibilityTree(filterArg, depthArg, maxCharsArg, refIdArg);
-      },
-      args: [
-        filter || null,
-        depth ?? null,
-        max_chars ?? 50000,
-        ref_id ?? null,
-      ],
+    // Ensure debugger is attached
+    const attached = await ensureDebugger(tabId);
+    if (!attached) {
+      return { error: 'Failed to attach debugger to tab. The tab may have been closed or navigated.' };
+    }
+
+    // Extract DOM state via CDP
+    const result = await extractDomState(tabId, sendDebuggerCommand, {
+      maxChars: max_chars ?? 50000,
     });
 
-    if (!result || result.length === 0) {
-      throw new Error("No results returned from page script");
-    }
-    if ("error" in result[0] && result[0].error) {
-      throw new Error(
-        `Script execution failed: ${result[0].error.message || "Unknown error"}`
-      );
-    }
-    if (!result[0].result) {
-      throw new Error("Page script returned empty result");
+    if (!result.text) {
+      return { error: 'Page returned empty DOM tree. The page may still be loading.' };
     }
 
-    const pageResult = result[0].result;
-    if (pageResult.error) {
-      return { error: pageResult.error };
+    const stats = result.stats;
+    const meta = [
+      `URL: ${tab.url}`,
+      `Viewport: ${stats.viewportWidth}x${stats.viewportHeight}`,
+      `Interactive elements: ${stats.interactiveElements}`,
+    ];
+    if (stats.truncated) {
+      meta.push('(output truncated — use max_chars to increase limit)');
     }
 
-    const viewportInfo = `Viewport: ${pageResult.viewport.width}x${pageResult.viewport.height}`;
     return {
-      output: `${pageResult.pageContent}\n\n${viewportInfo}`,
+      output: `${result.text}\n\n${meta.join(' | ')}`,
     };
   } catch (err) {
     return {
-      error: `Failed to read page: ${
-        err instanceof Error ? err.message : "Unknown error"
-      }`,
+      error: `Failed to read page: ${err instanceof Error ? err.message : 'Unknown error'}`,
     };
   }
 }

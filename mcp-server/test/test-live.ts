@@ -69,7 +69,7 @@ function findNativeHost(): string | null {
   const manifestPath = path.join(
     os.homedir(),
     'Library', 'Application Support', 'Google', 'Chrome',
-    'NativeMessagingHosts', 'com.llm_in_chrome.oauth_host.json'
+    'NativeMessagingHosts', 'com.hanzi_in_chrome.oauth_host.json'
   );
 
   if (fs.existsSync(manifestPath)) {
@@ -207,7 +207,7 @@ async function testLLMThroughExtension(): Promise<boolean> {
     log('INFO', 'Waiting for response (checking outbox every second for 30 seconds)...');
 
     // Step 2: Poll for response
-    const MCP_OUTBOX = path.join(os.homedir(), '.llm-in-chrome', 'mcp-outbox.json');
+    const MCP_OUTBOX = path.join(os.homedir(), '.hanzi-in-chrome', 'mcp-outbox.json');
 
     for (let i = 0; i < 30; i++) {
       await new Promise(resolve => setTimeout(resolve, 1000));

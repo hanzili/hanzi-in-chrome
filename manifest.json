@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "LLM in Chrome",
+  "name": "Hanzi in Chrome",
   "version": "0.3.0",
   "description": "LLM-agnostic browser automation assistant",
 
@@ -30,7 +30,7 @@
   ],
 
   "action": {
-    "default_title": "LLM in Chrome",
+    "default_title": "Hanzi in Chrome",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",

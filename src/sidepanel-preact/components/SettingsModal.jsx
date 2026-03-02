@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useState, useEffect } from 'preact/hooks';
 import { PROVIDERS } from '../config/providers';
 
 export function SettingsModal({ config, onClose }) {
@@ -69,6 +69,12 @@ export function SettingsModal({ config, onClose }) {
           >
             Domain Skills
           </button>
+          <button
+            class={`tab ${activeTab === 'license' ? 'active' : ''}`}
+            onClick={() => setActiveTab('license')}
+          >
+            License
+          </button>
         </div>
 
         <div class="modal-body">
@@ -103,6 +109,10 @@ export function SettingsModal({ config, onClose }) {
               onRemove={config.removeUserSkill}
             />
           )}
+
+          {activeTab === 'license' && (
+            <LicenseTab />
+          )}
         </div>
 
         <div class="modal-footer">
@@ -120,7 +130,7 @@ function ProvidersTab({ localKeys, setLocalKeys, selectedProvider, setSelectedPr
       {/* Claude Code Plan */}
       <div class="provider-section">
         <h4>Claude Code Plan</h4>
-        <p class="provider-desc">Use your Claude Pro/Max subscription. <a href="https://github.com/hanzili/llm-in-chrome#claude-code-plan-setup" target="_blank">Setup guide</a></p>
+        <p class="provider-desc">Use your Claude Pro/Max subscription. <a href="https://github.com/hanzili/hanzi-in-chrome#claude-code-plan-setup" target="_blank">Setup guide</a></p>
         {config.oauthStatus.isAuthenticated ? (
           <div class="connected-status">
             <span class="status-badge connected">Connected</span>
@@ -134,7 +144,7 @@ function ProvidersTab({ localKeys, setLocalKeys, selectedProvider, setSelectedPr
       {/* Codex Plan */}
       <div class="provider-section">
         <h4>Codex Plan</h4>
-        <p class="provider-desc">Use your ChatGPT Pro/Plus subscription. <a href="https://github.com/hanzili/llm-in-chrome#codex-plan-setup" target="_blank">Setup guide</a></p>
+        <p class="provider-desc">Use your ChatGPT Pro/Plus subscription. <a href="https://github.com/hanzili/hanzi-in-chrome#codex-plan-setup" target="_blank">Setup guide</a></p>
         {config.codexStatus.isAuthenticated ? (
           <div class="connected-status">
             <span class="status-badge connected">Connected</span>
@@ -181,9 +191,9 @@ function ProvidersTab({ localKeys, setLocalKeys, selectedProvider, setSelectedPr
         <h4>MCP Server</h4>
         <p class="provider-desc">
           Control this browser from Claude Code or any MCP client.{' '}
-          <a href="https://github.com/hanzili/llm-in-chrome#mcp-server-integration" target="_blank">Setup guide</a>
+          <a href="https://github.com/hanzili/hanzi-in-chrome#mcp-server-integration" target="_blank">Setup guide</a>
         </p>
-        <code class="install-cmd">npm install -g llm-in-chrome-mcp</code>
+        <code class="install-cmd">npm install -g hanzi-in-chrome-mcp</code>
       </div>
     </div>
   );
@@ -234,6 +244,103 @@ function CustomModelsTab({ customModels, newModel, setNewModel, onAdd, onRemove 
               <button class="btn btn-danger btn-sm" onClick={() => onRemove(i)}>Remove</button>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LicenseTab() {
+  const [status, setStatus] = useState(null);
+  const [keyInput, setKeyInput] = useState('');
+  const [activating, setActivating] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    chrome.runtime.sendMessage({ type: 'GET_LICENSE_STATUS' }, (res) => {
+      if (res) setStatus(res);
+    });
+  }, []);
+
+  const handleActivate = () => {
+    if (!keyInput.trim()) return;
+    setActivating(true);
+    setMessage('');
+    chrome.runtime.sendMessage({ type: 'ACTIVATE_LICENSE', payload: { key: keyInput.trim() } }, (res) => {
+      setActivating(false);
+      setMessage(res.message);
+      if (res.success) {
+        setKeyInput('');
+        chrome.runtime.sendMessage({ type: 'GET_LICENSE_STATUS' }, (s) => { if (s) setStatus(s); });
+      }
+    });
+  };
+
+  const handleDeactivate = () => {
+    chrome.runtime.sendMessage({ type: 'DEACTIVATE_LICENSE' }, () => {
+      chrome.runtime.sendMessage({ type: 'GET_LICENSE_STATUS' }, (s) => { if (s) setStatus(s); });
+      setMessage('License deactivated.');
+    });
+  };
+
+  if (!status) return <div class="tab-content"><p>Loading...</p></div>;
+
+  return (
+    <div class="tab-content">
+      <div class="provider-section">
+        <h4>Current Plan</h4>
+        <p class="provider-desc" style={{ fontSize: '1.1em', fontWeight: 500 }}>
+          {status.isPro
+            ? <><span class="status-badge connected">Pro</span> Unlimited tasks</>
+            : <><span class="status-badge">{status.tasksUsed}/{status.taskLimit} tasks used</span> Free tier</>
+          }
+        </p>
+      </div>
+
+      {!status.isPro && (
+        <div class="provider-section">
+          <h4>Upgrade to Pro</h4>
+          <p class="provider-desc">Unlimited tasks for a one-time payment of $29.</p>
+          <a
+            href="https://hanziinchrome.lemonsqueezy.com/checkout/buy/5f9be29a-b862-43bf-a440-b4a3cdc9b28e"
+            target="_blank"
+            class="btn btn-primary"
+            style={{ display: 'inline-block', textDecoration: 'none', marginBottom: '12px' }}
+          >
+            Buy Pro — $29
+          </a>
+        </div>
+      )}
+
+      <div class="provider-section">
+        <h4>{status.isPro ? 'License Key' : 'Activate License'}</h4>
+        {status.isPro ? (
+          <div class="connected-status">
+            <code style={{ fontSize: '0.85em' }}>{status.key?.slice(0, 8)}...{status.key?.slice(-4)}</code>
+            <button class="btn btn-secondary btn-sm" onClick={handleDeactivate}>Deactivate</button>
+          </div>
+        ) : (
+          <div class="api-key-input">
+            <input
+              type="text"
+              value={keyInput}
+              onInput={(e) => setKeyInput(e.target.value)}
+              placeholder="Paste license key..."
+              onKeyDown={(e) => e.key === 'Enter' && handleActivate()}
+            />
+            <button class="btn btn-primary" onClick={handleActivate} disabled={activating}>
+              {activating ? 'Activating...' : 'Activate'}
+            </button>
+          </div>
+        )}
+        {message && <p class="provider-desc" style={{ marginTop: '8px' }}>{message}</p>}
+      </div>
+
+      {!status.isPro && (
+        <div class="provider-section">
+          <p class="provider-desc" style={{ opacity: 0.7, fontSize: '0.85em' }}>
+            Tip: MCP/CLI users can also set the <code>HANZI_IN_CHROME_LICENSE_KEY</code> environment variable.
+          </p>
         </div>
       )}
     </div>

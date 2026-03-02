@@ -31,7 +31,7 @@ Extension ← Native Messaging ← Node.js Script ← Auth Code
    ```bash
    # Go to chrome://extensions
    # Enable "Developer mode"
-   # Find "LLM in Chrome" and copy the ID
+   # Find "Hanzi in Chrome" and copy the ID
    ```
 
 2. **Run the installation script**:
@@ -71,7 +71,7 @@ Extension ← Native Messaging ← Node.js Script ← Auth Code
 
 ```javascript
 // Extension connects to native messaging host
-const port = chrome.runtime.connectNative('com.llm_in_chrome.oauth_host');
+const port = chrome.runtime.connectNative('com.hanzi_in_chrome.oauth_host');
 
 // Sends "start_server" message
 port.postMessage({ type: 'start_server' });
@@ -155,10 +155,10 @@ cd native-host
 **Check**:
 ```bash
 # macOS
-cat ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/com.llm_in_chrome.oauth_host.json
+cat ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/com.hanzi_in_chrome.oauth_host.json
 
 # Linux
-cat ~/.config/google-chrome/NativeMessagingHosts/com.llm_in_chrome.oauth_host.json
+cat ~/.config/google-chrome/NativeMessagingHosts/com.hanzi_in_chrome.oauth_host.json
 ```
 
 **Fix**:
@@ -192,7 +192,7 @@ lsof -ti:8080 | xargs kill -9
 ```bash
 # Check native host logs
 # They go to Chrome's extension console
-# chrome://extensions → LLM in Chrome → service worker → Console
+# chrome://extensions → Hanzi in Chrome → service worker → Console
 ```
 
 ## Testing
@@ -203,7 +203,7 @@ Open the extension's service worker console (`chrome://extensions` → service w
 
 ```javascript
 // Test connection
-const port = chrome.runtime.connectNative('com.llm_in_chrome.oauth_host');
+const port = chrome.runtime.connectNative('com.hanzi_in_chrome.oauth_host');
 
 port.onMessage.addListener((msg) => {
   console.log('Received:', msg);
@@ -248,7 +248,7 @@ This removes the manifest file from Chrome's native messaging directory.
 ## Files
 
 - `oauth-server.cjs` - Node.js HTTP server (native messaging host)
-- `com.llm_in_chrome.oauth_host.json` - Template manifest
+- `com.hanzi_in_chrome.oauth_host.json` - Template manifest
 - `install.sh` - Installation script (macOS/Linux)
 - `uninstall.sh` - Uninstallation script
 - `README.md` - This file

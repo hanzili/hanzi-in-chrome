@@ -1,12 +1,12 @@
 {
-  "name": "llm-in-chrome",
+  "name": "hanzi-in-chrome",
   "version": "1.0.0",
   "description": "Open-source browser automation powered by any LLM",
   "license": "MIT",
   "author": "hanzili",
   "repository": {
     "type": "git",
-    "url": "https://github.com/hanzili/llm-in-chrome.git"
+    "url": "https://github.com/hanzili/hanzi-in-chrome.git"
   },
   "private": true,
   "type": "module",

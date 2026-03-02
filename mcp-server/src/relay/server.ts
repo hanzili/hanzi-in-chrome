@@ -177,6 +177,16 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    // Handle status_query — relay answers directly (no round trip to extension)
+    if (msg.type === 'status_query') {
+      const ext = getExtension();
+      ws.send(JSON.stringify({
+        type: 'status_response',
+        extensionConnected: !!ext && ext.ws.readyState === WebSocket.OPEN,
+      }));
+      return;
+    }
+
     const raw = data.toString();
 
     if (client.role === 'extension') {

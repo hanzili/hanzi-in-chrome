@@ -1,6 +1,6 @@
 {
-  "name": "com.llm_in_chrome.oauth_host",
-  "description": "Native bridge for LLM in Chrome extension (IPC between MCP server and extension)",
+  "name": "com.hanzi_in_chrome.oauth_host",
+  "description": "Native bridge for Hanzi in Chrome extension (IPC between MCP server and extension)",
   "path": "/REPLACE_WITH_ACTUAL_PATH/native-bridge.cjs",
   "type": "stdio",
   "allowed_origins": [

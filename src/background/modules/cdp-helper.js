@@ -174,7 +174,7 @@ class CDPHelper {
   static MAX_LOGS_PER_TAB = 10000;
   static MAX_REQUESTS_PER_TAB = 1000;
   static MAX_BASE64_CHARS = 1398100;
-  static INITIAL_JPEG_QUALITY = 0.85;
+  static INITIAL_JPEG_QUALITY = 0.6;
   static JPEG_QUALITY_STEP = 0.05;
   static MIN_JPEG_QUALITY = 0.1;
 
@@ -202,8 +202,8 @@ class CDPHelper {
   isMac = false;
   defaultResizeParams = {
     pxPerToken: 28,
-    maxTargetPx: 1568,
-    maxTargetTokens: 1568,
+    maxTargetPx: 1024,
+    maxTargetTokens: 768,
   };
 
   // Constructor (lines 4920-4926)
@@ -1000,9 +1000,10 @@ class CDPHelper {
       }
       const { width, height, devicePixelRatio } = viewportResult[0].result;
 
-      // Capture screenshot via CDP (lines 5490-5498)
+      // Capture screenshot via CDP as JPEG to minimize size from the start
       const captureResult = await this.sendCommand(tabId, "Page.captureScreenshot", {
-        format: "png",
+        format: "jpeg",
+        quality: 80,
         captureBeyondViewport: false,
         fromSurface: true,
       });
@@ -1024,8 +1025,8 @@ class CDPHelper {
         );
       }
 
-      // Process screenshot with Image (lines 5510-5576)
-      const dataUrl = `data:image/png;base64,${base64Data}`;
+      // Process screenshot with Image
+      const dataUrl = `data:image/jpeg;base64,${base64Data}`;
 
       const result = await new Promise((resolve, reject) => {
         const img = new Image();
@@ -1057,20 +1058,20 @@ class CDPHelper {
           // Calculate target dimensions (line 5538)
           const [targetWidth, targetHeight] = calculateTargetDimensions(processedWidth, processedHeight, params);
 
-          // No resize needed (lines 5539-5548)
+          // No resize needed
           if (!(processedWidth !== targetWidth || processedHeight !== targetHeight)) {
-            const outputBase64 = canvas.toDataURL("image/png").split(",")[1];
+            const outputBase64 = canvas.toDataURL("image/jpeg", 0.6).split(",")[1];
             return void resolve({
               base64: outputBase64,
               width: processedWidth,
               height: processedHeight,
-              format: "png",
+              format: "jpeg",
               viewportWidth: width,
               viewportHeight: height,
             });
           }
 
-          // Resize to target (lines 5550-5568)
+          // Resize to target
           const targetCanvas = document.createElement("canvas");
           const targetCtx = targetCanvas.getContext("2d");
           if (!targetCtx) {
@@ -1081,12 +1082,12 @@ class CDPHelper {
           targetCanvas.width = targetWidth;
           targetCanvas.height = targetHeight;
           targetCtx.drawImage(canvas, 0, 0, processedWidth, processedHeight, 0, 0, targetWidth, targetHeight);
-          const outputBase64 = targetCanvas.toDataURL("image/png").split(",")[1];
+          const outputBase64 = targetCanvas.toDataURL("image/jpeg", 0.6).split(",")[1];
           resolve({
             base64: outputBase64,
             width: targetWidth,
             height: targetHeight,
-            format: "png",
+            format: "jpeg",
             viewportWidth: width,
             viewportHeight: height,
           });
@@ -1111,7 +1112,7 @@ class CDPHelper {
     const scriptResult = await chrome.scripting.executeScript({
       target: { tabId },
       func: (base64, vWidth, vHeight, dpr, params, maxBase64Chars, initialQuality, qualityStep, minQuality) => {
-        const dataUrl = `data:image/png;base64,${base64}`;
+        const dataUrl = `data:image/jpeg;base64,${base64}`;
         return new Promise((resolve, reject) => {
           const img = new Image();
 
@@ -1141,7 +1142,7 @@ class CDPHelper {
             // Calculate target dimensions
             const aspectRatio = processedWidth / processedHeight;
             const pxPerToken = params.pxPerToken || 28;
-            const maxTargetTokens = params.maxTargetTokens || 1568;
+            const maxTargetTokens = params.maxTargetTokens || 768;
             const currentTokens = Math.ceil((processedWidth / pxPerToken) * (processedHeight / pxPerToken));
             let targetWidth = processedWidth;
             let targetHeight = processedHeight;

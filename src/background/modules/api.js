@@ -335,7 +335,7 @@ async function callLLMSimpleViaProxy(apiUrl, requestBody) {
 function getNativeHostPort() {
   if (!nativeHostPort || !nativeHostPort.name) {
     console.log('[API] Creating new native host connection for OAuth proxy');
-    nativeHostPort = chrome.runtime.connectNative('com.llm_in_chrome.oauth_host');
+    nativeHostPort = chrome.runtime.connectNative('com.hanzi_in_chrome.oauth_host');
 
     // Listen for token refresh events
     nativeHostPort.onMessage.addListener(async (message) => {
@@ -837,8 +837,9 @@ function normalizeCodexResponse(response) {
  * @param {Function|null} onTextChunk - Callback for streaming text chunks
  * @param {Function} log - Logging function
  * @param {string|null} currentUrl - Current tab URL (used to filter domain-specific tools)
+ * @param {AbortSignal|null} externalSignal - Optional abort signal (e.g., per-session abort for MCP tasks)
  */
-export async function callLLM(messages, onTextChunk = null, log = () => {}, currentUrl = null) {
+export async function callLLM(messages, onTextChunk = null, log = () => {}, currentUrl = null, externalSignal = null) {
   await loadConfig();
 
   // Debug: log config values
@@ -852,7 +853,7 @@ export async function callLLM(messages, onTextChunk = null, log = () => {}, curr
   // Create provider instance
   const provider = createProvider(config.apiBaseUrl || '', config);
   const useStreaming = onTextChunk !== null;
-  const signal = abortController?.signal;
+  const signal = externalSignal || abortController?.signal;
   const isClaudeModel = provider.getName() === 'anthropic';
   const systemPrompt = buildSystemPrompt({ isClaudeModel });
 
@@ -903,8 +904,10 @@ export async function callLLM(messages, onTextChunk = null, log = () => {}, curr
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
 
-  // Combine user abort signal with timeout
-  const combinedSignal = signal || timeoutController.signal;
+  // Combine user abort signal with timeout — both should cancel the request
+  const combinedSignal = signal
+    ? AbortSignal.any([signal, timeoutController.signal])
+    : timeoutController.signal;
   const requestBodyStr = JSON.stringify(activeRequestBody);
 
   const makeRequest = async (headers) => {
@@ -988,8 +991,12 @@ export async function callLLM(messages, onTextChunk = null, log = () => {}, curr
   } catch (error) {
     clearTimeout(timeoutId);
 
-    // Check if it was a timeout
+    // Distinguish user-initiated abort from timeout
     if (error.name === 'AbortError') {
+      if (signal?.aborted) {
+        // User/session abort — preserve AbortError identity so callers can detect it
+        throw error;
+      }
       throw new Error(`API request timed out after ${timeoutMs / 1000} seconds. The model may be overloaded or unavailable.`);
     }
 

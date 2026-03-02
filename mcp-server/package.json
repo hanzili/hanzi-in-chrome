@@ -1,16 +1,16 @@
 {
-  "name": "llm-in-chrome-mcp",
+  "name": "hanzi-in-chrome-mcp",
   "version": "1.0.0",
-  "description": "MCP Server for LLM in Chrome - browser automation without exposing individual tools",
+  "description": "Control a real Chrome browser — click, type, fill forms, test workflows, post content, and read authenticated pages",
   "license": "MIT",
   "author": "hanzili",
   "repository": {
     "type": "git",
-    "url": "https://github.com/hanzili/llm-in-chrome.git"
+    "url": "https://github.com/hanzili/hanzi-in-chrome.git"
   },
   "type": "module",
   "bin": {
-    "llm-in-chrome-mcp": "./dist/index.js",
+    "hanzi-in-chrome-mcp": "./dist/index.js",
     "llm-browser": "./dist/cli.js",
     "llm-relay": "./dist/relay/server.js"
   },
@@ -24,7 +24,8 @@
     "start": "node dist/index.js",
     "cli": "node dist/cli.js",
     "test": "npx tsx test/test-agents.ts",
-    "test:live": "npx tsx test/test-live.ts"
+    "test:live": "npx tsx test/test-live.ts",
+    "test:followup": "npx tsx test/test-followup.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.3",

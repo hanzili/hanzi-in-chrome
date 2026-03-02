@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# LLM in Chrome - Native Host Installer
-# Run with: curl -fsSL https://raw.githubusercontent.com/hanzili/llm-in-chrome/main/install.sh | bash
+# Hanzi in Chrome - Native Host Installer
+# Run with: curl -fsSL https://raw.githubusercontent.com/hanzili/hanzi-in-chrome/main/install.sh | bash
 
 set -e
 
-REPO_URL="https://raw.githubusercontent.com/hanzili/llm-in-chrome/main"
-INSTALL_DIR="$HOME/.llm-in-chrome"
+REPO_URL="https://raw.githubusercontent.com/hanzili/hanzi-in-chrome/main"
+INSTALL_DIR="$HOME/.hanzi-in-chrome"
 
 # Colors
 RED='\033[0;31m'
@@ -15,7 +15,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 echo "╔════════════════════════════════════════════════════════╗"
-echo "║  LLM in Chrome - Native Host Installer                 ║"
+echo "║  Hanzi in Chrome - Native Host Installer                 ║"
 echo "╚════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -71,11 +71,11 @@ DEV_ID="dnajlkacmnpfmilkeialficajdgkkkfo"          # Development (replace with y
 mkdir -p "$MANIFEST_DIR"
 
 # Create manifest pointing to wrapper script (not .cjs directly)
-MANIFEST_FILE="$MANIFEST_DIR/com.llm_in_chrome.oauth_host.json"
+MANIFEST_FILE="$MANIFEST_DIR/com.hanzi_in_chrome.oauth_host.json"
 cat > "$MANIFEST_FILE" << EOF
 {
-  "name": "com.llm_in_chrome.oauth_host",
-  "description": "OAuth local server for LLM in Chrome extension",
+  "name": "com.hanzi_in_chrome.oauth_host",
+  "description": "OAuth local server for Hanzi in Chrome extension",
   "path": "$WRAPPER_SCRIPT",
   "type": "stdio",
   "allowed_origins": [

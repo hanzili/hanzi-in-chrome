@@ -1,4 +1,4 @@
-# LLM in Chrome — MCP Server
+# Hanzi in Chrome — MCP Server
 
 The MCP server that connects your AI tool to the Chrome extension. Install this to give Claude Code, Cursor, Windsurf, or any MCP client browser capabilities.
 
@@ -17,7 +17,7 @@ Add to your MCP config (e.g., `~/.claude/claude_desktop_config.json`):
   "mcpServers": {
     "browser": {
       "command": "node",
-      "args": ["/path/to/llm-in-chrome/mcp-server/dist/index.js"]
+      "args": ["/path/to/hanzi-in-chrome/mcp-server/dist/index.js"]
     }
   }
 }
@@ -118,7 +118,7 @@ browser_start("Look up train pass costs")
 
 | Environment Variable | Default | Description |
 |---|---|---|
-| `LLM_IN_CHROME_MAX_SESSIONS` | `5` | Max concurrent browser tasks |
+| `HANZI_IN_CHROME_MAX_SESSIONS` | `5` | Max concurrent browser tasks |
 | `WS_RELAY_PORT` | `7862` | WebSocket relay port |
 
 ## Architecture

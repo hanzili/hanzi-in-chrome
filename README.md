@@ -1,4 +1,4 @@
-# LLM in Chrome
+# Hanzi in Chrome
 
 Give your AI agent a browser agent. Works with Claude Code, Cursor, Windsurf, Codex CLI, and anything that supports MCP.
 
@@ -49,7 +49,7 @@ codex login     # for ChatGPT Pro/Plus subscribers
 
 # Then install the credential bridge (Chrome extensions can't read local files,
 # so this small helper reads your login credentials and passes them to the extension)
-curl -fsSL https://raw.githubusercontent.com/hanzili/llm-in-chrome/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hanzili/hanzi-in-chrome/main/install.sh | bash
 ```
 
 Open the extension settings → click "Connect" under your plan.
@@ -71,8 +71,8 @@ If you also want your AI coding tool (Claude Code, Cursor, etc.) to use it, cont
 This adds the browser as an MCP tool so Claude Code, Cursor, or any MCP client can call it:
 
 ```bash
-git clone https://github.com/hanzili/llm-in-chrome.git
-cd llm-in-chrome/mcp-server && npm install && npm run build
+git clone https://github.com/hanzili/hanzi-in-chrome.git
+cd hanzi-in-chrome/mcp-server && npm install && npm run build
 ```
 
 Add to your MCP config:
@@ -85,7 +85,7 @@ Add to your MCP config:
   "mcpServers": {
     "browser": {
       "command": "node",
-      "args": ["/absolute/path/to/llm-in-chrome/mcp-server/dist/index.js"]
+      "args": ["/absolute/path/to/hanzi-in-chrome/mcp-server/dist/index.js"]
     }
   }
 }
@@ -100,7 +100,7 @@ Add to your MCP config:
   "mcpServers": {
     "browser": {
       "command": "node",
-      "args": ["/absolute/path/to/llm-in-chrome/mcp-server/dist/index.js"]
+      "args": ["/absolute/path/to/hanzi-in-chrome/mcp-server/dist/index.js"]
     }
   }
 }
@@ -112,7 +112,7 @@ Add to your MCP config:
 
 Point your MCP client to:
 ```
-node /absolute/path/to/llm-in-chrome/mcp-server/dist/index.js
+node /absolute/path/to/hanzi-in-chrome/mcp-server/dist/index.js
 ```
 </details>
 
@@ -211,7 +211,7 @@ The browser agent uses an accessibility tree to understand pages, not screenshot
 
 ## Comparison
 
-| | LLM in Chrome | Playwright MCP | Browser Use |
+| | Hanzi in Chrome | Playwright MCP | Browser Use |
 |---|---|---|---|
 | **Abstraction** | Task-level (1 call) | Action-level (50+ calls) | Action-level (50+ calls) |
 | **Browser** | Your real Chrome | New headless browser | New Chromium instance |
@@ -228,7 +228,7 @@ The extension also works on its own without the MCP server — just open the sid
 
 ```bash
 # Load unpacked extension
-git clone https://github.com/hanzili/llm-in-chrome.git
+git clone https://github.com/hanzili/hanzi-in-chrome.git
 # Open chrome://extensions → Enable Developer Mode → Load Unpacked → select the repo
 
 # Build MCP server

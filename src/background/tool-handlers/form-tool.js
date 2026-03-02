@@ -5,7 +5,7 @@
 
 import { ensureDebugger, sendDebuggerCommand } from '../managers/debugger-manager.js';
 
-const NATIVE_HOST_NAME = 'com.llm_in_chrome.oauth_host';
+const NATIVE_HOST_NAME = 'com.hanzi_in_chrome.oauth_host';
 
 /**
  * Check if a file exists on disk via native messaging bridge.

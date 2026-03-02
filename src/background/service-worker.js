@@ -1,5 +1,5 @@
 /**
- * Service Worker - LLM in Chrome
+ * Service Worker - Hanzi in Chrome
  *
  * Orchestrates browser automation by:
  * 1. Receiving tasks from the sidepanel
@@ -27,6 +27,7 @@ import { ensureTabGroup, addTabToGroup, validateTabInGroup, isTabManagedByAgent,
 import {
   initMcpBridge, startMcpPolling, sendMcpUpdate, sendMcpComplete, sendMcpError, sendMcpScreenshot, queryMemory, sendEscalation
 } from './modules/mcp-bridge.js';
+import { checkAndIncrementUsage, activateLicense, getLicenseStatus, deactivateLicense } from './managers/license-manager.js';
 
 // ============================================
 // CONSTANTS
@@ -338,11 +339,59 @@ function enhanceErrorMessage(errorMessage) {
 // TOOL EXECUTION
 // ============================================
 
+/** Check if a tab URL is accessible by content scripts */
+function isAccessibleTab(tab) {
+  const url = tab.url || '';
+  return url && !url.startsWith('chrome://') && !url.startsWith('about:') && !url.startsWith('chrome-extension://');
+}
+
+/**
+ * Resolve the active tab for a session when the agent didn't specify one.
+ * @param {Object|null} mcpSession - MCP session with windowId
+ * @param {number|null} sessionTabGroupId - Tab group ID for UI sessions
+ * @param {Object} [options]
+ * @param {boolean} [options.allowRestricted=false] - If true, return tabs with restricted URLs (for navigate)
+ * @returns {number|null} Tab ID or null if unresolvable
+ */
+async function resolveActiveTab(mcpSession, sessionTabGroupId, { allowRestricted = false } = {}) {
+  const tabOk = allowRestricted ? (t) => !!t.id : isAccessibleTab;
+
+  // MCP session with dedicated window — find active tab in that window
+  if (mcpSession?.windowId) {
+    try {
+      const win = await chrome.windows.get(mcpSession.windowId, { populate: true });
+      const activeTab = (win.tabs || []).find(t => t.active && tabOk(t));
+      if (activeTab) return activeTab.id;
+      const firstTab = (win.tabs || []).find(t => tabOk(t));
+      if (firstTab) return firstTab.id;
+    } catch {
+      // Window gone
+    }
+  }
+
+  // Tab group session — find active tab in the group
+  if (sessionTabGroupId !== null) {
+    try {
+      const groupTabs = await chrome.tabs.query({ groupId: sessionTabGroupId, active: true });
+      const accessible = groupTabs.find(t => tabOk(t));
+      if (accessible) return accessible.id;
+      const allGroupTabs = await chrome.tabs.query({ groupId: sessionTabGroupId });
+      const anyAccessible = allGroupTabs.find(t => tabOk(t));
+      if (anyAccessible) return anyAccessible.id;
+    } catch {
+      // Query failed
+    }
+  }
+
+  // No last-resort fallback — never grab an unrelated user tab
+  return null;
+}
+
 /**
  * Execute a tool and return its result
  * @param {string} toolName - Name of the tool to execute (e.g., 'computer', 'navigate', 'read_page')
  * @param {Object} toolInput - Tool-specific input parameters
- * @param {number} [toolInput.tabId] - Tab ID to operate on (required for most tools)
+ * @param {number} [toolInput.tabId] - Tab ID to operate on (optional, auto-resolved if missing)
  * @param {string} [toolInput.action] - Action to perform (for computer tool)
  * @param {string} [toolInput.url] - URL to navigate to (for navigate tool)
  * @param {number|null} [sessionTabGroupId] - Current session tab group ID (from client)
@@ -351,13 +400,29 @@ function enhanceErrorMessage(errorMessage) {
  */
 async function executeTool(toolName, toolInput, sessionTabGroupId = null, mcpSession = null) {
   await log('TOOL', `Executing: ${toolName}`, toolInput);
+
+  // Shallow copy to avoid mutating the LLM response object stored in conversation history
+  toolInput = { ...toolInput };
+
+  // Auto-resolve tabId: if the agent didn't provide one, use the active tab in the session's window
+  // tabs_close is excluded — it always requires an explicit tabId
+  const tabTools = ['computer', 'read_page', 'find', 'form_input', 'get_page_text',
+                    'javascript_tool', 'file_upload', 'read_console_messages', 'read_network_requests',
+                    'resize_window', 'solve_captcha', 'navigate'];
+  if (!toolInput.tabId && tabTools.includes(toolName)) {
+    // navigate can work on restricted tabs (chrome://, about:) since it changes the URL
+    const allowRestricted = toolName === 'navigate';
+    const resolved = await resolveActiveTab(mcpSession, sessionTabGroupId, { allowRestricted });
+    if (resolved) {
+      toolInput.tabId = resolved;
+    }
+  }
+
   const tabId = toolInput.tabId;
 
   // Validate tab is in our group (for tools that use tabId)
   // Skip URL validation for navigate tool since it changes the URL anyway
-  const tabTools = ['computer', 'read_page', 'find', 'form_input', 'get_page_text',
-                    'javascript_tool', 'file_upload', 'read_console_messages', 'read_network_requests', 'resize_window', 'solve_captcha'];
-  if (tabId && tabTools.includes(toolName)) {
+  if (tabId && tabTools.includes(toolName) && toolName !== 'navigate') {
     const validation = await validateTabInGroup(tabId, sessionTabGroupId);
     if (!validation.valid) {
       return validation.error;
@@ -430,8 +495,12 @@ async function executeTool(toolName, toolInput, sessionTabGroupId = null, mcpSes
  * @returns {Promise<Object>} Task result with {success: boolean, message: string, error?: string}
  */
 async function runAgentLoop(initialTabId, task, onUpdate, images = [], askBeforeActing = true, existingHistory = [], initialTabGroupId = null, mcpSession = null) {
-  await clearLog();
-  await log('START', 'Agent loop started', { tabId: initialTabId, task: task.substring(0, 100) });
+  // Only clear storage log for fresh tasks, not follow-ups (preserves debug history)
+  const isFollowUp = existingHistory.length > 0;
+  if (!isFollowUp) {
+    await clearLog();
+  }
+  await log('START', 'Agent loop started', { tabId: initialTabId, task: task.substring(0, 100), isFollowUp });
 
   // Load config first to ensure userSkills and other settings are available
   await loadConfig();
@@ -453,26 +522,44 @@ async function runAgentLoop(initialTabId, task, onUpdate, images = [], askBefore
     }
   }
 
-  // Get tab info for system-reminder
+  // Get tab info for system-reminder — query ALL tabs in the session's window
   let tabInfo = { availableTabs: [], initialTabId, domainSkills: [] };
   let currentTabUrl = null; // Track current URL for tool filtering
   try {
-    const tab = await chrome.tabs.get(initialTabId);
-    currentTabUrl = tab.url || null;
-    tabInfo.availableTabs = [{
-      tabId: initialTabId,
-      title: tab.title || 'New Tab',
-      url: tab.url || 'chrome://newtab/',
-    }];
+    // For MCP sessions with a dedicated window, show all tabs in that window
+    const windowId = mcpSession?.windowId;
+    if (windowId) {
+      const win = await chrome.windows.get(windowId, { populate: true });
+      tabInfo.availableTabs = (win.tabs || [])
+        .filter(t => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('about:'))
+        .map(t => ({ tabId: t.id, title: t.title || 'New Tab', url: t.url, active: t.active }));
+      // Use the active tab's URL for domain skills, fallback to initialTabId
+      const activeTab = (win.tabs || []).find(t => t.active);
+      currentTabUrl = activeTab?.url || null;
+    }
 
-    // Add domain-specific skills if available for this site
-    const skills = getDomainSkills(tab.url, getConfig().userSkills || []);
-    if (skills.length > 0) {
-      tabInfo.domainSkills = skills.map(s => ({ domain: s.domain, skill: s.skill }));
-      await log('SKILLS', `Loaded ${skills.length} domain skill(s) for ${tab.url}`, { domains: skills.map(s => s.domain) });
+    // Fallback: if no window or no tabs found, use the initial tab directly
+    if (tabInfo.availableTabs.length === 0) {
+      const tab = await chrome.tabs.get(initialTabId);
+      currentTabUrl = tab.url || null;
+      tabInfo.availableTabs = [{
+        tabId: initialTabId,
+        title: tab.title || 'New Tab',
+        url: tab.url || 'chrome://newtab/',
+        active: tab.active,
+      }];
+    }
+
+    // Add domain-specific skills for the current page
+    if (currentTabUrl) {
+      const skills = getDomainSkills(currentTabUrl, getConfig().userSkills || []);
+      if (skills.length > 0) {
+        tabInfo.domainSkills = skills.map(s => ({ domain: s.domain, skill: s.skill }));
+        await log('SKILLS', `Loaded ${skills.length} domain skill(s) for ${currentTabUrl}`, { domains: skills.map(s => s.domain) });
+      }
     }
   } catch (e) {
-    // Tab not accessible, use defaults
+    // Tab/window not accessible, use defaults
   }
 
   // Build new user message with optional images and system-reminders
@@ -539,11 +626,32 @@ ${mcpSession.context}</system-reminder>`,
 
       await log('MCP', `Injecting ${newMessages.length} follow-up message(s) from user (start of turn)`);
 
+      // Build fresh tab context — query all tabs in the session's window
+      let freshTabInfo = { availableTabs: [], initialTabId, domainSkills: [] };
+      try {
+        const windowId = mcpSession?.windowId;
+        if (windowId) {
+          const win = await chrome.windows.get(windowId, { populate: true });
+          freshTabInfo.availableTabs = (win.tabs || [])
+            .filter(t => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('about:'))
+            .map(t => ({ tabId: t.id, title: t.title || 'New Tab', url: t.url, active: t.active }));
+        }
+        if (freshTabInfo.availableTabs.length === 0) {
+          const tab = await chrome.tabs.get(initialTabId);
+          freshTabInfo.availableTabs = [{ tabId: initialTabId, title: tab.title || 'New Tab', url: tab.url || 'chrome://newtab/', active: tab.active }];
+        }
+      } catch {
+        // Tab/window gone mid-execution — agent will discover via tabs_context
+      }
+
       for (const msg of newMessages) {
         if (msg.role === 'user') {
           messages.push({
             role: 'user',
-            content: [{ type: 'text', text: msg.content }]
+            content: [
+              { type: 'text', text: msg.content },
+              { type: 'text', text: `<system-reminder>${JSON.stringify(freshTabInfo)}</system-reminder>` },
+            ]
           });
           onUpdate({ step: steps, status: 'message', text: `[User follow-up]: ${msg.content}` });
         }
@@ -574,7 +682,7 @@ ${mcpSession.context}</system-reminder>`,
 
     let response;
     try {
-      response = await callLLM(messages, onTextChunk, log, currentTabUrl);
+      response = await callLLM(messages, onTextChunk, log, currentTabUrl, mcpSession?.abortController?.signal);
 
       // Track token usage for cost analysis
       if (response.usage) {
@@ -640,7 +748,7 @@ ${mcpSession.context}</system-reminder>`,
         success: !isError,
         resultType: isScreenshot ? 'screenshot' : typeof result,
         // For screenshots, reference the file (use session screenshots length as counter)
-        screenshot: isScreenshot ? `screenshot_${(mcpSession?.screenshots || taskScreenshots).length + 1}.png` : null,
+        screenshot: isScreenshot ? `screenshot_${(mcpSession?.screenshots || taskScreenshots).length + 1}.jpeg` : null,
         // For text results, include full content
         textResult: typeof result === 'string' ? result : null,
         // For object results (not screenshots), include structure without base64
@@ -867,15 +975,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   switch (type) {
     case 'START_TASK':
-      startTask(
-        payload.tabId,
-        payload.task,
-        payload.askBeforeActing !== false,
-        payload.images || [],
-        payload.tabGroupId || null  // Accept tabGroupId from client
-      )
-        .then(result => sendResponse({ success: true, result }))
-        .catch(error => sendResponse({ success: false, error: error.message }));
+      checkAndIncrementUsage().then(usage => {
+        if (!usage.allowed) {
+          sendResponse({ success: false, error: usage.message });
+          return;
+        }
+        startTask(
+          payload.tabId,
+          payload.task,
+          payload.askBeforeActing !== false,
+          payload.images || [],
+          payload.tabGroupId || null
+        )
+          .then(result => sendResponse({ success: true, result }))
+          .catch(error => sendResponse({ success: false, error: error.message }));
+      });
       return true;
 
     case 'GET_STATUS':
@@ -906,6 +1020,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       sendResponse({ success: true });
       return false;
+
+    case 'GET_LICENSE_STATUS':
+      getLicenseStatus().then(status => sendResponse(status));
+      return true;
+
+    case 'ACTIVATE_LICENSE':
+      activateLicense(payload.key).then(result => sendResponse(result));
+      return true;
+
+    case 'DEACTIVATE_LICENSE':
+      deactivateLicense().then(result => sendResponse(result));
+      return true;
 
     case 'CLEAR_CONVERSATION':
       // Reset state for new conversation
@@ -1064,10 +1190,27 @@ setInterval(() => {
  * @param {string} [url] - Optional starting URL
  * @param {string} [context] - Optional task context (info needed to complete the task)
  */
-async function handleMcpStartTask(sessionId, task, url, context) {
+async function handleMcpStartTask(sessionId, task, url, context, licenseKey) {
   console.log(`[MCP] Starting task: ${sessionId}`, { task, url, hasContext: !!context });
 
   try {
+    // Auto-activate license key if passed from MCP server (env var path)
+    if (licenseKey) {
+      const existing = await getLicenseStatus();
+      if (!existing.isPro) {
+        const activation = await activateLicense(licenseKey);
+        console.log(`[MCP] License auto-activation: ${activation.message}`);
+      }
+    }
+
+    // Check license / daily usage limit
+    const usage = await checkAndIncrementUsage();
+    if (!usage.allowed) {
+      sendMcpError(sessionId, usage.message);
+      return;
+    }
+    console.log(`[MCP] Usage: ${usage.message}`);
+
     // Check concurrent task window limit
     const activeTaskWindows = Array.from(mcpSessions.values())
       .filter(s => s.windowId && s.status === 'running')
@@ -1122,7 +1265,9 @@ async function handleMcpStartTask(sessionId, task, url, context) {
 
     // Start the task WITHOUT awaiting - enables parallel execution
     // Error handling is done inside startMcpTaskInternal
-    startMcpTaskInternal(sessionId, tabId, task).catch(error => {
+    // Track the run promise so follow-ups can wait for cleanup before re-starting
+    const session = mcpSessions.get(sessionId);
+    session.runPromise = startMcpTaskInternal(sessionId, tabId, task).catch(error => {
       console.error(`[MCP] Task execution error:`, error);
       sendMcpError(sessionId, error.message);
     });
@@ -1153,9 +1298,13 @@ async function startMcpTaskInternal(sessionId, tabId, task) {
   // currentTask is updated for legacy UI compatibility (shows the most recently started task)
   currentTask = { tabId, task, status: 'running', steps: session.steps, startTime: session.startTime, mcpSessionId: sessionId };
 
-  await showAgentIndicators(tabId);
+  try {
+    await showAgentIndicators(tabId);
+  } catch (indicatorErr) {
+    console.warn(`[MCP] showAgentIndicators failed (non-fatal):`, indicatorErr.message);
+  }
 
-  await log('MCP', `Starting task: ${sessionId}`, { task, tabId });
+  await log('MCP', `Starting task: ${sessionId}`, { task, tabId, hasHistory: (session.messages?.length || 0) > 0 });
 
   try {
     // Use per-session messages instead of global conversationHistory
@@ -1240,12 +1389,15 @@ async function startMcpTaskInternal(sessionId, tabId, task) {
     // Record task completion for usage stats
     recordTaskCompletion(result.success);
 
-    // Send completion to MCP server
-    sendMcpComplete(sessionId, {
-      success: result.success,
-      message: result.message,
-      steps: currentTask.steps.length
-    });
+    // Send completion to MCP server — but NOT if session was cancelled/superseded
+    // (e.g., a follow-up message arrived and is waiting for this loop to finish)
+    if (!session.cancelled) {
+      sendMcpComplete(sessionId, {
+        success: result.success,
+        message: result.message,
+        steps: currentTask.steps.length
+      });
+    }
 
     // Leave task window open so user can review the result
 
@@ -1264,6 +1416,10 @@ async function startMcpTaskInternal(sessionId, tabId, task) {
       session.status = 'stopped';
     }
 
+    // Log error FIRST (before saveTaskLogs) so it appears in the debug log
+    await log('ERROR', `[MCP] Task failed: ${errorMessage}`, { sessionId, error: error.stack });
+    console.error(`[MCP] startMcpTaskInternal error:`, error);
+
     // Get task usage before recording completion
     const taskUsage = getTaskUsage();
 
@@ -1278,15 +1434,17 @@ async function startMcpTaskInternal(sessionId, tabId, task) {
       error: errorMessage,
     };
     await saveTaskLogs(logData, session.screenshots);
-    await log('ERROR', `[MCP] Task failed: ${errorMessage}`, { sessionId, error: error.stack });
 
     // Record failed task for usage stats
     recordTaskCompletion(false);
 
-    if (isCancelled) {
-      sendMcpComplete(sessionId, { success: false, message: 'Task stopped by user' });
-    } else {
-      sendMcpError(sessionId, error.message);
+    // Send completion/error to MCP server — but NOT if superseded by a follow-up
+    if (!session.cancelled) {
+      if (isCancelled) {
+        sendMcpComplete(sessionId, { success: false, message: 'Task stopped by user' });
+      } else {
+        sendMcpError(sessionId, error.message);
+      }
     }
 
     // Leave task window open so user can review the error state
@@ -1306,22 +1464,108 @@ async function handleMcpSendMessage(sessionId, message) {
     return;
   }
 
-  // Append message to per-session history
-  session.messages.push({
-    role: 'user',
-    content: message
-  });
-
   // If session is complete/stopped/error, re-run the agent with the new message
   if (session.status !== 'running') {
     console.log(`[MCP] Re-activating session ${sessionId} (was: ${session.status})`);
-    session.status = 'running';
 
-    // Re-run the agent with the continuation message
-    await startMcpTaskInternal(sessionId, session.tabId, message);
+    // CRITICAL: Wait for the previous agent loop to fully finish before starting a new one.
+    // Without this, two loops can run concurrently on the same session — the old loop's
+    // cleanup (detach debugger, set status='error', send completion) destroys the new loop's state.
+    // This race condition is the root cause of follow-up messages failing with multiple tabs.
+    session.cancelled = true;  // Signal old loop to exit
+    if (session.abortController) session.abortController.abort();  // Abort in-progress LLM call
+    if (session.runPromise) {
+      console.log(`[MCP] Waiting for previous run to finish for session ${sessionId}...`);
+      await session.runPromise;
+      console.log(`[MCP] Previous run finished for session ${sessionId}`);
+    }
+
+    // Now safe to reset and start fresh — old loop is fully done
+    session.status = 'running';
+    session.cancelled = false;
+    session.abortController = new AbortController();
+
+    // DON'T push to session.messages here — runAgentLoop will add it with
+    // proper tab context. Pushing here would create a duplicate message.
+
+    // Validate tab still exists before re-running — tab may have been closed
+    // Prefer the ACTIVE tab in the session's window (user may have navigated)
+    let tabId = session.tabId;
+    try {
+      // First try to get the active tab in the session's window
+      if (session.windowId) {
+        const win = await chrome.windows.get(session.windowId, { populate: true });
+        const activeTab = (win.tabs || []).find(t => t.active && t.url && !t.url.startsWith('chrome://'));
+        if (activeTab) {
+          tabId = activeTab.id;
+          session.tabId = tabId;
+        }
+      }
+      await chrome.tabs.get(tabId);
+    } catch {
+      // Tab is gone — find a valid tab from the session's window
+      console.log(`[MCP] Tab ${tabId} no longer exists, recovering...`);
+      tabId = await recoverSessionTab(session);
+      if (tabId) {
+        session.tabId = tabId;
+        console.log(`[MCP] Recovered to tab ${tabId}`);
+      } else {
+        sendMcpError(sessionId, 'Session tab and window are both gone. Start a new session.');
+        session.status = 'error';
+        return;
+      }
+    }
+
+    // Re-run the agent with the validated tab — track the promise for future follow-ups
+    session.runPromise = startMcpTaskInternal(sessionId, tabId, message).catch(error => {
+      console.error(`[MCP] Follow-up execution error:`, error);
+      session.status = 'error';
+      sendMcpError(sessionId, error.message);
+    });
   } else {
-    // Session is still running - message will be picked up in next turn
+    // Session is still running — append to session.messages for mid-execution injection
+    session.messages.push({
+      role: 'user',
+      content: message
+    });
     sendMcpUpdate(sessionId, 'running', 'Message received, continuing...');
+  }
+}
+
+/**
+ * Recover a valid tab for a session whose original tab was closed.
+ * Tries: active tab in session window → any tab in session window → new tab.
+ * @returns {number|null} Valid tab ID or null if unrecoverable
+ */
+async function recoverSessionTab(session) {
+  // Try to find a tab in the session's window
+  if (session.windowId) {
+    try {
+      const win = await chrome.windows.get(session.windowId, { populate: true });
+      if (win.tabs && win.tabs.length > 0) {
+        // Prefer an accessible active tab, then any accessible tab, then any tab
+        const activeAccessible = win.tabs.find(t => t.active && isAccessibleTab(t));
+        if (activeAccessible) return activeAccessible.id;
+        const anyAccessible = win.tabs.find(t => isAccessibleTab(t));
+        if (anyAccessible) return anyAccessible.id;
+        // Only restricted tabs left — return one anyway so navigate can fix it
+        return (win.tabs.find(t => t.active) || win.tabs[0]).id;
+      }
+    } catch {
+      // Window is also gone
+      console.log(`[MCP] Window ${session.windowId} also gone`);
+    }
+  }
+
+  // Window gone — create a new one with the session's URL if available
+  try {
+    const url = session.url || undefined; // undefined lets Chrome open the default new tab
+    const win = await chrome.windows.create({ url, focused: true });
+    session.windowId = win.id;
+    return win.tabs[0].id;
+  } catch (e) {
+    console.error(`[MCP] Failed to create recovery window:`, e);
+    return null;
   }
 }
 
@@ -1393,8 +1637,8 @@ async function handleMcpScreenshot(sessionId) {
 
     await ensureDebugger(tabId);
     const screenshot = await sendDebuggerCommand(tabId, 'Page.captureScreenshot', {
-      format: 'png',
-      quality: 80
+      format: 'jpeg',
+      quality: 70
     });
 
     sendMcpScreenshot(sessionId, screenshot.data);
@@ -1417,5 +1661,5 @@ startMcpPolling();
 // Start usage tracking session
 startSession();
 
-console.log('[LLM in Chrome] Service worker loaded');
-console.log('[LLM in Chrome] MCP bridge initialized');
+console.log('[Hanzi in Chrome] Service worker loaded');
+console.log('[Hanzi in Chrome] MCP bridge initialized');

@@ -1,5 +1,5 @@
 /**
- * Side Panel - Chat interface for LLM in Chrome
+ * Side Panel - Chat interface for Hanzi in Chrome
  */
 
 // Provider configurations

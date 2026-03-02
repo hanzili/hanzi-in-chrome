@@ -45,7 +45,7 @@ export class NativeHostConnection {
             return this.options.hostPath;
         }
         // Look for Chrome native messaging manifest
-        const manifestPath = join(homedir(), 'Library', 'Application Support', 'Google', 'Chrome', 'NativeMessagingHosts', 'com.llm_in_chrome.oauth_host.json');
+        const manifestPath = join(homedir(), 'Library', 'Application Support', 'Google', 'Chrome', 'NativeMessagingHosts', 'com.hanzi_in_chrome.oauth_host.json');
         if (existsSync(manifestPath)) {
             try {
                 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));

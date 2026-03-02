@@ -2,7 +2,7 @@
  * Session Files Module
  *
  * Manages file-based session storage for the CLI.
- * Sessions are stored as JSON files in ~/.llm-in-chrome/sessions/
+ * Sessions are stored as JSON files in ~/.hanzi-in-chrome/sessions/
  */
 export interface SessionFileStatus {
     session_id: string;
