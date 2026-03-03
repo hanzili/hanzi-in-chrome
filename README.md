@@ -41,7 +41,11 @@ ai: → "You have 3 open tickets..."
 
 ### 2. Add the MCP server to your AI tool
 
-The browser agent needs an LLM. If you have a Claude or Codex subscription, it uses your existing login — no API key needed. Otherwise, set `ANTHROPIC_API_KEY` in your environment.
+The agent needs an LLM to drive the browser. Pick one:
+
+- **Claude Pro/Max subscriber?** You're set — it uses your `claude login` automatically.
+- **Codex subscriber?** Run `codex login` and you're set.
+- **API key?** Set `ANTHROPIC_API_KEY` in your environment.
 
 <details open>
 <summary><strong>Claude Code</strong></summary>
