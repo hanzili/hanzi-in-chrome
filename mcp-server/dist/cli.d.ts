@@ -6,11 +6,11 @@
  * Sends tasks to the Chrome extension via WebSocket relay.
  *
  * Usage:
- *   llm-browser start "task" --url https://example.com
- *   llm-browser status [session_id]
- *   llm-browser message <session_id> "message"
- *   llm-browser logs <session_id> [--follow]
- *   llm-browser stop <session_id> [--remove]
- *   llm-browser screenshot <session_id>
+ *   hanzi-browser start "task" --url https://example.com
+ *   hanzi-browser status [session_id]
+ *   hanzi-browser message <session_id> "message"
+ *   hanzi-browser logs <session_id> [--follow]
+ *   hanzi-browser stop <session_id> [--remove]
+ *   hanzi-browser screenshot <session_id>
  */
 export {};

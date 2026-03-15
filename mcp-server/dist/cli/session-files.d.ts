@@ -18,6 +18,7 @@ export interface SessionFileStatus {
 export declare function ensureSessionDir(): void;
 export declare function getSessionFilePath(sessionId: string): string;
 export declare function getSessionLogPath(sessionId: string): string;
+export declare function getSessionScreenshotPath(sessionId: string): string;
 export declare function writeSessionStatus(sessionId: string, status: Partial<SessionFileStatus>): void;
 export declare function readSessionStatus(sessionId: string): SessionFileStatus | null;
 export declare function appendSessionLog(sessionId: string, message: string): void;

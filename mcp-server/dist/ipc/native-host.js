@@ -1,15 +1,14 @@
 /**
  * Native Host IPC Module
  *
- * Handles communication with the Chrome extension via native messaging protocol.
- * This module is shared between the MCP server and CLI to eliminate duplication.
+ * Handles communication with the installed native host via Chrome native
+ * messaging protocol.
  *
  * Protocol: Chrome Native Messaging (4-byte little-endian length prefix + JSON)
  *
- * Architecture:
- *   MCP Server/CLI → NativeHostConnection → Native Host Process → Chrome Extension
- *                  ↑                                            ↓
- *                  ← ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ←
+ * This transport is no longer used for MCP task delivery. It remains for
+ * native-host-backed utilities such as credential reads, debug logging, and
+ * API proxy support.
  */
 import { spawn } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
@@ -25,7 +24,7 @@ import { homedir } from 'os';
  *   const conn = new NativeHostConnection();
  *   conn.onMessage((msg) => console.log('Received:', msg));
  *   await conn.connect();
- *   await conn.send({ type: 'mcp_poll_results', requestIds: ['abc'] });
+ *   await conn.send({ type: 'ping' });
  */
 export class NativeHostConnection {
     process = null;

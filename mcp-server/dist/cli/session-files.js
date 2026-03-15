@@ -18,6 +18,9 @@ export function getSessionFilePath(sessionId) {
 export function getSessionLogPath(sessionId) {
     return join(SESSION_DIR, `${sessionId}.log`);
 }
+export function getSessionScreenshotPath(sessionId) {
+    return join(SESSION_DIR, `${sessionId}.png`);
+}
 export function writeSessionStatus(sessionId, status) {
     ensureSessionDir();
     const filePath = getSessionFilePath(sessionId);

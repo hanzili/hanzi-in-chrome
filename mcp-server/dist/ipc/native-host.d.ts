@@ -1,20 +1,19 @@
 /**
  * Native Host IPC Module
  *
- * Handles communication with the Chrome extension via native messaging protocol.
- * This module is shared between the MCP server and CLI to eliminate duplication.
+ * Handles communication with the installed native host via Chrome native
+ * messaging protocol.
  *
  * Protocol: Chrome Native Messaging (4-byte little-endian length prefix + JSON)
  *
- * Architecture:
- *   MCP Server/CLI → NativeHostConnection → Native Host Process → Chrome Extension
- *                  ↑                                            ↓
- *                  ← ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ←
+ * This transport is no longer used for MCP task delivery. It remains for
+ * native-host-backed utilities such as credential reads, debug logging, and
+ * API proxy support.
  */
 /** Message types sent TO the native host */
-export type OutgoingMessageType = 'mcp_start_task' | 'mcp_stop_task' | 'mcp_send_message' | 'mcp_screenshot' | 'mcp_poll_results' | 'mcp_get_info' | 'llm_request' | 'debug_log';
+export type OutgoingMessageType = 'ping' | 'debug_log' | 'agent_log' | 'check_file' | 'read_cli_credentials' | 'read_codex_credentials' | 'proxy_api_call';
 /** Message types received FROM the native host */
-export type IncomingMessageType = 'llm_response' | 'llm_request_queued' | 'llm_response_recorded' | 'mcp_results' | 'task_queued' | 'task_update' | 'task_complete' | 'task_error' | 'screenshot_result' | 'mcp_info' | 'api_error' | 'pong';
+export type IncomingMessageType = 'pong' | 'debug_logged' | 'file_check_result' | 'cli_credentials' | 'codex_credentials' | 'credentials_not_found' | 'api_response' | 'api_error' | 'error';
 /** Base message structure */
 export interface NativeMessage {
     type: string;
@@ -40,7 +39,7 @@ export interface ConnectionOptions {
  *   const conn = new NativeHostConnection();
  *   conn.onMessage((msg) => console.log('Received:', msg));
  *   await conn.connect();
- *   await conn.send({ type: 'mcp_poll_results', requestIds: ['abc'] });
+ *   await conn.send({ type: 'ping' });
  */
 export declare class NativeHostConnection {
     private process;

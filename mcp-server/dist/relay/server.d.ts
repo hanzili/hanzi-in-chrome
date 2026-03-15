@@ -11,7 +11,7 @@
  *   - cli: CLI clients (can have multiple)
  *
  * Routing:
- *   - extension → broadcast to all mcp + cli clients
+ *   - extension → originating mcp/cli client when tagged, otherwise broadcast
  *   - mcp/cli → send to extension
  */
 export {};

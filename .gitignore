@@ -49,6 +49,7 @@ key.pem
 
 # Archived documentation
 ARCHITECTURE.md
+!mcp-server/ARCHITECTURE.md
 SPEC-dual-mode.md
 
 # Claude Code
@@ -59,7 +60,11 @@ SPEC-dual-mode.md
 .factory/
 .windsurf/
 skills/
+!mcp-server/skills/
 skills-lock.json
 
 # Internal documentation (not for public release)
 docs/internal/
+!docs/internal/
+docs/internal/*
+!docs/internal/MCP_STATUS.md

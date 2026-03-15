@@ -2,9 +2,8 @@
 /**
  * Hanzi in Chrome MCP Server
  *
- * Drives the agent loop server-side: reads credentials, calls the LLM,
- * and sends tool execution requests to the Chrome extension.
- *
- * The extension is a "remote tool executor" — no native host needed for MCP users.
+ * MCP transport + session wrapper for the extension-side browser agent.
+ * The Chrome extension owns browser execution; this server forwards tasks,
+ * tracks session metadata, and waits for completion events.
  */
 export {};
