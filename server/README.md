@@ -153,11 +153,30 @@ The relay server starts automatically when the MCP server connects. It routes
 messages between the MCP server and the Chrome extension and briefly queues
 messages while the extension service worker is asleep.
 
-For the current design and validation status, see
-[ARCHITECTURE.md](/Users/apple/Dev/llm-in-chrome/mcp-server/ARCHITECTURE.md)
-and
-[MCP_STATUS.md](/Users/apple/Dev/llm-in-chrome/docs/internal/MCP_STATUS.md).
+> **Principle**: Hanzi is for real browser work in your signed-in Chrome.
+> Agents should prefer code, logs, APIs, and existing tools first. Use Hanzi when the job needs a real browser session.
+
+## Prompts
+
+The server exposes MCP prompts that clients auto-discover as slash commands:
+
+| Prompt | Description |
+|--------|-------------|
+| `linkedin-prospector` | Goal-driven LinkedIn outreach — networking, sales, partnerships, or hiring |
+| `e2e-tester` | Test your app in a real browser — reports bugs with screenshots and code references |
+| `social-poster` | Post across LinkedIn, Twitter, Reddit, HN — drafts per-platform, posts from your browser |
+
+In Claude Code, use the built-in `linkedin-prospector` prompt from the MCP prompt list.
+
+## Skills CLI
+
+```bash
+hanzi-browser skills                              # list available skills
+hanzi-browser skills install linkedin-prospector   # install SKILL.md to your project
+```
+
+Skills are portable SKILL.md files for agents that don't support MCP prompts (Cline, Codex). Each skill follows the same principle: use existing tools first, Hanzi only for real browser steps.
 
 ## License
 
-MIT
+[Polyform Noncommercial 1.0.0](../LICENSE)

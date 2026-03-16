@@ -237,9 +237,9 @@ function ProvidersTab({
         <h4>MCP Server</h4>
         <p class="provider-desc">
           Control this browser from Claude Code or any MCP client.{' '}
-          <a href="https://github.com/hanzili/hanzi-in-chrome#mcp-server-integration" target="_blank">Setup guide</a>
+          <a href="https://github.com/hanzili/hanzi-in-chrome#setup" target="_blank">Setup guide</a>
         </p>
-        <code class="install-cmd">npm install -g hanzi-in-chrome-mcp</code>
+        <code class="install-cmd">npm install -g hanzi-in-chrome</code>
       </div>
     </div>
   );

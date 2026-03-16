@@ -130,7 +130,7 @@ export async function activateLicense(key) {
             },
             body: JSON.stringify({
                 license_key: key.trim(),
-                instance_name: "hanzi-in-chrome-mcp",
+                instance_name: "hanzi-in-chrome",
             }),
         });
         const result = await response.json();

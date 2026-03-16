@@ -351,12 +351,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }))
 const PROMPTS = [
     {
         name: "linkedin-prospector",
-        description: "Find people on LinkedIn and send personalized connection requests. Supports multiple strategies: search by posts (networking/community), by role/company (sales), by topic + seniority (partnerships), or by skills (hiring). Each connection note is unique and personalized.",
+        description: "Find people on LinkedIn and send personalized connection requests. Uses your real signed-in browser — LinkedIn has no API for this. Supports networking, sales, partnerships, and hiring strategies. Each connection note is unique.",
         arguments: [
             { name: "goal", description: "What you're trying to achieve: networking, sales, partnerships, hiring, or market-research", required: true },
             { name: "topic", description: "Topic, industry, or product area (e.g., 'browser automation', 'AI DevTools')", required: true },
             { name: "count", description: "How many people to find (default: 15)", required: false },
             { name: "context", description: "Extra context: your product, company, what you offer, who your ideal target is", required: false },
+        ],
+    },
+    {
+        name: "e2e-tester",
+        description: "Test a web app in your real browser — click through flows and report what's broken with screenshots and code references. Gathers context from the codebase first, then uses the browser only for UI interaction and visual verification. Works on localhost, staging, and preview URLs.",
+        arguments: [
+            { name: "url", description: "App URL to test (e.g., 'localhost:3000', 'staging.myapp.com')", required: true },
+            { name: "what", description: "What to test: 'signup flow', 'checkout', 'everything', or 'what I just changed'", required: false },
+            { name: "credentials", description: "Test login credentials if needed (e.g., 'test@test.com / password123')", required: false },
+        ],
+    },
+    {
+        name: "social-poster",
+        description: "Post content across social platforms from your real signed-in browser. Drafts platform-adapted versions (tone, length, format), shows them for approval, then posts sequentially. Works with LinkedIn, Twitter/X, Reddit, Hacker News, and Product Hunt.",
+        arguments: [
+            { name: "content", description: "What to post about: a topic, announcement, 'our latest release', or the exact text", required: true },
+            { name: "platforms", description: "Where to post: 'linkedin', 'twitter', 'reddit', 'hackernews', 'producthunt', or 'all' (default: linkedin + twitter)", required: false },
+            { name: "context", description: "Extra context: link to include, images, tone preference, target audience", required: false },
         ],
     },
 ];
@@ -377,6 +395,12 @@ const PROMPT_TEMPLATES = {
 
 My goal: **${goal}**
 ${context ? `\nContext about me/my product: ${context}` : ""}
+
+## Tool selection rule
+
+- Prefer existing tools first: code search, git diff, logs, APIs, local files, and other MCP integrations.
+- Use Hanzi only for browser-required steps: LinkedIn prospecting is a logged-in UI workflow with no useful public API for this job.
+- If LinkedIn shows a rate limit warning, CAPTCHA, or risk signal, stop immediately and tell me.
 
 ## Step 1: Choose the right search strategy
 
@@ -461,6 +485,271 @@ Summarize:
 - Total found / sent / skipped (already contacted) / skipped (no good hook) / failed
 - Running total from the log
 - Any patterns noticed (common roles, topics, companies that kept appearing)`,
+                    },
+                },
+            ],
+        };
+    },
+    "e2e-tester": (args) => {
+        const url = args.url || "localhost:3000";
+        const what = args.what || "";
+        const credentials = args.credentials || "";
+        return {
+            description: "Test a web app in a real browser and report findings",
+            messages: [
+                {
+                    role: "user",
+                    content: {
+                        type: "text",
+                        text: `Test my web app at ${url} in a real browser and report what's working and what's broken.
+${what ? `\nFocus on: ${what}` : ""}
+${credentials ? `\nTest credentials: ${credentials}` : ""}
+
+## Tool selection rule
+
+- Prefer existing tools first: code search, git diff, logs, APIs, local files, and other MCP integrations. Gather all context you can before opening the browser.
+- Use Hanzi only for browser-required steps: real UI interaction, visual verification, form submission, and anything that needs a rendered page.
+- If a browser step could mutate real data, ask me before proceeding unless the environment is clearly local, dev, test, or preview.
+
+## Safety: Check the target before testing
+
+Browser tests create real state (signups, form submissions, orders). Before executing:
+
+**Safe URLs (proceed without extra confirmation):** localhost, 127.0.0.1, 0.0.0.0, URLs with dev./staging./preview./.local, Vercel/Netlify preview URLs.
+
+**Production or unknown URLs:** Ask me first: "This looks like a production URL. Should I test with real interactions (may create data), or stay read-only (just navigate and observe)?" Default to read-only if I don't answer.
+
+**Credentials from .env:** Tell me what you found ("Found admin@test.com in .env.local") and confirm before using on non-local targets.
+
+## Phase 1: Gather context BEFORE opening the browser
+
+You have access to the codebase. Use it. Before touching the browser:
+
+1. **Check what changed recently**: Run \`git diff --name-only HEAD~3\` or \`git log --oneline -5\` to see recent changes. This tells you what's most likely to be broken.
+
+2. **Understand the app structure**: Look at routes, pages, or components to know what flows exist. Check for:
+   - Route definitions (e.g., Next.js \`app/\` directory, React Router config, Express routes)
+   - Key pages: login, signup, dashboard, checkout, settings
+   - API endpoints the frontend calls
+
+3. **Find test credentials**: Check \`.env\`, \`.env.local\`, \`seed\` files, or test fixtures for test accounts. Note what type of account you found (admin, test user, etc.) — don't silently use production credentials.
+
+4. **Check if the server is running**: Run \`curl -s -o /dev/null -w "%{http_code}" ${url}\`. If it's not running, tell me to start it and stop here.
+
+5. **Decide what to test**: Based on recent changes + app structure, prioritize:
+   - Changed files first — if I touched the checkout page, test checkout
+   - Critical paths — signup, login, core feature
+   - If I said "everything", hit every major route
+
+Present your test plan briefly: "I'll test: 1) signup, 2) login, 3) the checkout flow you changed in the last commit." Ask if I want to adjust before proceeding.
+
+## Phase 2: Execute tests in the browser
+
+Use \`browser_start\` for each flow. Test them **one at a time, sequentially**.
+
+For each flow:
+- Open the URL and navigate to the relevant page
+- Interact like a real user: fill forms with realistic test data, click buttons, wait for responses
+- Look for: broken layouts, missing elements, error messages, loading spinners that never stop, 404s, console errors visible on page
+- Take note of what works AND what doesn't
+
+**Important**: Tell the browser agent to be specific about what it sees. Not "the page looks fine" but "the signup form has 3 fields (name, email, password), I filled them in, clicked Submit, and was redirected to /dashboard with a welcome message."
+
+If a flow requires login, log in first using the credentials I provided or that you found (with my confirmation).
+
+If something fails, try to get specific error information — what error message appeared? What was the URL? What was the last thing that worked?
+
+**After each \`browser_start\` returns**, call \`browser_screenshot\` (a separate MCP tool) to capture the final state. The browser window stays open, so the screenshot shows the page at the end of the flow. Do this for both passing and failing flows — screenshots are evidence.
+
+## Phase 3: Report findings
+
+After testing, write a clear report:
+
+### Format:
+\`\`\`
+Tested [N] flows on ${url}:
+
+✓ [Flow name] — [what happened, one line]
+  📸 Screenshot: [describe what the screenshot shows]
+
+✗ [Flow name] — [what's broken, specifically]
+  📸 Screenshot: [what the page looked like when it failed]
+
+⚠ [Flow name] — [works but has issues]
+  📸 Screenshot: [evidence of the issue]
+\`\`\`
+
+### Then, for each failure:
+
+**Cross-reference with the code.** This is your superpower — you can see both the browser AND the codebase. For each broken thing:
+1. What did the browser show? (include the screenshot)
+2. What file likely causes this? (check recent git changes, route handlers, API endpoints)
+3. What's your best guess at the root cause?
+4. Suggest a fix if it's obvious.
+
+Example:
+\`\`\`
+✗ Checkout — form submits but the page hangs on a loading spinner.
+  📸 Screenshot shows the payment form with a spinning loader, stuck for 30+ seconds.
+
+  Likely cause: src/api/checkout.ts was modified in your last commit (abc123).
+  You removed the \`onSuccess\` callback on line 45. The frontend is waiting
+  for a response that never comes.
+
+  Suggested fix: restore the onSuccess handler or add a redirect after
+  the API call resolves.
+\`\`\`
+
+### Summary:
+- Total flows tested / passed / failed / warnings
+- If everything passes: "All tested flows working. Ready to push."
+- If there are failures: prioritize them by severity
+
+## Rules
+
+- Don't test in parallel — one flow at a time via separate browser_start calls
+- Don't guess — if you can't tell what's wrong, say so and suggest I check manually
+- Don't skip the codebase analysis — it's what makes your report actionable instead of generic
+- If the dev server isn't running, stop and tell me instead of reporting "page not found" as a bug
+- If browser_start times out, call browser_screenshot to see where it got stuck
+- Always take a screenshot after each flow — for both passes and failures
+- On production URLs, default to read-only unless I explicitly opt in
+- Don't silently use credentials from .env on non-local targets — confirm first`,
+                    },
+                },
+            ],
+        };
+    },
+    "social-poster": (args) => {
+        const content = args.content || "";
+        const platforms = args.platforms || "linkedin, twitter";
+        const context = args.context || "";
+        return {
+            description: "Draft and post content across social platforms",
+            messages: [
+                {
+                    role: "user",
+                    content: {
+                        type: "text",
+                        text: `Post about this across social platforms: "${content}"
+
+Platforms: ${platforms}
+${context ? `\nExtra context: ${context}` : ""}
+
+## Tool selection rule
+
+- Prefer existing tools first: read the codebase, changelog, git log, README, or any source material to understand what to post about. Draft all content WITHOUT the browser.
+- Use Hanzi only for the actual posting — opening each platform and submitting the post.
+- Each post is a public action that cannot be undone. Show me every draft and get my approval before posting anything.
+
+## Phase 1: Gather source material (no browser)
+
+If I said something like "post about our latest release" or "post about the new feature":
+1. Read the git log, changelog, README, or relevant files to understand what shipped
+2. Identify the key points worth sharing
+3. Find any links to include (docs, landing page, demo)
+
+If I gave you the exact text, skip this and go to Phase 2.
+
+## Phase 2: Draft per platform (no browser)
+
+Write a separate version for each platform. Do NOT copy-paste the same text everywhere. Each platform has its own voice:
+
+**LinkedIn:**
+- Professional but not corporate. Storytelling works well.
+- 1000-1500 chars ideal (can go up to 3000)
+- Use line breaks for readability
+- 3-5 hashtags at the end
+- Include a link if relevant
+- Bold key phrases using unicode (𝗯𝗼𝗹𝗱) sparingly
+
+**Twitter/X:**
+- Casual, punchy, opinionated
+- Single tweet: under 280 chars
+- If the content is too rich for one tweet, suggest a thread (number each tweet)
+- 1-2 hashtags max, or none
+- Link at the end
+
+**Reddit:**
+- Technical, no-BS, no marketing speak. Redditors hate self-promotion.
+- Suggest the right subreddit (e.g., r/programming, r/webdev, r/machinelearning)
+- Title should be informative, not clickbait
+- Body in markdown
+- If it's a project launch, frame it as "Show r/subreddit: ..."
+- Be genuine about what it is and what it isn't
+
+**Hacker News:**
+- Ultra-minimal. Title + URL only.
+- Title should be factual, not hypey ("Show HN: Tool that does X" format)
+- No emoji, no exclamation marks
+- Let the work speak for itself
+
+**Product Hunt:**
+- Launch-style: tagline + description + feature bullets
+- Tagline: one punchy line under 60 chars
+- Description: 2-3 sentences
+- 3-5 key features as bullet points
+
+### Show me all drafts in a clear format:
+
+\`\`\`
+--- LinkedIn ---
+[draft text]
+
+--- Twitter/X ---
+[draft text]
+
+--- Reddit (r/subreddit) ---
+Title: [title]
+Body: [draft text]
+\`\`\`
+
+Ask: "Ready to post these, or want to change anything?"
+
+Do NOT proceed to posting until I confirm.
+
+## Phase 3: Post (browser via Hanzi)
+
+After I approve, post to each platform **one at a time, sequentially** using separate \`browser_start\` calls.
+
+For each platform:
+- Navigate to the platform (user is already logged in)
+- Find the "new post" / "compose" area
+- Paste the approved text
+- Add any images or links if relevant
+- Submit the post
+- After \`browser_start\` returns, call \`browser_screenshot\` (a separate MCP tool) to capture the live post — the window stays open
+- Note the URL of the published post if visible
+
+If a platform requires additional steps (e.g., Reddit asks for a flair, Product Hunt needs a schedule), tell me and ask how to proceed.
+
+If posting fails (CAPTCHA, rate limit, account restriction), skip that platform and report it.
+
+## Phase 4: Report
+
+\`\`\`
+Posted to [N]/[total] platforms:
+
+✓ LinkedIn — posted
+  📸 Screenshot of live post
+  URL: [url if available]
+
+✓ Twitter/X — posted (2-tweet thread)
+  📸 Screenshot of live post
+  URL: [url if available]
+
+✗ Reddit — r/programming requires account age > 30 days. Skipped.
+\`\`\`
+
+## Rules
+
+- Never post without my explicit approval of the draft
+- Never post to a platform I didn't ask for
+- Don't use the same text across platforms — adapt each one
+- If a platform blocks the post, don't retry — report and move on
+- If browser_start times out, call browser_screenshot to see where it got stuck, then browser_message to continue
+- Don't post images unless I provided them or explicitly asked for them
+- One platform at a time, sequentially — not in parallel`,
                     },
                 },
             ],

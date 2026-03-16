@@ -217,6 +217,8 @@ function normalizeIncomingMessage(message) {
     'mcp_screenshot': 'screenshot',
     'mcp_get_info_response': 'get_info_response',
     'mcp_escalate_response': 'escalate_response',
+    'mcp_save_config': 'save_config',
+    'mcp_import_credentials': 'import_credentials',
     'llm_request': 'llm_request',
   };
 
@@ -340,6 +342,66 @@ async function handleMcpCommand(command) {
         onScreenshot(command.sessionId);
       }
       break;
+
+    case 'save_config': {
+      // CLI setup wizard sends config updates (API keys, model defaults, etc.)
+      const payload = command.payload || {};
+      console.log('[MCP Bridge] save_config received:', Object.keys(payload));
+      try {
+        // Merge with existing config
+        const existing = await chrome.storage.local.get(null);
+        const merged = { ...existing };
+        if (payload.providerKeys) {
+          merged.providerKeys = { ...(existing.providerKeys || {}), ...payload.providerKeys };
+        }
+        if (payload.customModels) {
+          merged.customModels = [...(existing.customModels || []), ...payload.customModels];
+        }
+        // Pass through other keys directly (model, provider, authMethod, etc.)
+        for (const [k, v] of Object.entries(payload)) {
+          if (k !== 'providerKeys' && k !== 'customModels') {
+            merged[k] = v;
+          }
+        }
+        await chrome.storage.local.set(merged);
+        console.log('[MCP Bridge] Config saved');
+        // Send confirmation back through relay
+        if (command.requestId) {
+          sendToMcpRelay({ type: 'config_saved', requestId: command.requestId, success: true });
+        }
+      } catch (err) {
+        console.error('[MCP Bridge] save_config error:', err);
+        if (command.requestId) {
+          sendToMcpRelay({ type: 'config_saved', requestId: command.requestId, success: false, error: err.message });
+        }
+      }
+      break;
+    }
+
+    case 'import_credentials': {
+      // CLI setup wizard requests credential import (Claude Code or Codex)
+      const source = command.source; // 'claude' or 'codex'
+      console.log('[MCP Bridge] import_credentials:', source);
+      try {
+        if (source === 'claude') {
+          const result = await chrome.runtime.sendMessage({ type: 'IMPORT_CLI_CREDENTIALS' });
+          if (command.requestId) {
+            sendToMcpRelay({ type: 'credentials_imported', requestId: command.requestId, ...result });
+          }
+        } else if (source === 'codex') {
+          const result = await chrome.runtime.sendMessage({ type: 'IMPORT_CODEX_CREDENTIALS' });
+          if (command.requestId) {
+            sendToMcpRelay({ type: 'credentials_imported', requestId: command.requestId, ...result });
+          }
+        }
+      } catch (err) {
+        console.error('[MCP Bridge] import_credentials error:', err);
+        if (command.requestId) {
+          sendToMcpRelay({ type: 'credentials_imported', requestId: command.requestId, success: false, error: err.message });
+        }
+      }
+      break;
+    }
 
     case 'get_info_response': {
       // Response from MCP server for a get_info request

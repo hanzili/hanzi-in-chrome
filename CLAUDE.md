@@ -16,7 +16,7 @@ This project is an MCP server that controls a Chrome extension for browser autom
 
 ```
 Claude Code / Cursor (MCP client)
-  → MCP Server (mcp-server/src/index.ts) via stdio
+  → MCP Server (server/src/index.ts) via stdio
   → WebSocket relay (ws://localhost:7862)
   → Chrome Extension (service-worker.js)
   → Browser agent makes LLM calls via native host
@@ -28,16 +28,16 @@ All LLM calls happen in the extension via `api.js` → native host. The MCP serv
 ### CLI Usage
 
 ```bash
-node mcp-server/dist/cli.js start "task description" --url <url> --context "extra context"
-node mcp-server/dist/cli.js status [session_id]
-node mcp-server/dist/cli.js message <session_id> "follow-up"
-node mcp-server/dist/cli.js stop <session_id> [--remove]
+node server/dist/cli.js start "task description" --url <url> --context "extra context"
+node server/dist/cli.js status [session_id]
+node server/dist/cli.js message <session_id> "follow-up"
+node server/dist/cli.js stop <session_id> [--remove]
 ```
 
 ### Build
 
 ```bash
-cd mcp-server && npm run build
+cd server && npm run build
 ```
 
 ### Tips

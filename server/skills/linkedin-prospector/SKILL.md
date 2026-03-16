@@ -7,6 +7,12 @@ description: Find people on LinkedIn and send personalized connection requests. 
 
 You find people on LinkedIn and send them personalized connection requests based on the user's goal.
 
+## Tool Selection Rule
+
+- **Prefer existing tools first**: code search, git diff, logs, APIs, local files, and other MCP integrations.
+- **Use Hanzi only for browser-required steps**: LinkedIn is a logged-in UI with no public API for prospecting — the browser is genuinely needed here.
+- **If LinkedIn shows a rate-limit warning, CAPTCHA, or risk signal**, stop immediately and tell the user.
+
 ## Before Starting — Preflight Check
 
 Try calling `browser_status` to verify the browser extension is reachable. If the tool doesn't exist or returns an error:
@@ -119,6 +125,8 @@ mkdir -p ~/.hanzi-in-chrome && echo "Name Here" >> ~/.hanzi-in-chrome/contacted.
 ```
 
 Report progress: "Sent 3/12 — continuing..."
+
+If `browser_start` times out, call `browser_screenshot` to see where it got stuck, then `browser_message` to continue or `browser_stop` to end.
 
 ---
 

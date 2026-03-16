@@ -3,975 +3,607 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hanzi in Chrome — Stop being your agent's intern</title>
+    <title>Hanzi - Give your AI agent a real browser</title>
 
-    <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
-    <!-- Open Graph -->
-    <meta property="og:title" content="Hanzi in Chrome — Stop being your agent's intern">
-    <meta property="og:description" content="An MCP server that gives your AI agent a real browser. Your Chrome, your logins, your sessions. Works with Claude Code, Cursor, or any MCP client.">
+    <meta property="og:title" content="Hanzi - Give your AI agent a real browser">
+    <meta property="og:description" content="Give your AI agent a real browser. Test apps, post to social platforms, prospect on LinkedIn, and automate browser tasks — works with any AI agent.">
     <meta property="og:image" content="https://browse.hanzilla.co/og.png">
     <meta property="og:url" content="https://browse.hanzilla.co">
     <meta property="og:type" content="website">
 
-    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Hanzi in Chrome — Stop being your agent's intern">
-    <meta name="twitter:description" content="An MCP server that gives your AI agent a real browser. Your Chrome, your logins, your sessions. Works with Claude Code, Cursor, or any MCP client.">
+    <meta name="twitter:title" content="Hanzi - Give your AI agent a real browser">
+    <meta name="twitter:description" content="Give your AI agent a real browser. Test apps, post to social platforms, prospect on LinkedIn, and automate browser tasks — works with any AI agent.">
     <meta name="twitter:image" content="https://browse.hanzilla.co/og.png">
 
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f7f3ea;
+            --surface: #fffdf8;
+            --surface-2: #f3ede2;
+            --ink: #1f1711;
+            --muted: #6d6256;
+            --line: #e5ddd0;
+            --accent: #ad5a34;
+            --accent-dark: #8d4524;
+            --green: #2f4a3d;
+            --shadow: 0 16px 40px rgba(54, 38, 23, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-            color: #1a1a1a;
-            background: #fafaf8;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(233, 199, 146, 0.22), transparent 28%),
+                radial-gradient(circle at top right, rgba(154, 191, 170, 0.18), transparent 26%),
+                var(--bg);
+            color: var(--ink);
+            font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
             -webkit-font-smoothing: antialiased;
         }
 
-        .page {
-            max-width: 1120px;
-            margin: 0 auto;
-            padding: 0 48px;
+        a {
+            color: inherit;
+            text-decoration: none;
         }
 
-        /* Header */
+        .page {
+            width: min(1120px, calc(100% - 40px));
+            margin: 0 auto;
+        }
+
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 28px 0;
+            gap: 20px;
+            padding: 28px 0 18px;
         }
 
-        .logo {
-            display: flex;
+        .brand {
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
-            font-size: 15px;
-            font-weight: 600;
-            letter-spacing: 0.2px;
-            color: #1a1a1a;
-            text-decoration: none;
-        }
-
-        .logo-mark { width: 24px; height: 24px; }
-
-        .nav-links {
-            display: flex;
-            gap: 28px;
-            align-items: center;
-        }
-
-        .nav-links a {
-            font-size: 14px;
-            color: #888;
-            text-decoration: none;
-        }
-
-        .nav-links a:hover { color: #1a1a1a; }
-
-        .nav-btn {
-            display: inline-block;
-            background: #1a1a1a;
-            color: #fff !important;
-            border: none;
-            padding: 8px 18px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            border-radius: 6px;
-            font-family: inherit;
-            text-decoration: none;
-        }
-
-        .nav-btn:hover { background: #333; }
-
-        /* Hero */
-        .hero {
-            display: grid;
-            grid-template-columns: 5fr 6fr;
-            gap: 80px;
-            align-items: center;
-            padding: 80px 0 96px;
-        }
-
-        .hero-text h1 {
-            font-size: 48px;
-            font-weight: 700;
-            line-height: 1.08;
-            letter-spacing: -2px;
-            margin-bottom: 24px;
-        }
-
-        .hero-text p {
-            font-size: 17px;
-            line-height: 1.6;
-            color: #666;
-        }
-
-        .hero-text p + p { margin-top: 14px; }
-        .hero-text strong { color: #1a1a1a; }
-
-        .hero-ctas {
-            display: flex;
             gap: 12px;
-            margin-top: 32px;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+
+        .brand-mark {
+            width: 26px;
+            height: 26px;
+            flex-shrink: 0;
+        }
+
+        .header-links {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             flex-wrap: wrap;
         }
 
-        .btn-primary {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #1a1a1a;
-            color: #fff;
-            padding: 13px 24px;
-            font-size: 15px;
-            font-weight: 500;
-            border-radius: 8px;
-            text-decoration: none;
-            border: none;
-            cursor: pointer;
-            font-family: inherit;
-        }
-
-        .btn-primary:hover { background: #333; }
-
-        .btn-secondary {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #fff;
-            color: #1a1a1a;
-            padding: 13px 24px;
-            font-size: 15px;
-            font-weight: 500;
-            border-radius: 8px;
-            text-decoration: none;
-            border: 1.5px solid #ddd;
-            cursor: pointer;
-            font-family: inherit;
-        }
-
-        .btn-secondary:hover { border-color: #1a1a1a; }
-
-        .hero-video {
-            position: relative;
-            width: 100%;
-            padding-bottom: 56.25%;
-            border-radius: 12px;
-            overflow: hidden;
-            background: #111;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-        }
-
-        .hero-video iframe {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-        }
-
-        /* Sections */
-        .section {
-            padding: 80px 0;
-            border-top: 1px solid #eee;
-        }
-
-        .section-title {
-            font-size: 32px;
-            font-weight: 700;
-            letter-spacing: -1px;
-            margin-bottom: 12px;
-        }
-
-        .section-sub {
-            font-size: 17px;
-            color: #666;
-            line-height: 1.6;
-            margin-bottom: 48px;
-            max-width: 560px;
-        }
-
-        /* Use cases */
-        .usecases {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-        }
-
-        .usecase {
-            background: #fff;
-            border: 1px solid #eee;
-            border-radius: 12px;
-            padding: 28px;
-        }
-
-        .usecase-label {
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: #999;
-            margin-bottom: 12px;
-        }
-
-        .usecase h3 {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            letter-spacing: -0.3px;
-        }
-
-        .usecase p {
-            font-size: 14px;
-            line-height: 1.6;
-            color: #666;
-            margin-bottom: 16px;
-        }
-
-        .usecase code {
-            display: block;
-            background: #f5f5f3;
-            padding: 12px 14px;
-            border-radius: 8px;
-            font-size: 12.5px;
-            line-height: 1.5;
-            color: #444;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        /* Setup tabs */
-        .setup-tabs {
-            display: flex;
-            gap: 0;
-            border-bottom: 1.5px solid #eee;
-            margin-bottom: 0;
-        }
-
-        .setup-tab {
-            padding: 12px 24px;
-            font-size: 14px;
-            font-weight: 500;
-            color: #888;
-            cursor: pointer;
-            border: none;
-            background: none;
-            font-family: inherit;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -1.5px;
-        }
-
-        .setup-tab:hover { color: #1a1a1a; }
-
-        .setup-tab.active {
-            color: #1a1a1a;
-            border-bottom-color: #1a1a1a;
-        }
-
-        .setup-panel {
-            display: none;
-            padding: 32px 0 0;
-        }
-
-        .setup-panel.active { display: block; }
-
-        .setup-step {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 28px;
-            align-items: flex-start;
-        }
-
-        .setup-step-num {
-            flex-shrink: 0;
+        .btn,
+        .link-pill {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 28px;
-            height: 28px;
-            background: #1a1a1a;
-            color: #fff;
-            font-size: 13px;
-            font-weight: 600;
-            border-radius: 50%;
-            margin-top: 2px;
-        }
-
-        .setup-step-content h3 {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 6px;
-        }
-
-        .setup-step-content p {
+            min-height: 44px;
+            padding: 0 18px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: var(--surface);
             font-size: 14px;
-            color: #666;
-            line-height: 1.6;
-            margin-bottom: 8px;
+            font-weight: 700;
+            transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
         }
 
-        .setup-step-content a {
-            color: #1a1a1a;
-            font-weight: 500;
+        .btn:hover,
+        .link-pill:hover {
+            transform: translateY(-1px);
         }
 
-        /* Copyable code block */
-        .copy-block {
-            position: relative;
-            background: #1a1a1a;
-            border-radius: 8px;
-            padding: 14px 16px;
-            margin-top: 8px;
+        .btn-primary {
+            color: #fff;
+            border-color: transparent;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
         }
 
-        .copy-block pre {
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+            gap: 42px;
+            align-items: center;
+            padding: 34px 0 44px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid #e9d5c8;
+            background: #fcf4ee;
+            color: var(--accent-dark);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        h1,
+        h2 {
+            font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+            letter-spacing: -0.05em;
+        }
+
+        h1 {
+            max-width: 10ch;
+            margin-top: 20px;
+            font-size: clamp(3rem, 7vw, 5.2rem);
+            line-height: 0.95;
+        }
+
+        .hero-copy p {
+            max-width: 560px;
+            margin-top: 20px;
+            font-size: 18px;
+            line-height: 1.65;
+            color: var(--muted);
+        }
+
+        .hero-copy strong {
+            color: var(--ink);
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 28px;
+        }
+
+        .signal-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 28px;
+        }
+
+        .signal-chip {
+            padding: 10px 14px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: rgba(255, 253, 248, 0.7);
+            color: var(--muted);
             font-size: 13px;
-            line-height: 1.5;
-            color: #ccc;
+            line-height: 1.4;
+        }
+
+        .demo-panel {
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+
+        .section {
+            padding: 56px 0;
+            border-top: 1px solid var(--line);
+        }
+
+        .section-head {
+            display: grid;
+            grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+            gap: 30px;
+            align-items: end;
+            margin-bottom: 28px;
+        }
+
+        .section-kicker {
+            color: var(--accent-dark);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        h2 {
+            margin-top: 10px;
+            font-size: clamp(2.1rem, 4vw, 3.3rem);
+            line-height: 0.96;
+        }
+
+        .section-head p {
+            max-width: 560px;
+            color: var(--muted);
+            font-size: 17px;
+            line-height: 1.65;
+        }
+
+        .stack-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .stack-card,
+        .diff-card,
+        .prompt-card,
+        .cta-band {
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            background: var(--surface);
+        }
+
+        .stack-card {
+            padding: 22px;
+        }
+
+        .stack-card span {
+            display: inline-block;
+            margin-bottom: 12px;
+            color: var(--accent-dark);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .stack-card h3,
+        .diff-card h3 {
+            font-size: 20px;
+            line-height: 1.2;
+            margin-bottom: 10px;
+        }
+
+        .stack-card p,
+        .diff-card p {
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.65;
+        }
+
+        .diff-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .diff-card {
+            padding: 22px;
+        }
+
+        .prompt-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .prompt-card {
+            padding: 22px 20px;
+            background: linear-gradient(180deg, #fffdf8 0%, #f7f1e6 100%);
+        }
+
+        .prompt-card span {
+            display: inline-block;
+            margin-bottom: 12px;
+            color: var(--green);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .prompt-card h3 {
+            margin-bottom: 10px;
+            font-size: 22px;
+            line-height: 1.15;
+        }
+
+        .prompt-card p {
+            margin-bottom: 16px;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.65;
+        }
+
+        .prompt-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .prompt-item {
+            padding: 14px 14px 16px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.58);
+        }
+
+        a.prompt-item {
+            display: block;
+            transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+        }
+
+        a.prompt-item:hover {
+            transform: translateY(-1px);
+            border-color: #d9cbb8;
+            background: rgba(255, 255, 255, 0.78);
+        }
+
+        .prompt-item strong {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--green);
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .prompt-card code {
+            font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+            font-size: 14px;
+            line-height: 1.65;
+            color: var(--ink);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .setup-copy {
+            position: relative;
+            margin-top: 14px;
+            padding: 16px 16px 18px;
+            border-radius: 16px;
+            background: #241c17;
+        }
+
+        .setup-copy pre {
             overflow-x: auto;
             white-space: pre-wrap;
             word-break: break-word;
+            color: #f4e8d8;
+            font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            padding-right: 60px;
         }
 
         .copy-btn {
             position: absolute;
             top: 10px;
             right: 10px;
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: #888;
+            padding: 8px 10px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #f4e8d8;
             font-size: 12px;
-            padding: 4px 10px;
-            border-radius: 4px;
+            font-weight: 700;
             cursor: pointer;
             font-family: inherit;
         }
 
-        .copy-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
-
-        /* Prompt copy — the magic paste block */
-        .prompt-block {
-            background: #f5f5f3;
-            border: 1.5px solid #e0e0de;
-            border-radius: 10px;
-            padding: 20px 24px;
-            padding-right: 110px;
-            margin-top: 12px;
-            position: relative;
-        }
-
-        .prompt-block p {
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 8px;
-        }
-
-        .prompt-block .prompt-text {
-            font-size: 14px;
-            color: #444;
-            line-height: 1.5;
-            font-style: italic;
-        }
-
-        .prompt-block .copy-btn {
-            background: rgba(0,0,0,0.06);
-            color: #666;
-            top: 12px;
-            right: 12px;
-        }
-
-        .prompt-block .copy-btn:hover { background: rgba(0,0,0,0.1); color: #1a1a1a; }
-
-        /* Compare */
-        .compare {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 32px;
-        }
-
-        .compare-col {
-            background: #fff;
-            border: 1px solid #eee;
-            border-radius: 12px;
-            padding: 28px;
-        }
-
-        .compare-col.highlight { border-color: #1a1a1a; }
-
-        .compare-col h3 {
-            font-size: 17px;
-            font-weight: 600;
-            margin-bottom: 16px;
-        }
-
-        .compare-col ul { list-style: none; padding: 0; }
-
-        .compare-col li {
-            font-size: 14px;
-            line-height: 1.6;
-            color: #666;
-            padding: 6px 0;
-            padding-left: 24px;
-            position: relative;
-        }
-
-        .compare-col li::before {
-            position: absolute;
-            left: 0;
-            font-size: 14px;
-        }
-
-        .compare-col.highlight li::before { content: "\2713"; color: #1a1a1a; }
-        .compare-col:not(.highlight) li::before { content: "\2717"; color: #ccc; }
-
-        /* Works with */
-        .clients {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        .client {
-            background: #fff;
-            border: 1px solid #eee;
-            border-radius: 10px;
-            padding: 20px 28px;
-            font-size: 15px;
-            font-weight: 500;
-            color: #444;
-        }
-
-        /* Footer */
-        footer {
-            padding: 32px 0 48px;
-            font-size: 13px;
-            color: #bbb;
-            display: flex;
-            gap: 24px;
-            flex-wrap: wrap;
-            border-top: 1px solid #eee;
-        }
-
-        footer a { color: #888; text-decoration: none; }
-        footer a:hover { color: #1a1a1a; }
-
-        /* Features */
-        .features {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 24px;
-        }
-
-        .feature {
-            padding: 4px 0;
-        }
-
-        .feature-icon {
-            width: 36px;
-            height: 36px;
-            background: #f5f5f3;
+        .setup-note code {
+            padding: 2px 6px;
             border-radius: 8px;
-            display: flex;
+            background: #f1eadf;
+            font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        }
+
+        .cta-band {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 20px;
             align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: 700;
-            color: #1a1a1a;
-            margin-bottom: 14px;
-            font-family: monospace;
+            padding: 28px;
+            background: linear-gradient(135deg, #fffdf8 0%, #f2eadf 100%);
         }
 
-        .feature h3 {
-            font-size: 15px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            letter-spacing: -0.2px;
+        .cta-band p {
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 16px;
+            line-height: 1.65;
         }
 
-        .feature p {
-            font-size: 13.5px;
-            line-height: 1.55;
-            color: #666;
-        }
-
-        /* Hanzi hover photo */
-        .hanzi-hover {
-            position: relative;
-            display: inline;
-        }
-
-        .hanzi-hover .hanzi-popup {
-            display: none;
-            position: absolute;
-            top: calc(100% + 8px);
-            left: 0;
-            pointer-events: none;
-        }
-
-        .hanzi-hover:hover .hanzi-popup {
+        footer {
             display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .hanzi-hover .hanzi-popup img {
-            width: 64px;
-            height: 64px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid #eee;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-        .hanzi-hover .hanzi-bubble {
-            background: #1a1a1a;
-            color: #fff;
+            justify-content: space-between;
+            gap: 18px;
+            flex-wrap: wrap;
+            padding: 30px 0 40px;
+            color: var(--muted);
             font-size: 13px;
-            font-weight: 500;
-            font-style: normal;
-            padding: 6px 12px;
-            border-radius: 12px;
-            white-space: nowrap;
-            position: relative;
-            margin-left: 4px;
         }
 
-        .hanzi-hover .hanzi-bubble::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: -5px;
-            transform: translateY(-50%) rotate(45deg);
-            width: 10px;
-            height: 10px;
-            background: #1a1a1a;
-            border-radius: 2px;
+        .footer-links {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
         }
 
-        /* Mobile */
-        @media (max-width: 768px) {
-            .page { padding: 0 24px; }
-            .hero {
+        @media (max-width: 980px) {
+            .hero,
+            .section-head,
+            .cta-band,
+            .stack-grid,
+            .diff-grid,
+            .prompt-grid {
                 grid-template-columns: 1fr;
-                gap: 48px;
-                padding: 56px 0 72px;
             }
-            .hero-text h1 { font-size: 36px; letter-spacing: -1.5px; }
-            .hero-text p { font-size: 16px; }
-            .hero-ctas { flex-direction: column; }
-            .hero-ctas a { text-align: center; }
-            .features { grid-template-columns: 1fr 1fr; }
-            .usecases { grid-template-columns: 1fr !important; }
-            .compare { grid-template-columns: 1fr !important; }
-            .nav-links { gap: 16px; }
-            .section { padding: 56px 0; }
-            .clients { gap: 12px; }
-            .client { padding: 14px 20px; font-size: 14px; }
-            .setup-tabs { overflow-x: auto; }
-            .setup-tab { padding: 12px 16px; font-size: 13px; white-space: nowrap; }
+        }
+
+        @media (max-width: 720px) {
+            .page {
+                width: min(100% - 24px, 1120px);
+            }
+
+            header {
+                padding-top: 20px;
+            }
+
+            .header-links,
+            .hero-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn,
+            .link-pill {
+                width: 100%;
+            }
+
+            h1 {
+                max-width: none;
+                font-size: clamp(2.8rem, 18vw, 4.2rem);
+            }
+
+            .hero-copy p,
+            .section-head p {
+                font-size: 16px;
+            }
+
+            .section {
+                padding: 44px 0;
+            }
         }
     </style>
 </head>
 <body>
+    <div class="page">
+        <header>
+            <a class="brand" href="index.html">
+                <svg class="brand-mark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="24" height="24" rx="6" fill="#1f1711"/>
+                    <path d="M7 7v10M17 7v10M7 12h10" stroke="#fffdf8" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                Hanzi
+            </a>
+            <div class="header-links">
+                <a class="link-pill" href="https://github.com/hanzili/llm-in-chrome" target="_blank" rel="noreferrer">GitHub</a>
+            </div>
+        </header>
 
-<div class="page">
-
-    <header>
-        <a class="logo" href="/">
-            <svg class="logo-mark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="24" height="24" rx="6" fill="#1a1a1a"/>
-                <path d="M7 7v10M17 7v10M7 12h10" stroke="#fafaf8" stroke-width="2.5" stroke-linecap="round"/>
-            </svg>
-            Hanzi in Chrome
-        </a>
-        <div class="nav-links">
-            <a href="https://github.com/hanzili/llm-in-chrome" target="_blank">github</a>
-            <a class="nav-btn" href="#setup">get started</a>
-        </div>
-    </header>
-
-    <!-- Hero -->
-    <div class="hero">
-        <div class="hero-text">
-            <h1>stop being your agent's intern.</h1>
-            <p>your AI agent can't use a browser. so it stops and asks you to do it. you become your AI's intern.</p>
-            <p><strong><span class="hanzi-hover">hanzi<span class="hanzi-popup"><img src="hanzi.png" alt="hanzi"><span class="hanzi-bubble">hi!</span></span></span> in chrome is an MCP server that fixes this.</strong> every time your agent needs a browser, it calls this tool instead of stopping. your chrome, your logins, your sessions. your AI just stays autonomous.</p>
-            <div class="hero-ctas">
-                <a class="btn-primary" href="#setup">get started</a>
-                <a class="btn-secondary" href="https://github.com/hanzili/llm-in-chrome" target="_blank">view on github</a>
-            </div>
-        </div>
-        <div class="hero-video">
-            <iframe src="https://www.youtube.com/embed/3tHzg2ps-9w" title="Hanzi in Chrome Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-        </div>
-    </div>
-
-    <!-- How it works -->
-    <div class="section">
-        <h2 class="section-title">how it works</h2>
-        <p class="section-sub">one tool call delegates an entire task. your agent stays focused on coding.</p>
-        <div class="features">
-            <div class="feature">
-                <h3>one call, entire task</h3>
-                <p>"post on linkedin about our launch." one tool call. the agent handles the rest.</p>
-            </div>
-            <div class="feature">
-                <h3>non-blocking</h3>
-                <p>browser tasks run in parallel. your agent keeps writing code while the browser works.</p>
-            </div>
-            <div class="feature">
-                <h3>asks, not guesses</h3>
-                <p>sensitive action? missing info? the agent pauses, asks you, then picks up where it left off.</p>
-            </div>
-            <div class="feature">
-                <h3>your real chrome</h3>
-                <p>your logins, your cookies, your extensions. no headless browser. no bot detection.</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Use Cases -->
-    <div class="section">
-        <h2 class="section-title">what can it do?</h2>
-        <p class="section-sub">anything you can do in a browser, your agent can now do for you.</p>
-        <div class="usecases">
-            <div class="usecase">
-                <div class="usecase-label">for developers</div>
-                <h3>test your app end to end</h3>
-                <p>have your agent sign up, navigate flows, and verify everything works in a real browser with real sessions.</p>
-                <code>"go to my app, create an account, add an item to cart, and checkout"</code>
-            </div>
-            <div class="usecase">
-                <div class="usecase-label">for marketers</div>
-                <h3>post across platforms</h3>
-                <p>write a linkedin post, schedule a tweet, reply to comments using your logged-in accounts.</p>
-                <code>"go to linkedin and post about our new feature launch"</code>
-            </div>
-            <div class="usecase">
-                <div class="usecase-label">for support</div>
-                <h3>pull data from dashboards</h3>
-                <p>grab info from internal tools, admin panels, or analytics. no API needed, just your browser session.</p>
-                <code>"go to our Stripe dashboard and find the last 5 failed payments"</code>
-            </div>
-            <div class="usecase">
-                <div class="usecase-label">for researchers</div>
-                <h3>scrape behind logins</h3>
-                <p>collect data from sites that require authentication. your agent uses your existing sessions.</p>
-                <code>"go to LinkedIn Sales Navigator and export leads matching 'CTO fintech SF'"</code>
-            </div>
-            <div class="usecase">
-                <div class="usecase-label">for ops</div>
-                <h3>fill forms and file tickets</h3>
-                <p>create jira tickets, submit expense reports, update CRMs. your agent handles the clicking.</p>
-                <code>"go to Jira and create a bug ticket: checkout page 500 error on Safari"</code>
-            </div>
-            <div class="usecase">
-                <div class="usecase-label">for everyone</div>
-                <h3>manage your inbox</h3>
-                <p>triage emails, star important threads, draft replies. all without leaving your AI workflow.</p>
-                <code>"go to gmail, find all unread from @team, star them and reply 'noted'"</code>
-            </div>
-        </div>
-    </div>
-
-    <!-- Setup — tabbed per client -->
-    <div class="section" id="setup">
-        <h2 class="section-title">get started in 2 minutes</h2>
-        <p class="section-sub">pick your MCP client. two steps. that's it.</p>
-
-        <div class="setup-tabs">
-            <button class="setup-tab active" onclick="showTab('claude-code')">Claude Code</button>
-            <button class="setup-tab" onclick="showTab('cursor')">Cursor</button>
-            <button class="setup-tab" onclick="showTab('windsurf')">Windsurf</button>
-            <button class="setup-tab" onclick="showTab('claude-desktop')">Claude Desktop</button>
-            <button class="setup-tab" onclick="showTab('other')">Other</button>
-        </div>
-
-        <!-- Claude Code -->
-        <div class="setup-panel active" id="panel-claude-code">
-            <div class="setup-step">
-                <div class="setup-step-num">1</div>
-                <div class="setup-step-content">
-                    <h3>install the chrome connector</h3>
-                    <p>one-time setup. connects your browser to the MCP server.</p>
-                    <p><a href="https://chromewebstore.google.com/detail/hanzi-in-chrome/iklpkemlmbhemkiojndpbhoakgikpmcd" target="_blank">install from chrome web store &rarr;</a></p>
-                </div>
-            </div>
-            <div class="setup-step">
-                <div class="setup-step-num">2</div>
-                <div class="setup-step-content">
-                    <h3>add the MCP server</h3>
-                    <p>run this in your terminal:</p>
-                    <div class="copy-block">
-                        <pre>claude mcp add browser -- npx -y hanzi-in-chrome-mcp</pre>
-                        <button class="copy-btn" onclick="copyText(this, 'claude mcp add browser -- npx -y hanzi-in-chrome-mcp')">Copy</button>
+        <main>
+            <section class="hero">
+                <div class="hero-copy">
+                    <h1>Give your AI agent a real browser.</h1>
+                    <p>Your agent stops when it needs a browser. <strong>Hanzi lets it keep going</strong> using your real signed-in session.</p>
+                    <div class="setup-copy" style="max-width: 420px; margin-top: 24px;">
+                        <pre>npx hanzi-in-chrome setup</pre>
+                        <button class="copy-btn" data-copy="npx hanzi-in-chrome setup" onclick="copyData(this)">Copy</button>
                     </div>
-                    <div style="margin-top: 16px;">
-                        <p>or, paste this prompt into claude code and it'll set it up for you:</p>
-                        <div class="prompt-block">
-                            <div class="prompt-text">Install the hanzi-in-chrome-mcp MCP server so you can control my browser. The npm package is hanzi-in-chrome-mcp. Run: claude mcp add browser -- npx -y hanzi-in-chrome-mcp</div>
-                            <button class="copy-btn" onclick="copyText(this, 'Install the hanzi-in-chrome-mcp MCP server so you can control my browser. The npm package is hanzi-in-chrome-mcp. Run: claude mcp add browser -- npx -y hanzi-in-chrome-mcp')">Copy prompt</button>
+                    <p style="margin-top: 14px; font-size: 14px; color: var(--muted);">Works with Claude Code, Claude Cowork, Cursor, Codex, Windsurf, and more.</p>
+                </div>
+
+                <div class="demo-panel">
+                    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 24px;">
+                        <iframe
+                            src="https://www.youtube.com/embed/3tHzg2ps-9w"
+                            title="Hanzi demo"
+                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen
+                        ></iframe>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="section-head">
+                    <div>
+                        <div class="section-kicker">How it gets used</div>
+                        <h2>Two ways in.</h2>
+                    </div>
+                </div>
+                <div class="prompt-grid">
+                    <div class="prompt-card">
+                        <span>Skills</span>
+                        <h3>Pick a workflow.</h3>
+                        <p>Structured prompts for common jobs. Open source — <a href="https://github.com/hanzili/llm-in-chrome/tree/main/server/skills" target="_blank" rel="noreferrer" style="color: var(--accent-dark); font-weight: 700;">add your own</a>.</p>
+                        <div class="prompt-list">
+                            <div class="prompt-item">
+                                <strong>linkedin-prospector</strong>
+                                <code>Find people posting about your topic and send personalized connection requests.</code>
+                            </div>
+                            <div class="prompt-item">
+                                <strong>e2e-tester</strong>
+                                <code>Inspect the codebase, then test real UI flows in the browser.</code>
+                            </div>
+                            <div class="prompt-item">
+                                <strong>social-poster</strong>
+                                <code>Draft posts and publish from your real signed-in accounts.</code>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="prompt-card">
+                        <span>Emergent</span>
+                        <h3>Your agent just uses it.</h3>
+                        <p>Mid-task, your agent realizes it needs a browser and calls Hanzi on its own. You don't have to ask.</p>
+                        <div class="prompt-list">
+                            <div class="prompt-item">
+                                <code>"Fix the login bug" → agent opens the app to verify the fix works.</code>
+                            </div>
+                            <div class="prompt-item">
+                                <code>"Set up the project" → agent checks the docs site for the latest install steps.</code>
+                            </div>
+                            <div class="prompt-item">
+                                <code>"Why is this failing?" → agent opens the dashboard to check error logs.</code>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="setup-step">
-                <div class="setup-step-num">3</div>
-                <div class="setup-step-content">
-                    <h3>done. ask your agent to browse.</h3>
-                    <p>"go to jira and create a ticket for this bug." your agent takes it from there.</p>
-                </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- Cursor -->
-        <div class="setup-panel" id="panel-cursor">
-            <div class="setup-step">
-                <div class="setup-step-num">1</div>
-                <div class="setup-step-content">
-                    <h3>install the chrome connector</h3>
-                    <p>one-time setup. connects your browser to the MCP server.</p>
-                    <p><a href="https://chromewebstore.google.com/detail/hanzi-in-chrome/iklpkemlmbhemkiojndpbhoakgikpmcd" target="_blank">install from chrome web store &rarr;</a></p>
-                </div>
-            </div>
-            <div class="setup-step">
-                <div class="setup-step-num">2</div>
-                <div class="setup-step-content">
-                    <h3>add to your MCP config</h3>
-                    <p>open cursor settings &rarr; MCP &rarr; add new server, or paste this into <code style="background:#f5f5f3;padding:2px 6px;border-radius:4px;font-size:13px;">.cursor/mcp.json</code>:</p>
-                    <div class="copy-block">
-                        <pre>{
-  "mcpServers": {
-    "browser": {
-      "command": "npx",
-      "args": ["-y", "hanzi-in-chrome-mcp"]
-    }
-  }
-}</pre>
-                        <button class="copy-btn" onclick="copyText(this, '{\n  &quot;mcpServers&quot;: {\n    &quot;browser&quot;: {\n      &quot;command&quot;: &quot;npx&quot;,\n      &quot;args&quot;: [&quot;-y&quot;, &quot;hanzi-in-chrome-mcp&quot;]\n    }\n  }\n}')">Copy</button>
+            <section class="section">
+                <div class="cta-band">
+                    <div>
+                        <div class="section-kicker">Start here</div>
+                        <h2>One command. Real browser.</h2>
                     </div>
-                    <div style="margin-top: 16px;">
-                        <p>or, paste this prompt into cursor chat:</p>
-                        <div class="prompt-block">
-                            <div class="prompt-text">Add hanzi-in-chrome-mcp as an MCP server to this project. Create .cursor/mcp.json with: {"mcpServers":{"browser":{"command":"npx","args":["-y","hanzi-in-chrome-mcp"]}}}</div>
-                            <button class="copy-btn" onclick="copyText(this, 'Add hanzi-in-chrome-mcp as an MCP server to this project. Create .cursor/mcp.json with: {&quot;mcpServers&quot;:{&quot;browser&quot;:{&quot;command&quot;:&quot;npx&quot;,&quot;args&quot;:[&quot;-y&quot;,&quot;hanzi-in-chrome-mcp&quot;]}}}')">Copy prompt</button>
-                        </div>
+                    <div class="setup-copy">
+                        <pre>npx hanzi-in-chrome setup</pre>
+                        <button class="copy-btn" data-copy="npx hanzi-in-chrome setup" onclick="copyData(this)">Copy</button>
                     </div>
                 </div>
-            </div>
-            <div class="setup-step">
-                <div class="setup-step-num">3</div>
-                <div class="setup-step-content">
-                    <h3>done. ask your agent to browse.</h3>
-                    <p>in cursor's agent mode, just ask it to do something in the browser.</p>
-                </div>
-            </div>
-        </div>
+            </section>
+        </main>
 
-        <!-- Windsurf -->
-        <div class="setup-panel" id="panel-windsurf">
-            <div class="setup-step">
-                <div class="setup-step-num">1</div>
-                <div class="setup-step-content">
-                    <h3>install the chrome connector</h3>
-                    <p>one-time setup. connects your browser to the MCP server.</p>
-                    <p><a href="https://chromewebstore.google.com/detail/hanzi-in-chrome/iklpkemlmbhemkiojndpbhoakgikpmcd" target="_blank">install from chrome web store &rarr;</a></p>
-                </div>
+        <footer>
+            <div>Give your AI agent a real browser.</div>
+            <div class="footer-links">
+                <a href="https://github.com/hanzili/llm-in-chrome" target="_blank" rel="noreferrer">GitHub</a>
+                <a href="https://www.npmjs.com/package/hanzi-in-chrome" target="_blank" rel="noreferrer">npm</a>
+                <a href="https://chromewebstore.google.com/detail/hanzi-in-chrome/iklpkemlmbhemkiojndpbhoakgikpmcd" target="_blank" rel="noreferrer">Chrome Web Store</a>
+                <a href="https://x.com/hanzi_li" target="_blank" rel="noreferrer">Twitter</a>
+                <a href="https://www.linkedin.com/in/hanzi-li-mcgill/" target="_blank" rel="noreferrer">LinkedIn</a>
+                <a href="mailto:hanzili0217@gmail.com">Contact</a>
             </div>
-            <div class="setup-step">
-                <div class="setup-step-num">2</div>
-                <div class="setup-step-content">
-                    <h3>add to your MCP config</h3>
-                    <p>open windsurf settings &rarr; MCP, or add to your <code style="background:#f5f5f3;padding:2px 6px;border-radius:4px;font-size:13px;">~/.codeium/windsurf/mcp_config.json</code>:</p>
-                    <div class="copy-block">
-                        <pre>{
-  "mcpServers": {
-    "browser": {
-      "command": "npx",
-      "args": ["-y", "hanzi-in-chrome-mcp"]
-    }
-  }
-}</pre>
-                        <button class="copy-btn" onclick="copyText(this, '{\n  &quot;mcpServers&quot;: {\n    &quot;browser&quot;: {\n      &quot;command&quot;: &quot;npx&quot;,\n      &quot;args&quot;: [&quot;-y&quot;, &quot;hanzi-in-chrome-mcp&quot;]\n    }\n  }\n}')">Copy</button>
-                    </div>
-                </div>
-            </div>
-            <div class="setup-step">
-                <div class="setup-step-num">3</div>
-                <div class="setup-step-content">
-                    <h3>done. ask your agent to browse.</h3>
-                    <p>use cascade to ask your agent to do something in the browser.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Claude Desktop -->
-        <div class="setup-panel" id="panel-claude-desktop">
-            <div class="setup-step">
-                <div class="setup-step-num">1</div>
-                <div class="setup-step-content">
-                    <h3>install the chrome connector</h3>
-                    <p>one-time setup. connects your browser to the MCP server.</p>
-                    <p><a href="https://chromewebstore.google.com/detail/hanzi-in-chrome/iklpkemlmbhemkiojndpbhoakgikpmcd" target="_blank">install from chrome web store &rarr;</a></p>
-                </div>
-            </div>
-            <div class="setup-step">
-                <div class="setup-step-num">2</div>
-                <div class="setup-step-content">
-                    <h3>add to claude desktop config</h3>
-                    <p>open claude desktop &rarr; settings &rarr; developer &rarr; edit config, and add:</p>
-                    <div class="copy-block">
-                        <pre>{
-  "mcpServers": {
-    "browser": {
-      "command": "npx",
-      "args": ["-y", "hanzi-in-chrome-mcp"]
-    }
-  }
-}</pre>
-                        <button class="copy-btn" onclick="copyText(this, '{\n  &quot;mcpServers&quot;: {\n    &quot;browser&quot;: {\n      &quot;command&quot;: &quot;npx&quot;,\n      &quot;args&quot;: [&quot;-y&quot;, &quot;hanzi-in-chrome-mcp&quot;]\n    }\n  }\n}')">Copy</button>
-                    </div>
-                    <p style="margin-top: 8px;">then restart claude desktop.</p>
-                </div>
-            </div>
-            <div class="setup-step">
-                <div class="setup-step-num">3</div>
-                <div class="setup-step-content">
-                    <h3>done. ask claude to browse.</h3>
-                    <p>you'll see the browser tools appear in the tools menu.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Other -->
-        <div class="setup-panel" id="panel-other">
-            <div class="setup-step">
-                <div class="setup-step-num">1</div>
-                <div class="setup-step-content">
-                    <h3>install the chrome connector</h3>
-                    <p>one-time setup. connects your browser to the MCP server.</p>
-                    <p><a href="https://chromewebstore.google.com/detail/hanzi-in-chrome/iklpkemlmbhemkiojndpbhoakgikpmcd" target="_blank">install from chrome web store &rarr;</a></p>
-                </div>
-            </div>
-            <div class="setup-step">
-                <div class="setup-step-num">2</div>
-                <div class="setup-step-content">
-                    <h3>add the MCP server</h3>
-                    <p>hanzi in chrome works with any MCP client that supports stdio transport. the server command is:</p>
-                    <div class="copy-block">
-                        <pre>npx -y hanzi-in-chrome-mcp</pre>
-                        <button class="copy-btn" onclick="copyText(this, 'npx -y hanzi-in-chrome-mcp')">Copy</button>
-                    </div>
-                    <p style="margin-top: 12px;">add it however your MCP client expects. typically a JSON config with <code style="background:#f5f5f3;padding:2px 6px;border-radius:4px;font-size:13px;">"command": "npx"</code> and <code style="background:#f5f5f3;padding:2px 6px;border-radius:4px;font-size:13px;">"args": ["-y", "hanzi-in-chrome-mcp"]</code>.</p>
-                </div>
-            </div>
-            <div class="setup-step">
-                <div class="setup-step-num">3</div>
-                <div class="setup-step-content">
-                    <h3>done.</h3>
-                    <p>your agent now has access to <code style="background:#f5f5f3;padding:2px 6px;border-radius:4px;font-size:13px;">browser_start</code>, <code style="background:#f5f5f3;padding:2px 6px;border-radius:4px;font-size:13px;">browser_message</code>, <code style="background:#f5f5f3;padding:2px 6px;border-radius:4px;font-size:13px;">browser_status</code>, <code style="background:#f5f5f3;padding:2px 6px;border-radius:4px;font-size:13px;">browser_stop</code>, and <code style="background:#f5f5f3;padding:2px 6px;border-radius:4px;font-size:13px;">browser_screenshot</code>.</p>
-                </div>
-            </div>
-        </div>
+        </footer>
     </div>
 
-    <!-- Why not headless -->
-    <div class="section">
-        <h2 class="section-title">how does it compare?</h2>
-        <p class="section-sub">other browser MCPs expose primitive tools. your AI has to do the browsing itself, step by step. hanzi in chrome is different.</p>
-        <div class="compare">
-            <div class="compare-col highlight">
-                <h3>hanzi in chrome</h3>
-                <p style="font-size:13px;color:#888;margin-bottom:16px;">you describe a task. the agent figures it out.</p>
-                <ul>
-                    <li>"go to gmail and star all unread" is one tool call</li>
-                    <li>built-in agent loop. autonomous browsing, not step by step</li>
-                    <li>your real chrome with existing logins, cookies, extensions</li>
-                    <li>no auth setup needed</li>
-                    <li>works with any MCP client</li>
-                </ul>
-            </div>
-            <div class="compare-col">
-                <h3>other browser MCPs</h3>
-                <p style="font-size:13px;color:#888;margin-bottom:16px;">playwright MCP, chrome devtools MCP, claude in chrome</p>
-                <ul>
-                    <li>expose primitive tools: click, type, navigate, screenshot</li>
-                    <li>your AI has to orchestrate every step itself</li>
-                    <li>each action is a round-trip to your agent. slow and expensive</li>
-                    <li>headless browsers break on login, CAPTCHAs, 2FA</li>
-                    <li>great for testing public pages. not for real tasks with your accounts</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- Credentials -->
-    <div class="section">
-        <h2 class="section-title">bring your own credentials</h2>
-        <p class="section-sub">no extra API keys needed. use what you already have.</p>
-        <div class="compare">
-            <div class="compare-col highlight">
-                <h3>MCP server</h3>
-                <p style="font-size:13px;color:#888;margin-bottom:16px;">uses your existing subscription. no API key setup.</p>
-                <ul>
-                    <li>claude code subscription</li>
-                    <li>codex subscription</li>
-                </ul>
-            </div>
-            <div class="compare-col highlight">
-                <h3>extension standalone</h3>
-                <p style="font-size:13px;color:#888;margin-bottom:16px;">use it directly from the chrome sidepanel. supports more providers.</p>
-                <ul>
-                    <li>claude code / codex subscription</li>
-                    <li>anthropic, openai, google, openrouter API keys</li>
-                    <li>self-hosted models (ollama, llama.cpp)</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- Open source -->
-    <div class="section" style="text-align: center; padding: 64px 0;">
-        <h2 class="section-title">source available. free to start.</h2>
-        <p class="section-sub" style="margin: 12px auto 32px;">100 free tasks. star us on github, report bugs, contribute.</p>
-        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-            <a class="btn-primary" href="#setup">get started</a>
-            <a class="btn-secondary" href="https://github.com/hanzili/llm-in-chrome" target="_blank">github</a>
-        </div>
-    </div>
-
-    <footer>
-        <a href="https://github.com/hanzili/llm-in-chrome" target="_blank">github</a>
-        <a href="https://www.npmjs.com/package/hanzi-in-chrome-mcp" target="_blank">npm</a>
-        <a href="https://chromewebstore.google.com/detail/hanzi-in-chrome/iklpkemlmbhemkiojndpbhoakgikpmcd" target="_blank">chrome web store</a>
-        <a href="https://x.com/hanzi_li" target="_blank">twitter</a>
-        <a href="https://www.linkedin.com/in/hanzi-li-mcgill/" target="_blank">linkedin</a>
-    </footer>
-
-</div>
-
-<script>
-function showTab(id) {
-    document.querySelectorAll('.setup-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.setup-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('panel-' + id).classList.add('active');
-    event.target.classList.add('active');
-}
-
-function copyText(btn, text) {
-    // Decode HTML entities
-    const el = document.createElement('textarea');
-    el.innerHTML = text;
-    navigator.clipboard.writeText(el.value);
-    const orig = btn.textContent;
-    btn.textContent = 'Copied!';
-    setTimeout(() => btn.textContent = orig, 1500);
-}
-</script>
-
+    <script>
+        function copyData(button) {
+            navigator.clipboard.writeText(button.dataset.copy || '');
+            const original = button.textContent;
+            button.textContent = 'Copied';
+            setTimeout(() => {
+                button.textContent = original;
+            }, 1500);
+        }
+    </script>
 </body>
 </html>

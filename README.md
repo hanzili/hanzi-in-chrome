@@ -1,176 +1,79 @@
-# Stop being your AI's intern.
+# Your agent stops when it needs a browser. Hanzi lets it keep going.
 
-Your AI agent can't use a browser. So it makes you do it — open this URL, click that button, paste the result back. Over and over.
+**Hanzi** gives your AI agent your real signed-in browser. One tool call, entire task delegated.
 
-**Hanzi in Chrome** is a browser agent that lives inside your MCP. It takes over your real Chrome — your logins, your sessions — and browses, clicks, and fills forms autonomously.
+Works with Claude Code, Claude Cowork, Cursor, Codex, Windsurf, and more.
 
-Works with Claude Code, Cursor, Windsurf, Codex CLI, and anything that supports MCP.
-
-[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/iklpkemlmbhemkiojndpbhoakgikpmcd)](https://chrome.google.com/webstore/detail/iklpkemlmbhemkiojndpbhoakgikpmcd)
-
-## Demo
-
-![Demo](demo.gif)
-
-## Why not Playwright MCP / Browser Use?
-
-Those tools give your AI a **new, empty browser**. Every click is a separate tool call. Logging in is a nightmare.
-
-This gives your AI **your actual Chrome** — already logged into Gmail, GitHub, Jira, everything. One tool call, entire task delegated.
-
-```
-# Other tools: 50+ tool calls, one click at a time
-ai: click login button
-ai: type username
-ai: type password
-ai: click submit
-ai: wait for page load
-ai: click menu
-... (you get the idea)
-
-# Hanzi in Chrome: 1 tool call, done
-ai: browser_start("Log into Jira and summarize my open tickets")
-ai: → "You have 3 open tickets..."
-```
+[![Watch demo](https://img.youtube.com/vi/3tHzg2ps-9w/maxresdefault.jpg)](https://www.youtube.com/watch?v=3tHzg2ps-9w)
 
 ## Setup
 
-### 1. Install the Chrome extension
-
-**[Install from Chrome Web Store](https://chrome.google.com/webstore/detail/iklpkemlmbhemkiojndpbhoakgikpmcd)**
-
-### 2. Add the MCP server to your AI tool
-
-The agent needs an LLM to drive the browser. Pick one:
-
-- **Claude Pro/Max subscriber?** You're set — it uses your `claude login` automatically.
-- **Codex subscriber?** Run `codex login` and you're set.
-- **API key?** Set `ANTHROPIC_API_KEY` in your environment.
-
-<details open>
-<summary><strong>Claude Code</strong></summary>
-
 ```bash
-claude mcp add browser -- npx -y hanzi-in-chrome-mcp
+npx hanzi-in-chrome setup
 ```
-</details>
 
 <details>
-<summary><strong>Cursor</strong> (.cursor/mcp.json)</summary>
+<summary>Manual setup</summary>
 
+1. **[Install the browser extension](https://chrome.google.com/webstore/detail/iklpkemlmbhemkiojndpbhoakgikpmcd)**
+
+2. Add the MCP server:
+
+**Claude Code:**
+```bash
+claude mcp add browser -- npx -y hanzi-in-chrome
+```
+
+**Cursor / Windsurf / Others** (mcp.json):
 ```json
 {
   "mcpServers": {
     "browser": {
       "command": "npx",
-      "args": ["-y", "hanzi-in-chrome-mcp"]
+      "args": ["-y", "hanzi-in-chrome"]
     }
   }
 }
 ```
+
+3. Credentials — pick one:
+   - Claude Pro/Max: uses `claude login` automatically
+   - Codex: run `codex login`
+   - API key: set `ANTHROPIC_API_KEY`
 </details>
 
-<details>
-<summary><strong>Windsurf / Other MCP clients</strong></summary>
+## Examples
 
-```json
-{
-  "mcpServers": {
-    "browser": {
-      "command": "npx",
-      "args": ["-y", "hanzi-in-chrome-mcp"]
-    }
-  }
-}
 ```
-</details>
-
-That's it. Your AI can now use your browser.
-
-## What you can do
-
-**Logged-in tasks** — it's your Chrome, you're already authenticated
-```
-browser_start("Go to Gmail and unsubscribe from all marketing emails from the last week")
+"Go to Gmail and unsubscribe from all marketing emails from the last week"
+"Apply for the senior engineer position on careers.acme.com"
+"Log into my bank and download last month's statement"
+"Find AI engineer jobs on LinkedIn in San Francisco"
 ```
 
-**Form filling**
-```
-browser_start("Apply for the senior engineer position on careers.acme.com. Name: Jane Doe, Email: jane@example.com, Experience: 10 years Python")
-```
+## Skills
 
-**Multi-step workflows**
-```
-browser_start("Log into my bank and download last month's statement")
-```
+Reusable workflows. Open source — [add your own](https://github.com/hanzili/llm-in-chrome/tree/main/server/skills).
 
-**Parallel tasks** — each runs in its own browser window
-```
-browser_start("Search for flights to Tokyo on Google Flights")
-browser_start("Check hotel prices in Shibuya on Booking.com")
-browser_start("Look up JR Pass costs")
-```
+| Skill | Description |
+|-------|-------------|
+| `linkedin-prospector` | Find prospects, send personalized connection requests |
+| `e2e-tester` | Test your app in a real browser, report bugs with screenshots |
+| `social-poster` | Draft per-platform posts, publish from your signed-in accounts |
 
-**Follow-ups** — the browser window stays open
-```
-session = browser_start("Find AI engineer jobs on LinkedIn in San Francisco")
-browser_message(session_id, "Apply to the first one using my profile")
-```
-
-## Pricing
-
-**Free:** 100 tasks, no credit card needed.
-
-**Pro:** $29 one-time for unlimited tasks. **[Buy Pro](https://hanziinchrome.lemonsqueezy.com/checkout/buy/14a16cd3-47d7-42c9-a870-b44aa070cc44)**
-
-After purchasing, set your license key:
-```bash
-export HANZI_IN_CHROME_LICENSE_KEY=your-key-here
-```
-
-## MCP Tools
+## Tools
 
 | Tool | Description |
 |------|-------------|
-| `browser_start` | Run a task. Blocks until complete, returns the result. |
-| `browser_message` | Send follow-up instructions to an existing session. |
-| `browser_status` | Check progress of active tasks. |
+| `browser_start` | Run a task. Blocks until complete. |
+| `browser_message` | Send follow-up to an existing session. |
+| `browser_status` | Check progress. |
 | `browser_stop` | Stop a task. |
-| `browser_screenshot` | Capture current browser state as PNG. |
+| `browser_screenshot` | Capture current page as PNG. |
 
-## How it works
+## Pricing
 
-```
-Your AI tool (Claude Code, Cursor, etc.)
-        ↓ MCP Protocol
-   Hanzi MCP Server (runs locally via npx)
-        ↓ WebSocket
-   Chrome Extension (your real browser)
-        ↓ Autonomous agent
-   Websites (with your logins)
-```
-
-1. Your AI calls `browser_start` with a task
-2. The MCP server sends it to the Chrome extension
-3. The browser agent handles all interaction autonomously
-4. Results flow back to your AI
-
-## Comparison
-
-| | Hanzi in Chrome | Playwright MCP | Browser Use |
-|---|---|---|---|
-| **Abstraction** | Task-level (1 call) | Action-level (50+ calls) | Action-level (50+ calls) |
-| **Browser** | Your real Chrome | New headless browser | New Chromium instance |
-| **Logged-in sites** | Already authenticated | Must handle auth | Must handle auth |
-| **Setup** | Chrome extension + npx | Playwright + Node | Python + pip |
-| **Parallel tasks** | Built-in | Manual | Manual |
-
-## Development
-
-```bash
-git clone https://github.com/hanzili/hanzi-in-chrome.git
-cd mcp-server && npm install && npm run build
-```
+**Free:** 100 tasks. **Pro:** $29 one-time, unlimited. **[Buy Pro](https://hanziinchrome.lemonsqueezy.com/checkout/buy/14a16cd3-47d7-42c9-a870-b44aa070cc44)**
 
 ## License
 

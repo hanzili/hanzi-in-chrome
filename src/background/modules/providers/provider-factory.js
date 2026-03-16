@@ -46,9 +46,11 @@ export function createProvider(baseUrl, config, providerName = null) {
     }
   }
 
-  // Default to Anthropic if no match (backward compatibility)
-  console.warn(`[API] Unknown provider for URL: ${baseUrl}, defaulting to Anthropic format`);
-  return new AnthropicProvider(config);
+  // Default to OpenAI-compatible format for unknown providers.
+  // Most self-hosted and custom endpoints (Ollama, LM Studio, vLLM, llama.cpp,
+  // LocalAI, Jan.ai, text-generation-webui) use OpenAI-compatible format.
+  console.warn(`[API] Unknown provider for URL: ${baseUrl}, defaulting to OpenAI-compatible format`);
+  return new OpenAIProvider(config);
 }
 
 /**
@@ -62,5 +64,5 @@ export function detectProvider(baseUrl) {
       return new ProviderClass({}).getName();
     }
   }
-  return 'anthropic'; // Default
+  return 'openai'; // Default — most custom endpoints are OpenAI-compatible
 }

@@ -1,7 +1,7 @@
 {
-  "name": "hanzi-in-chrome-mcp",
-  "version": "2.0.1",
-  "description": "Control a real Chrome browser — click, type, fill forms, test workflows, post content, and read authenticated pages",
+  "name": "hanzi-in-chrome",
+  "version": "2.1.1",
+  "description": "Give your AI agent a real browser — click, type, fill forms, test workflows, post content, and read authenticated pages",
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "hanzili",
   "repository": {
@@ -10,7 +10,7 @@
   },
   "type": "module",
   "bin": {
-    "hanzi-in-chrome-mcp": "./dist/index.js",
+    "hanzi-in-chrome": "./dist/index.js",
     "hanzi-browser": "./dist/cli.js",
     "hanzi-relay": "./dist/relay/server.js"
   },

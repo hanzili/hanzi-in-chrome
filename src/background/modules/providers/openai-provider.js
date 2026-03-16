@@ -12,7 +12,10 @@ export class OpenAIProvider extends BaseProvider {
   }
 
   static matchesUrl(baseUrl) {
-    return baseUrl.includes('openai.com');
+    return baseUrl.includes('openai.com')
+      || baseUrl.includes('/v1/chat/completions')
+      || baseUrl.includes('localhost:11434')
+      || baseUrl.includes('127.0.0.1:11434');
   }
 
   getHeaders() {

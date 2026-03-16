@@ -300,12 +300,22 @@ async function cmdScreenshot(): Promise<void> {
 
 // --- Skills ---
 
-const SKILLS_BASE_URL = 'https://raw.githubusercontent.com/hanzili/llm-in-chrome/main/mcp-server/skills';
+const SKILLS_BASE_URL = 'https://raw.githubusercontent.com/hanzili/llm-in-chrome/main/server/skills';
 
 const SKILL_REGISTRY = [
   {
     name: 'linkedin-prospector',
     description: 'Find people on LinkedIn and send personalized connection requests',
+    files: ['SKILL.md'],
+  },
+  {
+    name: 'e2e-tester',
+    description: 'Test your web app in a real browser — reports bugs with code references',
+    files: ['SKILL.md'],
+  },
+  {
+    name: 'social-poster',
+    description: 'Post across LinkedIn, Twitter, Reddit, HN — drafts per-platform, posts from your browser',
     files: ['SKILL.md'],
   },
 ];
@@ -374,6 +384,15 @@ function detectSkillsDir(skillName: string): string {
   return join('.agents', 'skills', skillName);
 }
 
+async function cmdSetup(): Promise<void> {
+  const { runSetup } = await import('./cli/setup.js');
+  let only: string | undefined;
+  for (let i = 1; i < args.length; i++) {
+    if (args[i] === '--only' && args[i + 1]) only = args[++i];
+  }
+  await runSetup({ only });
+}
+
 function cmdHelp(): void {
   console.log(`
 Hanzi Browser CLI - Browser automation from the command line
@@ -406,6 +425,9 @@ Commands:
 
   screenshot [session_id]   Take a screenshot
 
+  setup                     Auto-detect AI agents and configure MCP
+    --only <agent>          Only configure one agent (claude-code, cursor, windsurf, claude-desktop)
+
   skills                    List available agent skills
   skills install <name>     Download a skill into your project
 
@@ -417,15 +439,17 @@ Typical workflow:
   3. Continue the same session with \`message <session_id> "next step"\`
   4. Stop it with \`stop <session_id>\`
 
-Best for:
+Use Hanzi when the task needs a real browser:
   - Logged-in sites: Jira, LinkedIn, Slack, GitHub, dashboards
+  - UI testing and visual verification
+  - Form filling in third-party web apps
   - Dynamic pages and infinite scroll
-  - Multi-step tasks: research, form filling, posting, workflow testing
 
 Prefer other tools first for:
-  - Simple factual questions
+  - Code inspection, git history, logs
+  - APIs, SDKs, CLI commands, or other MCPs
   - Public/static pages you can fetch directly
-  - APIs, CLI commands, or MCP tools that already solve the task
+  - Local files, env vars, structured data
 
 Examples:
   hanzi-browser start "Search LinkedIn for immigration consultants in Toronto and collect 10 names" --url https://www.linkedin.com
@@ -454,6 +478,7 @@ async function main(): Promise<void> {
     case 'stop': await cmdStop(); break;
     case 'screenshot': await cmdScreenshot(); break;
     case 'skills': await cmdSkills(); break;
+    case 'setup': await cmdSetup(); break;
     case 'help': case '--help': case '-h': case undefined: cmdHelp(); break;
     default:
       console.error(`Unknown command: ${command}`);

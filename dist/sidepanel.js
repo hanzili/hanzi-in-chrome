@@ -1151,9 +1151,9 @@ function ProvidersTab({
       /* @__PURE__ */ u("p", { class: "provider-desc", children: [
         "Control this browser from Claude Code or any MCP client.",
         " ",
-        /* @__PURE__ */ u("a", { href: "https://github.com/hanzili/hanzi-in-chrome#mcp-server-integration", target: "_blank", children: "Setup guide" })
+        /* @__PURE__ */ u("a", { href: "https://github.com/hanzili/hanzi-in-chrome#setup", target: "_blank", children: "Setup guide" })
       ] }),
-      /* @__PURE__ */ u("code", { class: "install-cmd", children: "npm install -g hanzi-in-chrome-mcp" })
+      /* @__PURE__ */ u("code", { class: "install-cmd", children: "npm install -g hanzi-in-chrome" })
     ] })
   ] });
 }
