@@ -84,7 +84,7 @@ function handleMessage(message: any): void {
       const result = typeof raw === 'object' ? raw : String(raw);
       const answer = typeof result === 'object' ? JSON.stringify(result, null, 2) : result;
       appendSessionLog(sessionId, `[COMPLETE] ${answer}`);
-      writeSessionStatus(sessionId, { status: 'completed', result: answer });
+      writeSessionStatus(sessionId, { status: 'complete', result: answer });
       if (jsonOutput) {
         console.log(JSON.stringify({ session_id: sessionId, status: 'completed', result }));
       } else {
@@ -223,7 +223,7 @@ function cmdStatus(): void {
       console.error(`Session not found: ${sessionId}`);
       process.exit(1);
     }
-    console.log(JSON.stringify(status, null, 2));
+    console.log(JSON.stringify(status, jsonOutput ? undefined : null, jsonOutput ? undefined : 2));
   } else {
     const allSessions = listSessions();
     if (jsonOutput) {
