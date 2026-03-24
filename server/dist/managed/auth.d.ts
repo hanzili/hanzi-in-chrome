@@ -20,3 +20,15 @@ export declare function resolveSessionToWorkspace(req: import("http").IncomingMe
     userId: string;
     workspaceId: string;
 } | null>;
+/**
+ * Resolve session to full profile (user name, email, workspace name).
+ * Used by GET /v1/me for the developer console.
+ */
+export declare function resolveSessionProfile(req: import("http").IncomingMessage): Promise<{
+    userId: string;
+    workspaceId: string;
+    userName: string;
+    userEmail: string;
+    workspaceName: string;
+    plan: string;
+} | null>;

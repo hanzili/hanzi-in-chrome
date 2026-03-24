@@ -16,8 +16,8 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "crypto";
 import { initVertex } from "../llm/vertex.js";
-import { startManagedAPI, initManagedAPI, handleRelayMessage, setStoreModule, onSessionDisconnected, shutdownManagedAPI } from "./api.js";
-import { initBilling } from "./billing.js";
+import { startManagedAPI, initManagedAPI, handleRelayMessage, setStoreModule, onSessionDisconnected, shutdownManagedAPI, recoverStuckTasks } from "./api.js";
+import { initBilling, setBillingStore } from "./billing.js";
 import { WebSocketClient } from "../ipc/websocket-client.js";
 // Dynamic store import — Postgres when DATABASE_URL is set, file-based otherwise
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -335,10 +335,13 @@ async function main() {
     clearTimeout(connectTimeout);
     // 5. Init billing (optional — works without Stripe credentials)
     initBilling();
+    setBillingStore(store);
     // 6. Start API — pass session connectivity checker
     initManagedAPI(relay, isSessionConnected);
     startManagedAPI(PORT);
     store.startHeartbeatFlush();
+    // 7. Recover tasks stuck in "running" from a previous process
+    await recoverStuckTasks();
     console.error(`
 ╔════════════════════════════════════════════════╗
 ║  Hanzi Managed Backend (deployed)              ║

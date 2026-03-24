@@ -11,8 +11,109 @@
  */
 
 
+import * as toolHandlerModule from '../tool-handlers/index.js';
+
 const NATIVE_HOST_NAME = 'com.hanzi_in_chrome.oauth_host';
-const WS_RELAY_URL = 'ws://localhost:7862';
+const WS_RELAY_URL_LOCAL = 'ws://localhost:7862';
+
+// Managed relay URL — derived from the managed backend URL stored during pairing
+let managedRelayUrl = null;
+
+// Managed session → tab mapping. Each managed session owns a specific tab.
+// This prevents managed tool execution from using the global active tab fallback.
+const managedSessionTabs = new Map();
+
+// Managed session credentials (set when pairing flow completes)
+let managedSessionToken = null;
+let managedBrowserSessionId = null;
+
+/**
+ * Set managed session credentials (called from extension UI after pairing).
+ * On next relay connect, the extension will register with the session token
+ * instead of the legacy role-based registration.
+ */
+export async function setManagedSession(sessionToken, browserSessionId, apiUrl) {
+  managedSessionToken = sessionToken;
+  managedBrowserSessionId = browserSessionId;
+
+  // Derive relay URL from API URL
+  // For HTTPS: use wss://relay.{domain} (port 443 via Caddy)
+  // For HTTP: use ws://{hostname}:7862 (direct)
+  if (apiUrl) {
+    try {
+      const url = new URL(apiUrl);
+      if (url.protocol === 'https:') {
+        // Production: relay runs behind Caddy on relay.{domain}
+        const domain = url.hostname.replace(/^api\./, 'relay.');
+        managedRelayUrl = `wss://${domain}`;
+      } else {
+        // Local dev: relay on same host, port 7862
+        managedRelayUrl = `ws://${url.hostname}:7862`;
+      }
+    } catch {
+      managedRelayUrl = null;
+    }
+  }
+
+  // Don't capture the active tab at pairing time — it's likely the dashboard page.
+  // Instead, a dedicated tab will be created lazily on first tool execution (in the execute_tool handler).
+  // This prevents tasks from navigating the developer's dashboard away.
+  let capturedTabId = null;
+
+  // Store persistently
+  const storageData = {
+    managed_session_token: sessionToken,
+    managed_browser_session_id: browserSessionId,
+    managed_relay_url: managedRelayUrl,
+  };
+  // Clear any stale tab mapping — new tab will be created lazily on first tool execution
+  if (browserSessionId) {
+    const tabMap = (await chrome.storage.local.get('managed_session_tabs')).managed_session_tabs || {};
+    delete tabMap[browserSessionId];
+    storageData.managed_session_tabs = tabMap;
+    managedSessionTabs.delete(browserSessionId);
+  }
+  await chrome.storage.local.set(storageData);
+
+  // Reconnect to relay with the new credentials
+  if (relaySocket) {
+    relaySocket.close();
+    relaySocket = null; // Clear reference so connectToRelay doesn't skip
+  }
+  connectToRelay();
+}
+
+/**
+ * Clear managed session (disconnect from managed mode).
+ */
+export function clearManagedSession() {
+  managedSessionToken = null;
+  managedBrowserSessionId = null;
+  managedRelayUrl = null;
+  chrome.storage.local.remove([
+    'managed_session_token', 'managed_browser_session_id',
+    'managed_relay_url', 'managed_session_tabs',
+  ]);
+  managedSessionTabs.clear();
+  // Close the managed relay connection and reconnect to local
+  if (relaySocket) {
+    relaySocket.close();
+    relaySocket = null;
+  }
+  connectToRelay();
+}
+
+/**
+ * Get current managed session info.
+ * Reads from storage since service worker memory is volatile.
+ */
+export async function getManagedSessionInfo() {
+  const stored = await chrome.storage.local.get(['managed_session_token', 'managed_browser_session_id']);
+  return {
+    isManaged: !!stored.managed_session_token,
+    browserSessionId: stored.managed_browser_session_id || null,
+  };
+}
 const WS_RECONNECT_DELAY_MS = 5000;
 
 // Direct imports for credential handling (chrome.runtime.sendMessage cannot
@@ -102,22 +203,53 @@ export function connectToRelay() {
     return;
   }
 
-  try {
-    console.log('[MCP Bridge] Connecting to WebSocket relay:', WS_RELAY_URL);
-    relaySocket = new WebSocket(WS_RELAY_URL);
+  // Load managed credentials from storage first, then connect
+  chrome.storage.local.get(['managed_session_token', 'managed_browser_session_id', 'managed_relay_url']).then(stored => {
+    if (stored.managed_session_token) {
+      managedSessionToken = stored.managed_session_token;
+      managedBrowserSessionId = stored.managed_browser_session_id;
+      managedRelayUrl = stored.managed_relay_url || null;
+    }
+    _doConnect();
+  }).catch(() => {
+    _doConnect();
+  });
+}
 
-    relaySocket.onopen = () => {
+function _doConnect() {
+  if (relaySocket && relaySocket.readyState === WebSocket.OPEN) return;
+
+  try {
+    // Use remote relay for managed mode, local relay for BYOM
+    const relayUrl = (managedSessionToken && managedRelayUrl) ? managedRelayUrl : WS_RELAY_URL_LOCAL;
+    console.log('[MCP Bridge] Connecting to WebSocket relay:', relayUrl);
+    const ws = new WebSocket(relayUrl);
+    relaySocket = ws;
+
+    ws.onopen = () => {
+      // Guard against stale callbacks after reconnect replaces the socket
+      if (relaySocket !== ws) return;
       console.log('[MCP Bridge] WebSocket connected');
 
-      // Register as the extension client
-      relaySocket.send(JSON.stringify({ type: 'register', role: 'extension' }));
+      // Register with session token (managed) or role (BYOM legacy)
+      if (managedSessionToken) {
+        ws.send(JSON.stringify({
+          type: 'register',
+          role: 'extension',
+          session_token: managedSessionToken,
+        }));
+        console.log('[MCP Bridge] Registered as managed session:', managedBrowserSessionId);
+      } else {
+        ws.send(JSON.stringify({ type: 'register', role: 'extension' }));
+        console.log('[MCP Bridge] Registered as legacy extension');
+      }
     };
 
-    relaySocket.onmessage = (event) => {
+    ws.onmessage = async (event) => {
+      if (relaySocket !== ws) return; // Stale socket guard
       try {
         const message = JSON.parse(event.data);
 
-        // Skip registration acknowledgements
         if (message.type === 'registered' || message.type === 'error') {
           if (message.type === 'error') {
             console.warn('[MCP Bridge] Relay error:', message.error);
@@ -127,7 +259,26 @@ export function connectToRelay() {
 
         // Respond to relay keepalive pings (keeps service worker alive)
         if (message.type === 'ping') {
-          relaySocket.send(JSON.stringify({ type: 'pong' }));
+          ws.send(JSON.stringify({ type: 'pong' }));
+          // Handle token rotation — relay periodically issues new session tokens.
+          // Must update BOTH the persistent storage key (managed_session_token)
+          // AND the in-memory variable (managedSessionToken) so reconnects use
+          // the new token immediately. The storage write MUST complete before
+          // the service worker can sleep, otherwise next wake loads the old token.
+          if (message.new_session_token) {
+            const previousToken = managedSessionToken;
+            managedSessionToken = message.new_session_token;
+            try {
+              await chrome.storage.local.set({ managed_session_token: message.new_session_token });
+              console.log('[MCP Bridge] Session token rotated and persisted');
+            } catch (e) {
+              // Revert in-memory to match what's actually persisted.
+              // Otherwise next reconnect reads the old token from storage
+              // but in-memory has the new (unpersisted) token — state diverges.
+              managedSessionToken = previousToken;
+              console.error('[MCP Bridge] Failed to persist rotated token, reverted in-memory:', e);
+            }
+          }
           return;
         }
 
@@ -173,7 +324,9 @@ export function connectToRelay() {
       }
     };
 
-    relaySocket.onclose = () => {
+    ws.onclose = () => {
+      // Only handle if this is still the current socket
+      if (relaySocket !== ws) return;
       console.log('[MCP Bridge] WebSocket disconnected');
 
       // Fail any in-flight relay operations so callers don't hang forever
@@ -197,7 +350,8 @@ export function connectToRelay() {
       }, WS_RECONNECT_DELAY_MS);
     };
 
-    relaySocket.onerror = (_err) => {
+    ws.onerror = (_err) => {
+      if (relaySocket !== ws) return;
       console.log('[MCP Bridge] WebSocket error (relay may not be running)');
       // onclose will fire after this, handling fallback
     };
@@ -231,6 +385,7 @@ function normalizeIncomingMessage(message) {
     'mcp_escalate_response': 'escalate_response',
     'mcp_save_config': 'save_config',
     'mcp_import_credentials': 'import_credentials',
+    'mcp_execute_tool': 'execute_tool',
     'llm_request': 'llm_request',
   };
 
@@ -450,6 +605,121 @@ async function handleMcpCommand(command) {
       debugLog('llm_request received', { requestId: command.requestId, prompt: command.prompt?.substring(0, 50) });
       handleLLMRequest(command);
       break;
+
+    case 'execute_tool': {
+      // Managed backend requesting tool execution (server-driven agent loop)
+      // Tool execution targets the session-owned tab, NOT the global active tab.
+      const { requestId, tool, input, browserSessionId: execSessionId } = command;
+      debugLog('execute_tool received', { requestId, tool, browserSessionId: execSessionId });
+
+      if (!requestId || !tool) {
+        debugLog('execute_tool missing requestId or tool');
+        break;
+      }
+
+      try {
+        const { executeToolHandler, hasHandler } = toolHandlerModule;
+
+        if (!hasHandler(tool)) {
+          sendToMcpRelay({
+            type: 'tool_result',
+            requestId,
+            error: `Unknown tool: ${tool}`,
+          });
+          break;
+        }
+
+        // Resolve the tab for this managed session.
+        // Each managed session owns a specific tab — NOT the global active tab.
+        // Tab mapping is persisted to chrome.storage.local to survive service worker sleep.
+        let tabId = managedSessionTabs.get(execSessionId);
+
+        if (!tabId && execSessionId) {
+          // Try to restore from persistent storage
+          try {
+            const stored = await chrome.storage.local.get('managed_session_tabs');
+            const persistedTabs = stored.managed_session_tabs || {};
+            if (persistedTabs[execSessionId]) {
+              tabId = persistedTabs[execSessionId];
+              managedSessionTabs.set(execSessionId, tabId);
+              // Verify tab still exists
+              try {
+                await chrome.tabs.get(tabId);
+              } catch {
+                tabId = null; // Tab was closed
+                managedSessionTabs.delete(execSessionId);
+              }
+            }
+          } catch {}
+        }
+
+        if (!tabId) {
+          // No tab bound yet — create a dedicated tab for this session on first use.
+          // This avoids using the dashboard tab or any other active tab.
+          try {
+            const newTab = await chrome.tabs.create({ url: 'about:blank', active: true });
+            tabId = newTab.id;
+            if (tabId && execSessionId) {
+              managedSessionTabs.set(execSessionId, tabId);
+              const stored = (await chrome.storage.local.get('managed_session_tabs')).managed_session_tabs || {};
+              stored[execSessionId] = tabId;
+              await chrome.storage.local.set({ managed_session_tabs: stored });
+              console.log('[MCP Bridge] Created dedicated tab for session:', execSessionId, 'tab:', tabId);
+            }
+          } catch (tabErr) {
+            sendToMcpRelay({
+              type: 'tool_result',
+              requestId,
+              error: 'Failed to create tab for managed session: ' + tabErr.message,
+            });
+            break;
+          }
+        }
+
+        // Inject the session-owned tabId — tools read it from input directly
+        const toolInput = { ...input, tabId };
+
+        const deps = {
+          sessionTabGroupId: null,
+          log: (...args) => console.log('[execute_tool]', ...args),
+        };
+
+        const result = await executeToolHandler(tool, toolInput, deps);
+
+        // Update persisted tab mapping if navigate changed the tab
+        if (tool === 'navigate' && result?.tabId && result.tabId !== tabId) {
+          managedSessionTabs.set(execSessionId, result.tabId);
+          const stored = (await chrome.storage.local.get('managed_session_tabs')).managed_session_tabs || {};
+          stored[execSessionId] = result.tabId;
+          await chrome.storage.local.set({ managed_session_tabs: stored });
+        }
+
+        // Report tab context back to server so it can persist session ownership.
+        // browserSessionId is required — without it, server writes to "" and persistence is broken.
+        let tabContext = null;
+        if (tabId) {
+          try {
+            const tab = await chrome.tabs.get(tabId);
+            tabContext = { tabId, windowId: tab.windowId, url: tab.url, browserSessionId: execSessionId };
+          } catch {}
+        }
+
+        sendToMcpRelay({
+          type: 'tool_result',
+          requestId,
+          result: result?.output ?? result,
+          tabContext, // Server can persist this
+        });
+      } catch (err) {
+        console.error('[MCP Bridge] execute_tool error:', err);
+        sendToMcpRelay({
+          type: 'tool_result',
+          requestId,
+          error: err.message || String(err),
+        });
+      }
+      break;
+    }
   }
 }
 

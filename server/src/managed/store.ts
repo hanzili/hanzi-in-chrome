@@ -33,6 +33,10 @@ export interface Workspace {
   id: string;
   name: string;
   createdAt: number;
+  stripeCustomerId?: string;
+  plan: "free" | "pro" | "enterprise";
+  subscriptionId?: string;
+  subscriptionStatus?: "active" | "past_due" | "cancelled";
 }
 
 export interface TaskRun {
@@ -134,7 +138,7 @@ function load(): void {
       };
     }
   } catch {
-    console.error("[Store] Failed to load, starting fresh");
+    // Store file missing or corrupt — start fresh (this is expected on first run)
   }
 }
 
@@ -157,6 +161,7 @@ export function createWorkspace(name: string): Workspace {
     id: randomUUID(),
     name,
     createdAt: Date.now(),
+    plan: "free",
   };
   data.workspaces[ws.id] = ws;
   save();
@@ -165,6 +170,22 @@ export function createWorkspace(name: string): Workspace {
 
 export function getWorkspace(id: string): Workspace | null {
   return data.workspaces[id] || null;
+}
+
+export function updateWorkspaceBilling(id: string, fields: {
+  stripeCustomerId?: string;
+  plan?: Workspace["plan"];
+  subscriptionId?: string;
+  subscriptionStatus?: Workspace["subscriptionStatus"];
+}): Workspace | null {
+  const ws = data.workspaces[id];
+  if (!ws) return null;
+  if (fields.stripeCustomerId !== undefined) ws.stripeCustomerId = fields.stripeCustomerId;
+  if (fields.plan !== undefined) ws.plan = fields.plan;
+  if (fields.subscriptionId !== undefined) ws.subscriptionId = fields.subscriptionId;
+  if (fields.subscriptionStatus !== undefined) ws.subscriptionStatus = fields.subscriptionStatus;
+  save();
+  return ws;
 }
 
 // --- API Keys ---
@@ -253,6 +274,12 @@ export function updateTaskRun(
 
 export function getTaskRun(id: string): TaskRun | null {
   return data.taskRuns[id] || null;
+}
+
+export function listStuckTasks(maxAgeMs: number): TaskRun[] {
+  const cutoff = Date.now() - maxAgeMs;
+  return Object.values(data.taskRuns)
+    .filter((t) => t.status === "running" && t.createdAt < cutoff);
 }
 
 export function listTaskRuns(workspaceId: string, limit = 50): TaskRun[] {
@@ -417,6 +444,14 @@ export function listBrowserSessions(workspaceId?: string): BrowserSession[] {
     return sessions.filter((s) => s.workspaceId === workspaceId);
   }
   return sessions;
+}
+
+export function deleteBrowserSession(id: string, workspaceId: string): boolean {
+  const session = data.browserSessions[id];
+  if (!session || session.workspaceId !== workspaceId) return false;
+  delete data.browserSessions[id];
+  save();
+  return true;
 }
 
 // --- Usage Events ---

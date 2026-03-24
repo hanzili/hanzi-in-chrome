@@ -12,6 +12,7 @@
  */
 import { betterAuth } from "better-auth";
 import pg from "pg";
+import { log } from "./log.js";
 const { Pool } = pg;
 const DATABASE_URL = process.env.DATABASE_URL || "";
 // Shared pool for workspace provisioning queries (separate from Better Auth's pool)
@@ -30,16 +31,16 @@ export function createAuth() {
         return authInstance;
     authInitialized = true;
     if (!DATABASE_URL) {
-        console.error("[Auth] No DATABASE_URL — Better Auth disabled");
+        log.info("No DATABASE_URL — Better Auth disabled");
         return null;
     }
     const authSecret = process.env.BETTER_AUTH_SECRET;
     if (!authSecret) {
         if (process.env.NODE_ENV === "production") {
-            console.error("[Auth] FATAL: BETTER_AUTH_SECRET not set. Sessions would be lost on restart. Set this env var before deploying.");
+            log.error("FATAL: BETTER_AUTH_SECRET not set — sessions lost on restart");
             process.exit(1);
         }
-        console.error("[Auth] WARNING: BETTER_AUTH_SECRET not set — sessions will be invalidated on restart");
+        log.warn("BETTER_AUTH_SECRET not set — sessions invalidated on restart");
     }
     authInstance = betterAuth({
         database: new Pool({ connectionString: DATABASE_URL, max: 5 }),
@@ -54,10 +55,12 @@ export function createAuth() {
                 clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
             },
         },
+        basePath: "/api/auth",
         trustedOrigins: [
             "https://browse.hanzilla.co",
             "https://api.hanzilla.co",
             "http://localhost:3000",
+            "http://localhost:3456",
         ],
         databaseHooks: {
             user: {
@@ -74,11 +77,11 @@ export function createAuth() {
                             const workspaceId = wsRes.rows[0].id;
                             await client.query("INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, 'owner')", [workspaceId, userId]);
                             await client.query("COMMIT");
-                            console.error(`[Auth] Provisioned workspace ${workspaceId} for user ${userId}`);
+                            log.info("Provisioned workspace", { workspaceId }, { userId });
                         }
                         catch (err) {
                             await client.query("ROLLBACK").catch(() => { });
-                            console.error("[Auth] Workspace provisioning error:", err.message);
+                            log.error("Workspace provisioning error", undefined, { error: err.message });
                         }
                         finally {
                             client.release();
@@ -88,7 +91,7 @@ export function createAuth() {
             },
         },
     });
-    console.error("[Auth] Better Auth initialized (singleton)");
+    log.info("Better Auth initialized");
     return authInstance;
 }
 /**
@@ -124,6 +127,44 @@ export async function resolveSessionToWorkspace(req) {
         return {
             userId: session.user.id,
             workspaceId: res.rows[0].workspace_id,
+        };
+    }
+    catch {
+        return null;
+    }
+}
+/**
+ * Resolve session to full profile (user name, email, workspace name).
+ * Used by GET /v1/me for the developer console.
+ */
+export async function resolveSessionProfile(req) {
+    const auth = createAuth();
+    if (!auth)
+        return null;
+    try {
+        const headers = new Headers();
+        for (const [key, val] of Object.entries(req.headers)) {
+            if (val)
+                headers.set(key, Array.isArray(val) ? val[0] : val);
+        }
+        const session = await auth.api.getSession({ headers });
+        if (!session?.user?.id)
+            return null;
+        const db = getProvisionPool();
+        const res = await db.query(`SELECT wm.workspace_id, w.name as workspace_name, w.plan
+       FROM workspace_members wm
+       JOIN workspaces w ON w.id = wm.workspace_id
+       WHERE wm.user_id = $1
+       ORDER BY wm.created_at ASC LIMIT 1`, [session.user.id]);
+        if (res.rows.length === 0)
+            return null;
+        return {
+            userId: session.user.id,
+            workspaceId: res.rows[0].workspace_id,
+            userName: session.user.name || "",
+            userEmail: session.user.email || "",
+            workspaceName: res.rows[0].workspace_name,
+            plan: res.rows[0].plan || "free",
         };
     }
     catch {

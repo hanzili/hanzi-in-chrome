@@ -1219,10 +1219,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const baseUrl = api_url || 'http://localhost:3456';
       (async () => {
         try {
-          // Capture current active tab — this is the browser context the session will own
-          const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-          const capturedTabId = activeTab?.id || null;
-          const capturedWindowId = activeTab?.windowId || null;
+          // Don't capture the current tab (which is likely the dashboard).
+          // A dedicated tab will be created lazily on first tool execution in mcp-bridge.js.
+          const capturedTabId = null;
+          const capturedWindowId = null;
 
           const res = await fetch(`${baseUrl}/v1/browser-sessions/register`, {
             method: 'POST',

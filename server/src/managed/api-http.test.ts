@@ -596,6 +596,120 @@ async function testSessionCookieAuthFallthrough() {
   assert(s3 === 200, "API key auth still works after cookie fallthrough");
 }
 
+// --- Stuck-Task Recovery ---
+
+async function testStuckTaskRecovery() {
+  console.log("\n--- Stuck-task recovery ---");
+
+  // Create a task directly in the store with "running" status and an old createdAt
+  const { createTaskRun, getTaskRun, validateApiKey, listStuckTasks } = await import("./store.js");
+  const resolved = validateApiKey(defaultKey);
+  const task = createTaskRun({
+    workspaceId: resolved!.workspaceId,
+    apiKeyId: "test",
+    task: "stuck task test",
+    browserSessionId: "test-session",
+  });
+  assert(task.status === "running", "Task starts as running");
+
+  // Manually backdate the task's createdAt to simulate a stuck task
+  const stored = getTaskRun(task.id)!;
+  (stored as any).createdAt = Date.now() - 40 * 60 * 1000; // 40 minutes ago
+
+  // listStuckTasks should find it
+  const stuck = listStuckTasks(35 * 60 * 1000); // 35-minute threshold
+  assert(stuck.some(t => t.id === task.id), "listStuckTasks finds the old running task");
+
+  // Call recoverStuckTasks
+  const { recoverStuckTasks } = await import("./api.js");
+  await recoverStuckTasks();
+
+  // Task should now be marked as error
+  const recovered = getTaskRun(task.id)!;
+  assert(recovered.status === "error", "Stuck task marked as error after recovery");
+  assert(recovered.answer!.includes("server restart"), "Answer mentions server restart");
+  assert(recovered.completedAt! > 0, "completedAt is set");
+}
+
+// --- Request ID Header ---
+
+async function testRequestIdHeader() {
+  console.log("\n--- Request ID in response headers ---");
+
+  // All responses should have X-Request-Id header
+  const res1 = await fetch(`http://localhost:${PORT}/v1/health`);
+  const rid1 = res1.headers.get("x-request-id");
+  assert(!!rid1, "Health response has X-Request-Id header");
+  assert(rid1!.length === 8, "Request ID is 8 chars");
+
+  // Error responses should also have it
+  const res2 = await fetch(`http://localhost:${PORT}/v1/tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task: "test" }),
+  });
+  const rid2 = res2.headers.get("x-request-id");
+  assert(!!rid2, "401 error response has X-Request-Id header");
+  assert(rid2 !== rid1, "Different requests get different IDs");
+}
+
+// --- Billing Store Functions ---
+
+async function testBillingWorkspaceFields() {
+  console.log("\n--- Billing workspace fields ---");
+
+  const { createWorkspace, getWorkspace, updateWorkspaceBilling } = await import("./store.js");
+
+  // New workspace defaults to free plan
+  const ws = createWorkspace("Billing Test");
+  assert(ws.plan === "free", "New workspace defaults to free plan");
+  assert(ws.stripeCustomerId === undefined, "No Stripe customer by default");
+  assert(ws.subscriptionId === undefined, "No subscription by default");
+  assert(ws.subscriptionStatus === undefined, "No subscription status by default");
+
+  // Update billing fields
+  const updated = updateWorkspaceBilling(ws.id, {
+    stripeCustomerId: "cus_test123",
+    plan: "pro",
+    subscriptionId: "sub_test456",
+    subscriptionStatus: "active",
+  });
+  assert(updated !== null, "Update returns workspace");
+  assert(updated!.stripeCustomerId === "cus_test123", "Stripe customer ID persisted");
+  assert(updated!.plan === "pro", "Plan updated to pro");
+  assert(updated!.subscriptionId === "sub_test456", "Subscription ID persisted");
+  assert(updated!.subscriptionStatus === "active", "Subscription status persisted");
+
+  // Verify getWorkspace returns the updated fields
+  const fetched = getWorkspace(ws.id);
+  assert(fetched!.plan === "pro", "getWorkspace reflects updated plan");
+  assert(fetched!.stripeCustomerId === "cus_test123", "getWorkspace reflects customer ID");
+
+  // Simulate subscription cancellation
+  const cancelled = updateWorkspaceBilling(ws.id, {
+    plan: "free",
+    subscriptionStatus: "cancelled",
+  });
+  assert(cancelled!.plan === "free", "Plan reverted to free");
+  assert(cancelled!.subscriptionStatus === "cancelled", "Status set to cancelled");
+  assert(cancelled!.stripeCustomerId === "cus_test123", "Customer ID preserved on cancel");
+
+  // Update nonexistent workspace returns null
+  const missing = updateWorkspaceBilling("nonexistent-id", { plan: "pro" });
+  assert(missing === null, "Update nonexistent workspace returns null");
+}
+
+async function testBillingCheckoutEndpoint() {
+  console.log("\n--- Billing checkout endpoint ---");
+
+  // Billing is not configured in test environment (no STRIPE_SECRET_KEY)
+  const { status, data } = await req("POST", "/v1/billing/checkout", {
+    email: "test@example.com",
+  }, defaultKey);
+  assert(status === 503, "Checkout returns 503 when billing not configured");
+  assert(data.error.includes("not configured"), "Error mentions billing not configured");
+}
+
 // --- Run ---
 
 async function runAll() {
@@ -622,6 +736,10 @@ async function runAll() {
   await testLegacyKeyPrefixNormalization();
   await testManagedTaskExecution();
   await testSessionCookieAuthFallthrough();
+  await testStuckTaskRecovery();
+  await testRequestIdHeader();
+  await testBillingWorkspaceFields();
+  await testBillingCheckoutEndpoint();
 
   console.log("\n=== All HTTP API tests passed ===\n");
   process.exit(0);

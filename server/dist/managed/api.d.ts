@@ -25,6 +25,11 @@ import * as fileStore from "./store.js";
  */
 export declare function setStoreModule(storeModule: typeof fileStore): void;
 /**
+ * Startup sweep: mark any tasks still "running" from a previous process as errored.
+ * Call once after store initialization.
+ */
+export declare function recoverStuckTasks(): Promise<void>;
+/**
  * Fail all pending tool executions for a disconnected browser session.
  * Called by the relay when a managed session WebSocket closes.
  * This avoids the agent loop waiting up to 15-35s for a timeout on each tool.

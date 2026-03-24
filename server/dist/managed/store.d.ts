@@ -17,6 +17,10 @@ export interface Workspace {
     id: string;
     name: string;
     createdAt: number;
+    stripeCustomerId?: string;
+    plan: "free" | "pro" | "enterprise";
+    subscriptionId?: string;
+    subscriptionStatus?: "active" | "past_due" | "cancelled";
 }
 export interface TaskRun {
     id: string;
@@ -80,6 +84,12 @@ export interface UsageEvent {
 }
 export declare function createWorkspace(name: string): Workspace;
 export declare function getWorkspace(id: string): Workspace | null;
+export declare function updateWorkspaceBilling(id: string, fields: {
+    stripeCustomerId?: string;
+    plan?: Workspace["plan"];
+    subscriptionId?: string;
+    subscriptionStatus?: Workspace["subscriptionStatus"];
+}): Workspace | null;
 export declare function createApiKey(workspaceId: string, name: string): ApiKey;
 export declare function validateApiKey(key: string): ApiKey | null;
 export declare function listApiKeys(workspaceId: string): ApiKey[];
@@ -94,6 +104,7 @@ export declare function createTaskRun(params: {
 }): TaskRun;
 export declare function updateTaskRun(id: string, updates: Partial<TaskRun>): TaskRun | null;
 export declare function getTaskRun(id: string): TaskRun | null;
+export declare function listStuckTasks(maxAgeMs: number): TaskRun[];
 export declare function listTaskRuns(workspaceId: string, limit?: number): TaskRun[];
 /**
  * Create a short-lived pairing token. The developer (via API key) requests this,
@@ -130,6 +141,7 @@ export declare function updateSessionContext(id: string, tabId: number, windowId
 export declare function getBrowserSession(id: string): BrowserSession | null;
 export declare function getBrowserSessionByToken(sessionToken: string): BrowserSession | null;
 export declare function listBrowserSessions(workspaceId?: string): BrowserSession[];
+export declare function deleteBrowserSession(id: string, workspaceId: string): boolean;
 export declare function recordUsage(params: {
     workspaceId: string;
     apiKeyId: string;

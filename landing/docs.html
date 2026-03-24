@@ -5,394 +5,520 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Docs - Hanzi</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <meta name="description" content="Hanzi documentation. Use Hanzi as a browser tool for your AI agent, or embed it in your product via the API.">
+    <meta name="description" content="Hanzi developer documentation. Browser automation for AI agents — install locally or integrate via API.">
     <style>
         :root {
             --bg: #f7f3ea; --surface: #fffdf8; --ink: #1f1711; --muted: #6d6256;
             --line: #e5ddd0; --accent: #ad5a34; --accent-dark: #8d4524; --green: #2f4a3d;
-            --purple: #4a3d6b;
+            --purple: #4a3d6b; --code-bg: #241c17; --code-fg: #f4e8d8;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            min-height: 100vh;
-            background: var(--bg);
-            color: var(--ink);
-            font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-            -webkit-font-smoothing: antialiased;
+        body { min-height: 100vh; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+        a { color: var(--accent-dark); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code { font-family: "SFMono-Regular", Menlo, Consolas, monospace; font-size: 0.875em; background: #f1eadf; padding: 2px 6px; border-radius: 4px; }
+
+        /* Layout */
+        .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+        .sidebar { background: var(--surface); border-right: 1px solid var(--line); padding: 24px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+        .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 0 20px 20px; font-size: 14px; font-weight: 700; color: var(--ink); text-decoration: none; }
+        .sidebar-brand:hover { text-decoration: none; }
+        .sidebar-brand svg { width: 22px; height: 22px; }
+        .sidebar-section { padding: 16px 0 4px; }
+        .sidebar-section-title { padding: 0 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+        .sidebar a.nav-link { display: block; padding: 6px 20px; font-size: 13px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; }
+        .sidebar a.nav-link:hover { color: var(--ink); background: rgba(0,0,0,0.02); }
+        .sidebar a.nav-link.active { color: var(--accent-dark); border-left-color: var(--accent-dark); font-weight: 600; }
+        .content { padding: 40px 48px 80px; max-width: 800px; }
+
+        /* Typography */
+        h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+        h2 { font-size: 1.25rem; font-weight: 700; margin: 40px 0 12px; padding-top: 20px; border-top: 1px solid var(--line); }
+        h2:first-of-type { border-top: none; padding-top: 0; }
+        h3 { font-size: 1rem; font-weight: 600; margin: 24px 0 8px; }
+        p { font-size: 15px; line-height: 1.7; color: var(--muted); margin-bottom: 12px; }
+        p strong { color: var(--ink); }
+        .lead { font-size: 16px; color: var(--muted); margin-bottom: 24px; }
+
+        /* Code blocks */
+        .code-block { position: relative; margin: 12px 0 16px; padding: 16px; border-radius: 10px; background: var(--code-bg); overflow-x: auto; }
+        .code-block pre { color: var(--code-fg); font-family: "SFMono-Regular", Menlo, Consolas, monospace; font-size: 13px; line-height: 1.6; white-space: pre; }
+        .code-block .label { position: absolute; top: 8px; right: 12px; font-size: 11px; color: #8a7d6e; font-family: inherit; }
+        .copy-btn { position: absolute; top: 8px; right: 12px; padding: 4px 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; background: rgba(255,255,255,0.06); color: var(--code-fg); font-size: 11px; cursor: pointer; font-family: inherit; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 14px; }
+        th { text-align: left; padding: 8px 12px; background: #f5f1e8; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); border-bottom: 1px solid var(--line); }
+        td { padding: 10px 12px; border-bottom: 1px solid #f0ebe2; vertical-align: top; }
+        td code { font-size: 12px; }
+
+        /* Endpoint blocks */
+        .endpoint { margin: 16px 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+        .endpoint-method { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; font-family: monospace; margin-right: 8px; }
+        .method-get { background: #e8f0ec; color: var(--green); }
+        .method-post { background: #e8e4f0; color: var(--purple); }
+        .method-delete { background: #fce4e4; color: #a02020; }
+        .endpoint-path { font-family: monospace; font-size: 14px; font-weight: 600; }
+        .endpoint-desc { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+        /* Cards */
+        .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0 20px; }
+        .card { padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+        .card h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+        .card p { font-size: 13px; margin: 0; }
+
+        /* Callouts */
+        .callout { padding: 14px 16px; border-radius: 8px; margin: 12px 0 16px; font-size: 14px; line-height: 1.6; }
+        .callout-info { background: #e8f0ec; border-left: 3px solid var(--green); color: var(--green); }
+        .callout-warn { background: #fceee4; border-left: 3px solid var(--accent); color: var(--accent-dark); }
+
+        /* Step list */
+        ol.steps { list-style: none; counter-reset: step; margin: 12px 0 20px; }
+        ol.steps li { counter-increment: step; padding: 8px 0 8px 36px; position: relative; font-size: 14px; line-height: 1.6; border-bottom: 1px solid #f0ebe2; }
+        ol.steps li:last-child { border: none; }
+        ol.steps li::before { content: counter(step); position: absolute; left: 0; top: 8px; width: 24px; height: 24px; border-radius: 50%; background: var(--green); color: white; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+        @media (max-width: 768px) {
+            .layout { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+            .content { padding: 24px 20px 60px; }
+            .card-grid { grid-template-columns: 1fr; }
         }
-        a { color: inherit; text-decoration: none; }
-        .page { width: min(900px, calc(100% - 40px)); margin: 0 auto; }
-        header {
-            display: flex; justify-content: space-between; align-items: center;
-            gap: 20px; padding: 28px 0 18px;
-        }
-        .brand { display: inline-flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 700; }
-        .brand-mark { width: 26px; height: 26px; }
-        .header-links { display: flex; gap: 12px; }
-        .link-pill {
-            display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px;
-            border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
-            font-size: 14px; font-weight: 700;
-        }
-        h1 { font-family: "Iowan Old Style", Georgia, serif; font-size: 2.8rem; letter-spacing: -0.04em; margin: 40px 0 16px; }
-        .subtitle { font-size: 18px; color: var(--muted); line-height: 1.6; margin-bottom: 40px; }
-        h2 { font-family: "Iowan Old Style", Georgia, serif; font-size: 1.8rem; letter-spacing: -0.03em; margin: 48px 0 16px; }
-        h2:first-of-type { margin-top: 0; }
-        h3 { font-size: 17px; margin-bottom: 6px; }
-        .section-kicker {
-            font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-        .kicker-green { color: var(--green); }
-        .kicker-purple { color: var(--purple); }
-        .doc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px; }
-        .doc-card {
-            border: 1px solid var(--line); border-radius: 18px; background: var(--surface);
-            padding: 24px; transition: transform 140ms ease, border-color 140ms ease;
-        }
-        .doc-card:hover { transform: translateY(-2px); border-color: #d0c4b4; }
-        .doc-label {
-            display: inline-block; margin-bottom: 12px; padding: 5px 10px; border-radius: 999px;
-            font-size: 11px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase;
-        }
-        .label-byom { background: #e8f0ec; color: var(--green); }
-        .label-managed { background: #fceee4; color: var(--accent-dark); }
-        .label-api { background: #e8e4f0; color: var(--purple); }
-        .label-all { background: #f0ede8; color: var(--muted); }
-        .doc-card h3 { font-size: 18px; margin-bottom: 8px; }
-        .doc-card p { color: var(--muted); font-size: 14px; line-height: 1.6; }
-        .ref-list { display: grid; gap: 8px; margin-bottom: 24px; }
-        .ref-item {
-            display: block; padding: 16px; border: 1px solid var(--line); border-radius: 14px;
-            background: var(--surface); font-size: 15px; transition: transform 100ms ease;
-        }
-        .ref-item:hover { transform: translateY(-1px); }
-        .ref-item code { font-family: "SFMono-Regular", Menlo, monospace; font-size: 13px; color: var(--accent-dark); }
-        .ref-item span { color: var(--muted); font-size: 14px; margin-left: 8px; }
-        .setup-copy {
-            position: relative; margin: 14px 0; padding: 16px; border-radius: 14px; background: #241c17;
-        }
-        .setup-copy pre {
-            overflow-x: auto; white-space: pre-wrap; word-break: break-word;
-            color: #f4e8d8; font-family: "SFMono-Regular", Menlo, monospace;
-            font-size: 13px; line-height: 1.6; padding-right: 60px;
-        }
-        .copy-btn {
-            position: absolute; top: 10px; right: 10px; padding: 8px 10px;
-            border: 1px solid rgba(255,255,255,0.12); border-radius: 999px;
-            background: rgba(255,255,255,0.08); color: #f4e8d8;
-            font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
-        }
-        .prose { font-size: 15px; line-height: 1.7; color: var(--muted); margin-bottom: 16px; }
-        .prose strong { color: var(--ink); }
-        .prose code {
-            font-family: "SFMono-Regular", Menlo, monospace; font-size: 13px;
-            padding: 2px 6px; border-radius: 6px; background: #f1eadf; color: var(--ink);
-        }
-        .step-list { list-style: none; margin: 16px 0; }
-        .step-list li {
-            padding: 10px 0; border-bottom: 1px solid #f0ebe2; font-size: 15px; line-height: 1.6;
-        }
-        .step-list li:last-child { border: none; }
-        .step-list code {
-            font-family: "SFMono-Regular", Menlo, monospace; font-size: 13px;
-            padding: 2px 6px; border-radius: 6px; background: #f1eadf;
-        }
-        .mode-row {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0;
-        }
-        .mode-card {
-            padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
-        }
-        .mode-card strong { display: block; font-size: 14px; margin-bottom: 4px; }
-        .mode-card p { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; }
-        .divider { border: none; border-top: 1px solid var(--line); margin: 48px 0; }
-        footer { padding: 30px 0 40px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 20px; }
-        @media (max-width: 600px) { .mode-row { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
-<div class="page">
-    <header>
-        <a class="brand" href="index.html">
-            <svg class="brand-mark" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#1f1711"/><path d="M7 7v10M17 7v10M7 12h10" stroke="#fffdf8" stroke-width="2.5" stroke-linecap="round"/></svg>
-            Hanzi
+<div class="layout">
+    <nav class="sidebar">
+        <a class="sidebar-brand" href="index.html">
+            <svg viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#1f1711"/><path d="M7 7v10M17 7v10M7 12h10" stroke="#fffdf8" stroke-width="2.5" stroke-linecap="round"/></svg>
+            Hanzi Docs
         </a>
-        <div class="header-links">
-            <a class="link-pill" href="index.html">Home</a>
-            <a class="link-pill" href="pricing.html">Pricing</a>
-            <a class="link-pill" href="https://github.com/hanzili/llm-in-chrome" target="_blank">GitHub</a>
-        </div>
-    </header>
 
-    <main>
-        <h1>Documentation</h1>
-        <p class="subtitle">Hanzi gives AI agents a real browser. Choose your path.</p>
-
-        <div class="doc-grid">
-            <a class="doc-card" href="#use-hanzi">
-                <span class="doc-label label-byom">Self-serve · start here</span>
-                <h3>Use Hanzi now</h3>
-                <p>Bring your own model. Install and run browser tasks from Claude Code, Cursor, Codex, or any MCP-compatible agent.</p>
-            </a>
-            <a class="doc-card" href="#build-with-hanzi">
-                <span class="doc-label label-api">Developers</span>
-                <h3>Build with Hanzi</h3>
-                <p>Embed browser automation in your product via the REST API or TypeScript SDK.</p>
-            </a>
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Getting started</div>
+            <a class="nav-link" href="#overview">Overview</a>
+            <a class="nav-link" href="#use-hanzi">Use Hanzi now</a>
+            <a class="nav-link" href="#build-with-hanzi">Build with Hanzi</a>
         </div>
 
-        <!-- ─────────────────────────────────────── -->
-        <!-- USE HANZI NOW -->
-        <!-- ─────────────────────────────────────── -->
-        <hr class="divider" id="use-hanzi">
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">API Reference</div>
+            <a class="nav-link" href="#authentication">Authentication</a>
+            <a class="nav-link" href="#api-keys">API Keys</a>
+            <a class="nav-link" href="#browser-sessions">Browser Sessions</a>
+            <a class="nav-link" href="#tasks">Tasks</a>
+            <a class="nav-link" href="#usage">Usage</a>
+        </div>
 
-        <div class="section-kicker kicker-green">Use Hanzi now</div>
-        <h2>Quickstart</h2>
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Guides</div>
+            <a class="nav-link" href="#pairing">Browser Pairing</a>
+            <a class="nav-link" href="#session-metadata">Session Metadata</a>
+            <a class="nav-link" href="#troubleshooting">Troubleshooting</a>
+            <a class="nav-link" href="#errors">Error Codes</a>
+        </div>
 
-        <p class="prose">One command sets up everything: detects your browsers, installs the Chrome extension, finds AI agents on your machine, and configures MCP.</p>
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Resources</div>
+            <a class="nav-link" href="https://github.com/hanzili/llm-in-chrome/tree/main/examples/partner-quickstart">Sample App</a>
+            <a class="nav-link" href="https://github.com/hanzili/llm-in-chrome/tree/main/sdk">SDK Source</a>
+            <a class="nav-link" href="https://github.com/hanzili/llm-in-chrome">GitHub</a>
+            <a class="nav-link" href="https://discord.gg/hahgu5hcA5">Discord</a>
+        </div>
+    </nav>
 
-        <div class="setup-copy">
+    <main class="content">
+
+        <!-- ─── OVERVIEW ─── -->
+        <h1 id="overview">Hanzi Documentation</h1>
+        <p class="lead">Hanzi gives AI agents a real browser. Use it locally with your own model, or embed it in your product via the API.</p>
+
+        <div class="card-grid">
+            <a class="card" href="#use-hanzi" style="text-decoration:none;">
+                <h4 style="color:var(--green);">Use Hanzi now</h4>
+                <p>Install the extension + MCP server. Bring your own model. One command to get started.</p>
+            </a>
+            <a class="card" href="#build-with-hanzi" style="text-decoration:none;">
+                <h4 style="color:var(--purple);">Build with Hanzi</h4>
+                <p>Sign in to your developer console. Create an API key. Pair browsers. Run tasks from your backend.</p>
+            </a>
+        </div>
+
+        <!-- ─── USE HANZI NOW ─── -->
+        <h2 id="use-hanzi">Use Hanzi now</h2>
+        <p>One command sets up everything: detects your browsers, installs the Chrome extension, finds AI agents on your machine, and configures MCP.</p>
+
+        <div class="code-block">
             <pre>npx hanzi-in-chrome setup</pre>
             <button class="copy-btn" data-copy="npx hanzi-in-chrome setup" onclick="copyData(this)">Copy</button>
         </div>
 
-        <p class="prose">The setup wizard supports <strong>Claude Code</strong>, <strong>Cursor</strong>, <strong>Windsurf</strong>, <strong>Claude Desktop</strong>, and <strong>Codex</strong>. It auto-detects which agents are installed and configures each one.</p>
+        <p>Supports <strong>Claude Code</strong>, <strong>Cursor</strong>, <strong>Windsurf</strong>, <strong>Claude Desktop</strong>, and <strong>Codex</strong>.</p>
 
-        <h3>What the setup does</h3>
-        <ul class="step-list">
-            <li><strong>1.</strong> Checks for the Chrome extension &mdash; opens the install page if missing</li>
-            <li><strong>2.</strong> Scans for supported AI agents on your machine</li>
-            <li><strong>3.</strong> Adds Hanzi as an MCP server to each agent's config</li>
-            <li><strong>4.</strong> Optionally imports credentials (Claude Code OAuth, Codex, or API key)</li>
-        </ul>
+        <h3>What setup does</h3>
+        <ol class="steps">
+            <li>Checks for the Chrome extension — opens the install page if missing</li>
+            <li>Scans for supported AI agents on your machine</li>
+            <li>Adds Hanzi as an MCP server to each agent's config</li>
+            <li>Imports credentials (Claude Code OAuth, Codex, or API key)</li>
+        </ol>
 
-        <h3>What the CLI sets up</h3>
-        <p class="prose">The setup wizard configures Hanzi to use <strong>your own model credentials</strong> (BYOM). You provide a Claude, GPT, or Gemini API key. The agent runs locally &mdash; no data leaves your machine.</p>
-
-        <div class="mode-row">
-            <div class="mode-card">
-                <span class="doc-label label-byom" style="margin-bottom: 8px;">What the CLI does today</span>
-                <strong>Bring your own model</strong>
-                <p>Auto-detects Claude Code and Codex credentials, or prompts for an API key or custom endpoint. This is the current self-serve path.</p>
-            </div>
-            <div class="mode-card">
-                <span class="doc-label label-managed" style="margin-bottom: 8px;">Separate path</span>
-                <strong>Managed access (by request)</strong>
-                <p>We handle model routing &mdash; no API key needed. This is a separate onboarding path, not yet part of the CLI. <a href="mailto:hanzili0217@gmail.com?subject=Managed access" style="color: var(--accent-dark); font-weight: 600;">Contact us</a> to get set up.</p>
-            </div>
-        </div>
-
-        <h3>Supported credentials (BYOM)</h3>
-        <ul class="step-list">
-            <li><strong>Claude Code OAuth</strong> &mdash; auto-detected if you've run <code>claude login</code></li>
-            <li><strong>Codex</strong> &mdash; auto-detected if you've run <code>codex login</code></li>
-            <li><strong>API key</strong> &mdash; set <code>ANTHROPIC_API_KEY</code> or enter directly during setup</li>
-            <li><strong>Custom endpoint</strong> &mdash; any OpenAI-compatible API (Ollama, LM Studio, etc.)</li>
-        </ul>
+        <h3>Supported credentials</h3>
+        <table>
+            <tr><th>Source</th><th>How</th></tr>
+            <tr><td><strong>Claude Code</strong></td><td>Auto-detected from <code>claude login</code></td></tr>
+            <tr><td><strong>Codex</strong></td><td>Auto-detected from <code>codex login</code></td></tr>
+            <tr><td><strong>API key</strong></td><td>Set <code>ANTHROPIC_API_KEY</code> env var or enter during setup</td></tr>
+            <tr><td><strong>Custom endpoint</strong></td><td>Any OpenAI-compatible API (Ollama, LM Studio, etc.)</td></tr>
+        </table>
 
         <h3>Manual setup</h3>
-        <p class="prose">If you prefer to set things up yourself:</p>
-        <ul class="step-list">
-            <li><strong>1.</strong> <a href="https://chrome.google.com/webstore/detail/iklpkemlmbhemkiojndpbhoakgikpmcd" style="color: var(--accent-dark); font-weight: 700;">Install the Chrome extension</a></li>
-            <li><strong>2.</strong> Add the MCP server to your agent:<br>
-                <strong>Claude Code:</strong> <code>claude mcp add browser -- npx -y hanzi-in-chrome</code><br>
-                <strong>Others:</strong> add <code>{"command":"npx","args":["-y","hanzi-in-chrome"]}</code> to your MCP config</li>
-            <li><strong>3.</strong> Provide credentials (see above)</li>
-        </ul>
+        <p>If you prefer to configure manually:</p>
+        <div class="code-block"><pre># Claude Code
+claude mcp add browser -- npx -y hanzi-in-chrome
+
+# Cursor / Windsurf (mcp.json)
+{
+  "mcpServers": {
+    "browser": {
+      "command": "npx",
+      "args": ["-y", "hanzi-in-chrome"]
+    }
+  }
+}</pre></div>
 
         <h3>Test it</h3>
-        <p class="prose">After setup, ask your agent something that requires a browser:</p>
-        <div class="setup-copy">
-            <pre>"Go to Hacker News and tell me the top 3 stories right now"</pre>
-        </div>
-        <p class="prose">Hanzi opens a browser tab, reads the page, and returns the answer inside your agent session.</p>
+        <p>After setup, ask your agent something that needs a browser:</p>
+        <div class="code-block"><pre>"Go to Hacker News and tell me the top 3 stories right now"</pre></div>
 
-        <h3>Troubleshooting</h3>
-        <div class="doc-grid">
-            <div class="doc-card">
-                <h3>Extension not detected</h3>
-                <p>Make sure the Chrome extension is installed and enabled. Reload the extension at <code>chrome://extensions</code> if needed.</p>
-            </div>
-            <div class="doc-card">
-                <h3>Agent can't find Hanzi</h3>
-                <p>Restart your AI agent after running setup. The MCP config is written to disk but agents need a restart to pick it up.</p>
-            </div>
-            <div class="doc-card">
-                <h3>Task fails or times out</h3>
-                <p>Check that your credentials are valid. Verify your API key works with your provider directly. If using a custom endpoint, confirm it's reachable.</p>
-            </div>
-        </div>
+        <!-- ─── BUILD WITH HANZI ─── -->
+        <h2 id="build-with-hanzi">Build with Hanzi</h2>
+        <p>Embed browser automation in your product. Your app calls the Hanzi API, a real browser executes the task, you get the result back.</p>
 
-        <!-- ─────────────────────────────────────── -->
-        <!-- BUILD WITH HANZI -->
-        <!-- ─────────────────────────────────────── -->
-        <hr class="divider" id="build-with-hanzi">
+        <ol class="steps">
+            <li><strong>Sign in</strong> — <a href="https://api.hanzilla.co/api/auth/sign-in/social">open your developer console</a> (Google or email)</li>
+            <li><strong>Create an API key</strong> — from the console, or via <code>POST /v1/api-keys</code></li>
+            <li><strong>Pair a browser</strong> — generate a pairing token, have your user paste it in the Hanzi extension</li>
+            <li><strong>Run a task</strong> — <code>POST /v1/tasks</code> with a task and browser session ID</li>
+        </ol>
 
-        <div class="section-kicker kicker-purple">Build with Hanzi</div>
-        <h2>Developer quickstart</h2>
-
-        <p class="prose">Integrate browser automation into your product. Your app calls the Hanzi API, a real browser executes the task, and you get the result back.</p>
-
-        <h3>How it works</h3>
-        <ul class="step-list">
-            <li><strong>1. Get an API key</strong> &mdash; <a href="https://api.hanzilla.co/api/auth/sign-in/social" style="color: var(--accent-dark); font-weight: 700;">sign in</a>, then create a key via <code>POST /v1/api-keys</code> with your session cookie</li>
-            <li><strong>2. Pair a browser</strong> &mdash; create a pairing token, have your user install the extension and paste the token in Settings → Managed tab</li>
-            <li><strong>3. Run a task</strong> &mdash; call the API with a task description and a browser session ID</li>
-            <li><strong>4. Get the result</strong> &mdash; poll the task or use <code>runTask()</code> which waits for completion</li>
-        </ul>
-
-        <h3>TypeScript SDK</h3>
-        <p class="prose">The SDK source lives in <a href="https://github.com/hanzili/llm-in-chrome/tree/main/sdk" style="color: var(--accent-dark); font-weight: 600;">sdk/</a> in the repo. It is not yet published to npm &mdash; clone the repo and install from <code>sdk/</code> directly.</p>
-
-        <div class="setup-copy">
+        <div class="code-block">
+            <span class="label">TypeScript</span>
             <pre>import { HanziClient } from '@hanzi/browser-agent';
 
 const client = new HanziClient({
   apiKey: process.env.HANZI_API_KEY,
 });
 
-// 1. Create a pairing token for your user
-const { pairingToken, expiresAt } = await client.createPairingToken();
-// → show pairingToken in your UI for the user to enter in the extension
+// Create a pairing token for your user
+const { pairingToken } = await client.createPairingToken();
 
-// 2. List connected browser sessions
+// List connected browsers
 const sessions = await client.listSessions();
-const session = sessions[0];
 
-// 3. Run a task
+// Run a task
 const result = await client.runTask({
-  browserSessionId: session.id,
+  browserSessionId: sessions[0].id,
   task: 'Read the patient chart on the current page',
 });
 
 console.log(result.answer);</pre>
         </div>
 
-        <h3>REST API</h3>
-        <p class="prose">Most endpoints accept either an API key (<code>Authorization: Bearer hic_...</code>) or a Better Auth session cookie. Sign in first, then create a key via the API.</p>
+        <div class="callout callout-info">
+            <strong>Sample app:</strong> See <a href="https://github.com/hanzili/llm-in-chrome/tree/main/examples/partner-quickstart">examples/partner-quickstart</a> for a complete working integration (Express + HTML, ~150 lines).
+        </div>
 
-        <div class="ref-list">
-            <a class="ref-item" href="https://api.hanzilla.co/v1/health" target="_blank">
-                <code>GET /v1/health</code> <span>Health check (no auth required)</span>
-            </a>
-            <div class="ref-item">
-                <code>POST /v1/api-keys</code> <span>Create an API key for your workspace. Body: <code>{"name":"my-key"}</code>. Key shown once.</span>
+        <!-- ─── AUTHENTICATION ─── -->
+        <h2 id="authentication">Authentication</h2>
+        <p>All API endpoints (except <code>/v1/health</code>) require authentication. Two methods are supported:</p>
+
+        <table>
+            <tr><th>Method</th><th>Use case</th><th>How</th></tr>
+            <tr><td><strong>API key</strong></td><td>Server-to-server, SDK</td><td><code>Authorization: Bearer hic_live_...</code></td></tr>
+            <tr><td><strong>Session cookie</strong></td><td>Developer console, browser</td><td>Set automatically after sign-in via Better Auth</td></tr>
+        </table>
+
+        <div class="code-block">
+            <span class="label">curl</span>
+            <pre>curl https://api.hanzilla.co/v1/api-keys \
+  -H "Authorization: Bearer hic_live_your_key_here"</pre>
+        </div>
+
+        <p>API keys are scoped to a workspace. Each key can access all sessions, tasks, and usage within its workspace. Keys are hashed at rest — the plaintext is shown once on creation.</p>
+
+        <!-- ─── API KEYS ─── -->
+        <h2 id="api-keys">API Keys</h2>
+
+        <div class="endpoint">
+            <span class="endpoint-method method-post">POST</span>
+            <span class="endpoint-path">/v1/api-keys</span>
+            <div class="endpoint-desc">Create a new API key for your workspace.</div>
+        </div>
+        <div class="code-block"><pre># Request
+curl -X POST https://api.hanzilla.co/v1/api-keys \
+  -H "Authorization: Bearer hic_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{"name": "production"}'
+
+# Response (201)
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "key": "hic_live_a1b2c3d4e5f6...",
+  "name": "production",
+  "workspace_id": "...",
+  "_warning": "Save this key now. It will not be shown again."
+}</pre></div>
+
+        <div class="endpoint">
+            <span class="endpoint-method method-get">GET</span>
+            <span class="endpoint-path">/v1/api-keys</span>
+            <div class="endpoint-desc">List all API keys. Returns prefixes only, not full keys.</div>
+        </div>
+
+        <div class="endpoint">
+            <span class="endpoint-method method-delete">DELETE</span>
+            <span class="endpoint-path">/v1/api-keys/:id</span>
+            <div class="endpoint-desc">Delete an API key. Integrations using this key will immediately stop working.</div>
+        </div>
+
+        <!-- ─── BROWSER SESSIONS ─── -->
+        <h2 id="browser-sessions">Browser Sessions</h2>
+
+        <div class="endpoint">
+            <span class="endpoint-method method-post">POST</span>
+            <span class="endpoint-path">/v1/browser-sessions/pair</span>
+            <div class="endpoint-desc">Create a pairing token (5-minute expiry). The user enters this in the Chrome extension to connect their browser.</div>
+        </div>
+        <div class="code-block"><pre># Request
+curl -X POST https://api.hanzilla.co/v1/browser-sessions/pair \
+  -H "Authorization: Bearer hic_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{"label": "Dr. Smith", "external_user_id": "user_123"}'
+
+# Response (201)
+{
+  "pairing_token": "hic_pair_a1b2c3...",
+  "expires_at": 1710000000000,
+  "expires_in_seconds": 300
+}</pre></div>
+
+        <div class="endpoint">
+            <span class="endpoint-method method-post">POST</span>
+            <span class="endpoint-path">/v1/browser-sessions/register</span>
+            <div class="endpoint-desc">Exchange a pairing token for a session credential. Called by the extension, not your app.</div>
+        </div>
+
+        <div class="endpoint">
+            <span class="endpoint-method method-get">GET</span>
+            <span class="endpoint-path">/v1/browser-sessions</span>
+            <div class="endpoint-desc">List all browser sessions with status, label, and external_user_id.</div>
+        </div>
+        <div class="code-block"><pre># Response (200)
+{
+  "sessions": [
+    {
+      "id": "550e8400-...",
+      "status": "connected",
+      "label": "Dr. Smith",
+      "external_user_id": "user_123",
+      "connected_at": 1710000000000,
+      "last_heartbeat": 1710000060000
+    }
+  ]
+}</pre></div>
+
+        <!-- ─── TASKS ─── -->
+        <h2 id="tasks">Tasks</h2>
+
+        <div class="endpoint">
+            <span class="endpoint-method method-post">POST</span>
+            <span class="endpoint-path">/v1/tasks</span>
+            <div class="endpoint-desc">Start a browser automation task. Requires a connected browser session.</div>
+        </div>
+        <div class="code-block"><pre># Request
+curl -X POST https://api.hanzilla.co/v1/tasks \
+  -H "Authorization: Bearer hic_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "task": "Read the patient chart on the current page",
+    "browser_session_id": "550e8400-...",
+    "url": "https://example.com/chart",
+    "context": "Extract: name, medications, allergies"
+  }'
+
+# Response (201)
+{
+  "id": "task_abc123",
+  "status": "running",
+  "task": "Read the patient chart on the current page",
+  "browser_session_id": "550e8400-..."
+}</pre></div>
+
+        <table>
+            <tr><th>Field</th><th>Required</th><th>Description</th></tr>
+            <tr><td><code>task</code></td><td>Yes</td><td>What to do (max 10,000 chars)</td></tr>
+            <tr><td><code>browser_session_id</code></td><td>Yes</td><td>Connected session to run against</td></tr>
+            <tr><td><code>url</code></td><td>No</td><td>Starting URL (max 2,048 chars)</td></tr>
+            <tr><td><code>context</code></td><td>No</td><td>Extra context for the agent (max 50,000 chars)</td></tr>
+        </table>
+
+        <div class="endpoint">
+            <span class="endpoint-method method-get">GET</span>
+            <span class="endpoint-path">/v1/tasks/:id</span>
+            <div class="endpoint-desc">Get task status, answer, steps, and usage.</div>
+        </div>
+        <div class="code-block"><pre># Response (200) — completed task
+{
+  "id": "task_abc123",
+  "status": "complete",
+  "task": "Read the patient chart on the current page",
+  "answer": "Patient: Jane Doe. Medications: Lisinopril 10mg...",
+  "steps": 4,
+  "usage": { "inputTokens": 12000, "outputTokens": 800, "apiCalls": 5 },
+  "browser_session_id": "550e8400-...",
+  "created_at": 1710000000000,
+  "completed_at": 1710000120000
+}</pre></div>
+
+        <div class="endpoint">
+            <span class="endpoint-method method-post">POST</span>
+            <span class="endpoint-path">/v1/tasks/:id/cancel</span>
+            <div class="endpoint-desc">Cancel a running task.</div>
+        </div>
+
+        <div class="endpoint">
+            <span class="endpoint-method method-get">GET</span>
+            <span class="endpoint-path">/v1/tasks</span>
+            <div class="endpoint-desc">List recent tasks for your workspace.</div>
+        </div>
+
+        <!-- ─── USAGE ─── -->
+        <h2 id="usage">Usage</h2>
+        <div class="endpoint">
+            <span class="endpoint-method method-get">GET</span>
+            <span class="endpoint-path">/v1/usage</span>
+            <div class="endpoint-desc">Usage summary for your workspace.</div>
+        </div>
+        <div class="code-block"><pre># Response (200)
+{
+  "totalInputTokens": 150000,
+  "totalOutputTokens": 12000,
+  "totalApiCalls": 45,
+  "totalCostUsd": 0.082,
+  "taskCount": 8
+}</pre></div>
+
+        <!-- ─── BROWSER PAIRING ─── -->
+        <h2 id="pairing">Browser Pairing</h2>
+        <p>Pairing connects a user's real Chrome browser to your workspace so you can run tasks in it remotely.</p>
+
+        <ol class="steps">
+            <li>Your backend calls <code>POST /v1/browser-sessions/pair</code> to create a pairing token (valid 5 minutes)</li>
+            <li>Your UI shows the token to the user</li>
+            <li>The user opens the Hanzi Chrome extension → Settings → Managed tab → pastes the token → clicks Connect</li>
+            <li>The extension exchanges the token for a persistent session (30-day expiry)</li>
+            <li>Your backend can now run tasks against that session</li>
+        </ol>
+
+        <p>Sessions auto-reconnect on browser restart — no re-pairing needed. The extension stores the session token and re-registers with the relay automatically.</p>
+
+        <!-- ─── SESSION METADATA ─── -->
+        <h2 id="session-metadata">Session Metadata</h2>
+        <p>When creating a pairing token, attach a <code>label</code> and <code>external_user_id</code> to map Hanzi sessions to your users:</p>
+        <div class="code-block"><pre>POST /v1/browser-sessions/pair
+{
+  "label": "Dr. Smith's browser",
+  "external_user_id": "user_abc123"
+}</pre></div>
+        <p>Both fields are inherited by the browser session and returned in <code>GET /v1/browser-sessions</code>. Use them to identify whose browser is whose in your system.</p>
+
+        <!-- ─── TROUBLESHOOTING ─── -->
+        <h2 id="troubleshooting">Troubleshooting</h2>
+
+        <div class="card-grid">
+            <div class="card">
+                <h4>Extension not detected</h4>
+                <p>Make sure the Chrome extension is installed and enabled. Reload at <code>chrome://extensions</code> if needed.</p>
             </div>
-            <div class="ref-item">
-                <code>GET /v1/api-keys</code> <span>List API keys (shows prefix only, not full key)</span>
+            <div class="card">
+                <h4>Agent can't find Hanzi</h4>
+                <p>Restart your AI agent after running setup. MCP config is written to disk but agents need a restart.</p>
             </div>
-            <div class="ref-item">
-                <code>DELETE /v1/api-keys/:id</code> <span>Delete an API key</span>
+            <div class="card">
+                <h4>Session disconnected</h4>
+                <p>The browser was closed or lost network. Sessions auto-reconnect when the browser reopens. Check <code>GET /v1/browser-sessions</code> for status before creating tasks.</p>
             </div>
-            <div class="ref-item">
-                <code>POST /v1/browser-sessions/pair</code> <span>Create a pairing token. Optional body: <code>{"label":"...", "external_user_id":"..."}</code></span>
+            <div class="card">
+                <h4>Task fails or times out</h4>
+                <p>Check that the session is connected. Verify credentials are valid. Tasks have a 30-minute timeout. If the page requires login, make sure the user is signed in.</p>
             </div>
-            <div class="ref-item">
-                <code>POST /v1/browser-sessions/register</code> <span>Exchange pairing token for a session credential</span>
+            <div class="card">
+                <h4>Pairing token expired</h4>
+                <p>Tokens are valid for 5 minutes. Generate a new one via the developer console or <code>POST /v1/browser-sessions/pair</code>.</p>
             </div>
-            <div class="ref-item">
-                <code>GET /v1/browser-sessions</code> <span>List sessions with status, label, and external_user_id</span>
-            </div>
-            <div class="ref-item">
-                <code>POST /v1/tasks</code> <span>Start a browser automation task</span>
-            </div>
-            <div class="ref-item">
-                <code>GET /v1/tasks/:id</code> <span>Get task status and result</span>
-            </div>
-            <div class="ref-item">
-                <code>POST /v1/tasks/:id/cancel</code> <span>Cancel a running task</span>
-            </div>
-            <div class="ref-item">
-                <code>GET /v1/usage</code> <span>Usage summary for your workspace</span>
+            <div class="card">
+                <h4>API key not working</h4>
+                <p>Keys start with <code>hic_live_</code>. Check that you're using the full key (shown once on creation). Verify the key belongs to the correct workspace.</p>
             </div>
         </div>
 
-        <h3>Browser pairing model</h3>
-        <p class="prose">Your app creates a <strong>pairing token</strong> (valid for 5 minutes). The end user installs the Hanzi extension, opens Settings → Managed tab, and pastes the token. The extension connects to the hosted Hanzi backend automatically &mdash; no URL entry needed. Once paired, you get a persistent <strong>browser session</strong> tied to that browser. Tasks run against a specific session &mdash; each user's browser is isolated.</p>
+        <!-- ─── ERROR CODES ─── -->
+        <h2 id="errors">Error Codes</h2>
+        <table>
+            <tr><th>Status</th><th>Meaning</th><th>Common cause</th></tr>
+            <tr><td><code>400</code></td><td>Bad Request</td><td>Missing required field, input too long, invalid URL</td></tr>
+            <tr><td><code>401</code></td><td>Unauthorized</td><td>Missing or invalid API key / session cookie</td></tr>
+            <tr><td><code>402</code></td><td>Payment Required</td><td>Plan upgrade needed (when billing is active)</td></tr>
+            <tr><td><code>403</code></td><td>Forbidden</td><td>Session belongs to a different workspace</td></tr>
+            <tr><td><code>404</code></td><td>Not Found</td><td>Resource doesn't exist, or belongs to another workspace</td></tr>
+            <tr><td><code>409</code></td><td>Conflict</td><td>Browser session not connected or expired</td></tr>
+            <tr><td><code>429</code></td><td>Too Many Requests</td><td>Rate limit exceeded (10 tasks/min, 5 concurrent)</td></tr>
+            <tr><td><code>500</code></td><td>Server Error</td><td>Internal error — check <code>request_id</code> in response for support</td></tr>
+            <tr><td><code>503</code></td><td>Service Unavailable</td><td>Billing not configured, or server degraded</td></tr>
+        </table>
 
-        <p class="prose">Sessions have a 30-day token expiry. If the extension disconnects (browser restart, network drop), it auto-reconnects using the stored session token. No re-pairing needed.</p>
+        <p>All error responses include a <code>request_id</code> in the <code>X-Request-Id</code> response header for tracing.</p>
 
-        <h3>Session metadata</h3>
-        <p class="prose">When creating a pairing token, you can attach a <code>label</code> and <code>external_user_id</code> to identify whose browser this is in your system. This metadata is inherited by the browser session and returned in <code>GET /v1/browser-sessions</code>. Use it to map Hanzi sessions to your users.</p>
+        <div class="code-block"><pre># Error response format
+{
+  "error": "Browser session is not connected. The extension must be running and registered.",
+  "request_id": "a1b2c3d4"
+}</pre></div>
 
-        <h3>Session lifecycle</h3>
-        <div class="doc-grid">
-            <div class="doc-card">
-                <span class="doc-label label-api">Pairing</span>
-                <h3>Create token → user enters it → session registered</h3>
-                <p>Your backend creates a pairing token. Your UI shows it to the user. The user pastes it in the Hanzi extension (Settings → Managed tab → Connect). The extension exchanges it for a session.</p>
-            </div>
-            <div class="doc-card">
-                <span class="doc-label label-api">Connected</span>
-                <h3>Run tasks → get results</h3>
-                <p>While the browser is open and the extension connected, you can run tasks against the session. Each task executes in the user's real browser.</p>
-            </div>
-            <div class="doc-card">
-                <span class="doc-label label-api">Disconnected</span>
-                <h3>Auto-reconnect on browser restart</h3>
-                <p>If the browser closes, the session is preserved. When the browser reopens, the extension reconnects automatically. Tasks queued during disconnect will fail &mdash; check session status first.</p>
-            </div>
-        </div>
+        <!-- ─── SECURITY ─── -->
+        <h2 id="security">Security</h2>
+        <table>
+            <tr><th>Mechanism</th><th>Details</th></tr>
+            <tr><td><strong>API keys</strong></td><td>SHA-256 hashed at rest. Plaintext shown once on creation. Prefix stored for display.</td></tr>
+            <tr><td><strong>Pairing tokens</strong></td><td>SHA-256 hashed. 5-minute expiry. Single use — cannot be replayed.</td></tr>
+            <tr><td><strong>Session tokens</strong></td><td>30-day expiry. Auto-rotated by the relay. Revocable.</td></tr>
+            <tr><td><strong>Workspace isolation</strong></td><td>All resources scoped to workspace. Cross-workspace access returns 404.</td></tr>
+            <tr><td><strong>BYOM privacy</strong></td><td>No data leaves your machine. Screenshots sent only to your chosen provider.</td></tr>
+        </table>
+        <p>Full privacy policy: <a href="https://github.com/hanzili/llm-in-chrome/blob/main/PRIVACY.md">PRIVACY.md</a></p>
 
-        <h3>Sample integration</h3>
-        <p class="prose">A complete working example (Express + inline frontend) that demonstrates pair → connect → task → result:</p>
-        <p class="prose"><a href="https://github.com/hanzili/llm-in-chrome/tree/main/examples/partner-quickstart" style="color: var(--accent-dark); font-weight: 600;">examples/partner-quickstart</a> — one file, ~100 lines of backend code.</p>
-
-        <!-- ─────────────────────────────────────── -->
-        <!-- CONCEPTS -->
-        <!-- ─────────────────────────────────────── -->
-        <hr class="divider">
-
-        <h2>Concepts</h2>
-        <div class="doc-grid">
-            <div class="doc-card">
-                <span class="doc-label label-all">All modes</span>
-                <h3>Browser sessions</h3>
-                <p>A browser session represents one connected Chrome instance. Tasks execute against a specific session, not a random tab.</p>
-            </div>
-            <div class="doc-card">
-                <span class="doc-label label-all">All modes</span>
-                <h3>Tools</h3>
-                <p>The agent uses tools like <code>read_page</code>, <code>computer</code>, <code>navigate</code>, and <code>form_input</code> to interact with the browser.</p>
-            </div>
-            <div class="doc-card">
-                <span class="doc-label label-api">API / SDK</span>
-                <h3>Workspaces</h3>
-                <p>A workspace groups browser sessions, tasks, API keys, and usage. Each account gets a default workspace.</p>
-            </div>
-            <div class="doc-card">
-                <span class="doc-label label-all">All modes</span>
-                <h3>MCP tools</h3>
-                <p><code>browser_start</code> runs a task, <code>browser_message</code> sends follow-ups, <code>browser_status</code> checks progress, <code>browser_stop</code> cancels, <code>browser_screenshot</code> captures the page.</p>
-            </div>
-        </div>
-
-        <h2>Security</h2>
-        <div class="doc-grid">
-            <div class="doc-card">
-                <span class="doc-label label-all">All modes</span>
-                <h3>Privacy</h3>
-                <p>BYOM: no data leaves your machine. Managed/API: tasks processed server-side with hashed credentials. <a href="https://github.com/hanzili/llm-in-chrome/blob/main/PRIVACY.md" style="color: var(--accent-dark);">Full privacy policy</a>.</p>
-            </div>
-            <div class="doc-card">
-                <span class="doc-label label-api">API / SDK</span>
-                <h3>Authentication</h3>
-                <p>API keys (hashed at rest), pairing tokens (5-min expiry), session tokens (30-day expiry, auto-rotated).</p>
-            </div>
-        </div>
     </main>
-
-    <footer>Hanzi — give your AI agent a real browser.</footer>
 </div>
 
 <script>
-    function copyData(button) {
-        navigator.clipboard.writeText(button.dataset.copy || '');
-        const original = button.textContent;
-        button.textContent = 'Copied';
-        setTimeout(() => { button.textContent = original; }, 1500);
-    }
+function copyData(btn) {
+    navigator.clipboard.writeText(btn.dataset.copy || btn.previousElementSibling?.textContent || '');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => btn.textContent = orig, 1500);
+}
+
+// Highlight active nav link on scroll
+const sections = document.querySelectorAll('h2[id], h1[id]');
+const navLinks = document.querySelectorAll('.nav-link');
+window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => { if (window.scrollY >= s.offsetTop - 100) current = s.id; });
+    navLinks.forEach(l => {
+        l.classList.toggle('active', l.getAttribute('href') === '#' + current);
+    });
+});
 </script>
 </body>
 </html>

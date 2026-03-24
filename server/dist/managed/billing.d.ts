@@ -1,18 +1,20 @@
 /**
- * Stripe Billing Integration (not yet active)
+ * Stripe Billing Integration
  *
- * Scaffolding for future billing. Currently:
- * - Checkout session creation exists but webhook handlers don't persist subscription status
- * - Usage metering function exists but is never called from task flow
- * - No plan gating — all authenticated users can create tasks
- * - Usage is tracked internally via store.recordUsage(), not via Stripe
+ * Wired but not yet activated in production (billing env vars not set).
  *
- * Before activating billing:
- * 1. Add plan/subscription status to workspace schema
- * 2. Persist webhook results (checkout.session.completed, subscription updates)
- * 3. Wire recordTaskUsage() into task completion flow
- * 4. Add plan gating to task creation
- * 5. Map workspace IDs to Stripe customer IDs
+ * What's implemented:
+ * - Checkout session creation with workspace metadata
+ * - Webhook handlers persist subscription status to workspace
+ * - Usage metering called from task completion flow
+ * - Plan gating scaffolded in api.ts (soft check, log only — uncomment to enforce)
+ * - Customer ID mapped from checkout.session.completed webhook
+ *
+ * To activate:
+ * 1. Set STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_MANAGED_PRICE_ID
+ * 2. Optionally set STRIPE_API_METER_ID for usage metering
+ * 3. Uncomment the 402 return in api.ts handleCreateTask() to enforce plan gating
+ * 4. Run schema migrations (ALTER TABLE workspaces ADD COLUMN ...)
  *
  * Requires env vars:
  * - STRIPE_SECRET_KEY
@@ -20,6 +22,9 @@
  * - STRIPE_MANAGED_PRICE_ID (monthly subscription price)
  * - STRIPE_API_METER_ID (usage meter for API tasks)
  */
+import type * as fileStore from "./store.js";
+/** Set the backing store so billing can persist webhook results. */
+export declare function setBillingStore(store: typeof fileStore): void;
 export declare function initBilling(): boolean;
 export declare function isBillingEnabled(): boolean;
 /**

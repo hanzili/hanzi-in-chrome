@@ -18,6 +18,10 @@ export interface Workspace {
     id: string;
     name: string;
     createdAt: number;
+    stripeCustomerId?: string;
+    plan: "free" | "pro" | "enterprise";
+    subscriptionId?: string;
+    subscriptionStatus?: "active" | "past_due" | "cancelled";
 }
 export interface PairingToken {
     token: string;
@@ -75,6 +79,12 @@ export interface UsageEvent {
 export declare function initPgStore(connectionString: string): void;
 export declare function createWorkspace(name: string): Promise<Workspace>;
 export declare function getWorkspace(id: string): Promise<Workspace | null>;
+export declare function updateWorkspaceBilling(id: string, fields: {
+    stripeCustomerId?: string;
+    plan?: Workspace["plan"];
+    subscriptionId?: string;
+    subscriptionStatus?: Workspace["subscriptionStatus"];
+}): Promise<Workspace | null>;
 export declare function createApiKey(workspaceId: string, name: string): Promise<ApiKey>;
 export declare function validateApiKey(key: string): Promise<ApiKey | null>;
 export declare function listApiKeys(workspaceId: string): Promise<ApiKey[]>;
@@ -97,6 +107,7 @@ export declare function disconnectSession(id: string): Promise<void>;
 export declare function updateSessionContext(id: string, tabId: number, windowId?: number): Promise<void>;
 export declare function getBrowserSession(id: string): Promise<BrowserSession | null>;
 export declare function listBrowserSessions(workspaceId?: string): Promise<BrowserSession[]>;
+export declare function deleteBrowserSession(id: string, workspaceId: string): Promise<boolean>;
 export declare function createTaskRun(params: {
     workspaceId: string;
     apiKeyId: string;
@@ -107,6 +118,7 @@ export declare function createTaskRun(params: {
 }): Promise<TaskRun>;
 export declare function updateTaskRun(id: string, updates: Partial<TaskRun>): Promise<TaskRun | null>;
 export declare function getTaskRun(id: string): Promise<TaskRun | null>;
+export declare function listStuckTasks(maxAgeMs: number): Promise<TaskRun[]>;
 export declare function listTaskRuns(workspaceId: string, limit?: number): Promise<TaskRun[]>;
 export declare function recordUsage(params: {
     workspaceId: string;

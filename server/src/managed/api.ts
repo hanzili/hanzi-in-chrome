@@ -21,6 +21,7 @@
 
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { randomUUID } from "crypto";
+import { log } from "./log.js";
 import {
   runAgentLoop,
   type AgentLoopResult,
@@ -29,8 +30,10 @@ import {
 import type { WebSocketClient } from "../ipc/websocket-client.js";
 import * as fileStore from "./store.js";
 import type { ApiKey } from "./store.js";
-import { createAuth, resolveSessionToWorkspace } from "./auth.js";
-import { initBilling, isBillingEnabled, createCheckoutSession, handleWebhook } from "./billing.js";
+import { createAuth, resolveSessionToWorkspace, resolveSessionProfile } from "./auth.js";
+import { initBilling, isBillingEnabled, createCheckoutSession, handleWebhook, recordTaskUsage } from "./billing.js";
+import { existsSync, readFileSync } from "fs";
+import { join, extname } from "path";
 
 // Active store module — defaults to file store, can be swapped to Postgres via setStoreModule()
 let S: typeof fileStore = fileStore;
@@ -125,7 +128,7 @@ setInterval(() => {
     }
   }
   if (cleaned > 0) {
-    console.error(`[API] Cleaned up ${cleaned} orphaned pending tool executions`);
+    log.warn("Cleaned up orphaned pending tool executions", undefined, { count: cleaned });
   }
 }, 30_000); // Run every 30s
 
@@ -149,16 +152,39 @@ setInterval(async () => {
         } catch {}
         taskAborts.delete(taskId);
         taskWorkspaceMap.delete(taskId);
-        console.error(`[API] Janitor: cleaned up stuck task ${taskId} (running ${Math.round((now - entry.startedAt) / 60000)}m)`);
+        log.warn("Janitor: cleaned up stuck task", { taskId }, { runningMinutes: Math.round((now - entry.startedAt) / 60000) });
       } else if (!taskAborts.has(taskId)) {
         // Task finished but map entry leaked — clean up
         taskWorkspaceMap.delete(taskId);
       }
     }
   } catch (err: any) {
-    console.error("[API] Stuck-task janitor error:", err.message);
+    log.error("Stuck-task janitor error", undefined, { error: err.message });
   }
 }, 5 * 60_000); // Run every 5 minutes
+
+/**
+ * Startup sweep: mark any tasks still "running" from a previous process as errored.
+ * Call once after store initialization.
+ */
+export async function recoverStuckTasks(): Promise<void> {
+  try {
+    const stuck = await S.listStuckTasks(STUCK_TASK_THRESHOLD_MS);
+    for (const task of stuck) {
+      await S.updateTaskRun(task.id, {
+        status: "error",
+        answer: "Task was interrupted by a server restart.",
+        completedAt: Date.now(),
+      });
+      log.info("Startup: marked stuck task as error", { taskId: task.id }, { ageMinutes: Math.round((Date.now() - task.createdAt) / 60000) });
+    }
+    if (stuck.length > 0) {
+      log.info("Startup: recovered stuck tasks", undefined, { count: stuck.length });
+    }
+  } catch (err: any) {
+    log.error("Startup stuck-task recovery failed", undefined, { error: err.message });
+  }
+}
 
 /**
  * Fail all pending tool executions for a disconnected browser session.
@@ -176,7 +202,7 @@ export function onSessionDisconnected(browserSessionId: string): void {
     }
   }
   if (failed > 0) {
-    console.error(`[API] Failed ${failed} pending tool executions for disconnected session ${browserSessionId}`);
+    log.warn("Failed pending tool executions for disconnected session", { sessionId: browserSessionId }, { count: failed });
   }
 }
 
@@ -318,7 +344,8 @@ const TASK_TIMEOUT_MS = 30 * 60 * 1000; // 30-minute max per task
 
 async function handleCreateTask(
   body: any,
-  apiKey: ApiKey
+  apiKey: ApiKey,
+  requestId?: string
 ): Promise<{ status: number; data: any }> {
   const { task, url, context, browser_session_id } = body;
 
@@ -349,6 +376,14 @@ async function handleCreateTask(
       status: 400,
       data: { error: "browser_session_id is required. Create one via POST /v1/browser-sessions/pair" },
     };
+  }
+
+  // --- Plan gating (soft check — log but don't block during early access) ---
+  // Uncomment the 402 return to enforce after billing goes live.
+  const workspace = await S.getWorkspace(apiKey.workspaceId);
+  if (workspace && workspace.plan === "free" && workspace.subscriptionStatus === "cancelled") {
+    log.warn("Task from cancelled subscription", { workspaceId: apiKey.workspaceId, requestId });
+    // return { status: 402, data: { error: "Subscription cancelled. Upgrade to continue." } };
   }
 
   // --- Rate limit + concurrency (checked AFTER validation so bad requests don't burn quota) ---
@@ -411,7 +446,7 @@ async function handleCreateTask(
   // Task-level timeout — abort if agent loop exceeds max duration
   const taskTimeout = setTimeout(() => {
     abort.abort();
-    console.error(`[API] Task ${taskRun.id} timed out after ${TASK_TIMEOUT_MS / 60000} min`);
+    log.error("Task timed out", { requestId, taskId: taskRun.id, workspaceId: apiKey.workspaceId }, { timeoutMinutes: TASK_TIMEOUT_MS / 60000 });
   }, TASK_TIMEOUT_MS);
 
   // Run agent loop in background
@@ -442,8 +477,17 @@ async function handleCreateTask(
           model: result.model || "gemini-2.5-flash",
         });
       } catch (usageErr: any) {
-        console.error(`[API] Task ${taskRun.id} usage recording failed:`, usageErr.message);
-        // Continue — don't block task completion, but log for reconciliation
+        log.warn("Task usage recording failed", { taskId: taskRun.id, workspaceId: apiKey.workspaceId }, { error: usageErr.message });
+      }
+      // Report to Stripe if billing is enabled
+      if (isBillingEnabled()) {
+        await recordTaskUsage({
+          workspaceId: apiKey.workspaceId,
+          taskId: taskRun.id,
+          steps: result.steps,
+          inputTokens: result.usage.inputTokens,
+          outputTokens: result.usage.outputTokens,
+        }).catch((err: any) => log.warn("Stripe usage metering failed", { taskId: taskRun.id }, { error: err.message }));
       }
       // Retry-safe task status update — if first attempt fails, retry once.
       // Without this, a DB hiccup leaves the task permanently "running".
@@ -461,15 +505,15 @@ async function handleCreateTask(
           break;
         } catch (updateErr: any) {
           if (attempt === 0) {
-            console.error(`[API] Task ${taskRun.id} status update failed (retrying):`, updateErr.message);
+            log.warn("Task status update failed, retrying", { taskId: taskRun.id }, { error: updateErr.message });
             await new Promise(r => setTimeout(r, 1000));
           } else {
-            console.error(`[API] Task ${taskRun.id} status update FAILED permanently — task may be stuck in "running":`, updateErr.message);
+            log.error("Task status update FAILED permanently — may be stuck in running", { taskId: taskRun.id }, { error: updateErr.message });
           }
         }
       }
       if (updated) {
-        console.error(`[API] Task ${taskRun.id} ${status}: ${result.steps} steps`);
+        log.info("Task completed", { requestId, taskId: taskRun.id, workspaceId: apiKey.workspaceId }, { status, steps: result.steps });
       }
     })
     .catch(async (err: any) => {
@@ -485,11 +529,11 @@ async function handleCreateTask(
           if (attempt === 0) {
             await new Promise(r => setTimeout(r, 1000));
           } else {
-            console.error(`[API] Task ${taskRun.id} error status update FAILED permanently:`, updateErr.message);
+            log.error("Task error status update FAILED permanently", { taskId: taskRun.id }, { error: updateErr.message });
           }
         }
       }
-      console.error(`[API] Task ${taskRun.id} crashed:`, err.message);
+      log.error("Task crashed", { requestId, taskId: taskRun.id, workspaceId: apiKey.workspaceId }, { error: err.message });
     })
     .finally(() => {
       clearTimeout(taskTimeout);
@@ -555,10 +599,11 @@ function sendJson(req: IncomingMessage, res: ServerResponse, status: number, dat
   const origin = req.headers?.origin || "";
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    // Vary: Origin tells caches that the response depends on the Origin header.
-    // Without this, a shared cache could serve one origin's CORS headers to another.
     "Vary": "Origin",
   };
+  // Include request ID header if set (available on all responses for tracing)
+  const rid = (req as any)._requestId;
+  if (rid) headers["X-Request-Id"] = rid;
   // CORS: only echo back origins from the explicit allow-list.
   // Never use `*` with credentials — browsers reject it per the CORS spec.
   if (ALLOWED_ORIGINS.includes(origin)) {
@@ -576,6 +621,8 @@ async function handleRequest(
   res: ServerResponse
 ): Promise<void> {
   const { method, url } = req;
+  const requestId = randomUUID().slice(0, 8);
+  (req as any)._requestId = requestId;
 
   if (method === "OPTIONS") {
     // CORS preflight — return headers with empty body (204 No Content)
@@ -598,45 +645,101 @@ async function handleRequest(
     if (url?.startsWith("/api/auth")) {
       const auth = createAuth();
       if (auth) {
-        // Convert Node.js req/res to Web Request/Response for Better Auth
-        const body = await parseBody(req).catch(() => undefined);
-        const headers = new Headers();
-        for (const [key, val] of Object.entries(req.headers)) {
-          if (val) headers.set(key, Array.isArray(val) ? val[0] : val);
+        // Use Better Auth's built-in Node handler for correct OAuth flow
+        try {
+          const { toNodeHandler } = await import("better-auth/node");
+          const handler = toNodeHandler(auth);
+          await handler(req, res);
+        } catch (authErr: any) {
+          log.error("Better Auth handler error", { requestId }, { error: authErr.message, url });
+          if (!res.headersSent) {
+            sendJson(req, res, 500, { error: "Auth error: " + authErr.message });
+          }
         }
-        const webReq = new Request(`${req.headers.host ? `https://${req.headers.host}` : "http://localhost"}${url}`, {
-          method: method || "GET",
-          headers,
-          body: method !== "GET" && method !== "HEAD" && body ? JSON.stringify(body) : undefined,
-        });
-        const webRes = await auth.handler(webReq);
-        res.writeHead(webRes.status, Object.fromEntries(webRes.headers.entries()));
-        const resBody = await webRes.text();
-        res.end(resBody);
         return;
       }
       sendJson(req, res, 503, { error: "Auth not configured. Set DATABASE_URL and Google OAuth credentials." });
       return;
     }
 
+    // --- Dashboard + root redirect ---
+
+    // Serve dashboard static files from dist/dashboard/
+    if (method === "GET" && url?.startsWith("/dashboard")) {
+      const thisFile = new URL(import.meta.url).pathname;
+      const dashboardDir = join(thisFile, "../../dashboard");
+      let filePath = url === "/dashboard" || url === "/dashboard/"
+        ? join(dashboardDir, "index.html")
+        : join(dashboardDir, url.replace("/dashboard/", ""));
+
+      if (existsSync(filePath)) {
+        const ext = extname(filePath);
+        const mimeTypes: Record<string, string> = {
+          ".html": "text/html", ".js": "application/javascript",
+          ".css": "text/css", ".json": "application/json",
+          ".svg": "image/svg+xml", ".png": "image/png",
+        };
+        res.writeHead(200, { "Content-Type": mimeTypes[ext] || "application/octet-stream" });
+        res.end(readFileSync(filePath));
+        return;
+      }
+      // SPA fallback — serve index.html for unmatched dashboard routes
+      const indexPath = join(dashboardDir, "index.html");
+      if (existsSync(indexPath)) {
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end(readFileSync(indexPath));
+        return;
+      }
+    }
+
+    if (method === "GET" && url === "/") {
+      // Authenticated users → dashboard. Others → landing page.
+      const session = await resolveSessionToWorkspace(req);
+      if (session) {
+        res.writeHead(302, { Location: "/dashboard" });
+        res.end();
+      } else {
+        res.writeHead(302, { Location: "https://browse.hanzilla.co" });
+        res.end();
+      }
+      return;
+    }
+
     // --- No-auth endpoints ---
 
     if (method === "GET" && url === "/v1/health") {
-      // Check DB connectivity if using Postgres store
       let dbOk = true;
       try {
-        // Quick check: list workspaces is a lightweight query
-        await S.getWorkspace("health-check-probe");
+        // Use a valid UUID that won't match any real workspace.
+        // Returns null (not found) if DB is up. Throws if DB is down.
+        await Promise.resolve(S.getWorkspace("00000000-0000-0000-0000-000000000000"));
       } catch {
         dbOk = false;
       }
       const allOk = !!relayConnection && dbOk;
       sendJson(req, res, allOk ? 200 : 503, {
         status: allOk ? "ok" : "degraded",
+        version: process.env.npm_package_version || "dev",
+        uptime_seconds: Math.round(process.uptime()),
+        store_type: process.env.DATABASE_URL ? "postgres" : "file",
         relay_connected: !!relayConnection,
         database_connected: dbOk,
         active_tasks: taskAborts.size,
         pending_tool_executions: pendingToolExec.size,
+      });
+      return;
+    }
+
+    // Profile endpoint (session cookie auth — for developer console)
+    if (method === "GET" && url === "/v1/me") {
+      const profile = await resolveSessionProfile(req);
+      if (!profile) {
+        sendJson(req, res, 401, { error: "Not signed in" });
+        return;
+      }
+      sendJson(req, res, 200, {
+        user: { name: profile.userName, email: profile.userEmail },
+        workspace: { id: profile.workspaceId, name: profile.workspaceName, plan: profile.plan },
       });
       return;
     }
@@ -726,11 +829,24 @@ async function handleRequest(
       return;
     }
 
+    // Delete a browser session
+    const sessionMatch = url?.match(/^\/v1\/browser-sessions\/([^/]+)$/);
+    if (sessionMatch && method === "DELETE") {
+      const sessionId = sessionMatch[1];
+      const deleted = await S.deleteBrowserSession(sessionId, apiKey.workspaceId);
+      if (!deleted) {
+        sendJson(req, res, 404, { error: "Session not found" });
+        return;
+      }
+      sendJson(req, res, 200, { id: sessionId, deleted: true });
+      return;
+    }
+
     // --- Tasks ---
 
     if (method === "POST" && url === "/v1/tasks") {
       const body = await parseBody(req);
-      const result = await handleCreateTask(body, apiKey);
+      const result = await handleCreateTask(body, apiKey, requestId);
       sendJson(req, res, result.status, result.data);
       return;
     }
@@ -863,8 +979,8 @@ async function handleRequest(
 
     sendJson(req, res, 404, { error: "Not found" });
   } catch (err: any) {
-    console.error("[API] Request error:", err.message);
-    sendJson(req, res, 500, { error: err.message });
+    log.error("Request error", { requestId }, { method, url, error: err.message });
+    sendJson(req, res, 500, { error: err.message, request_id: requestId });
   }
 }
 
@@ -872,7 +988,7 @@ export function startManagedAPI(port = 3456): void {
   const host = process.env.NODE_ENV === "production" ? "127.0.0.1" : "0.0.0.0";
   const server = createServer(handleRequest);
   server.listen(port, host, () => {
-    console.error(`[Managed API] Listening on http://${host}:${port}`);
+    log.info("Managed API listening", undefined, { host, port });
   });
 }
 
@@ -884,7 +1000,7 @@ export async function shutdownManagedAPI(): Promise<void> {
   const runningCount = taskAborts.size;
   if (runningCount === 0) return;
 
-  console.error(`[API] Shutting down: aborting ${runningCount} running tasks...`);
+  log.info("Shutting down: aborting running tasks", undefined, { count: runningCount });
 
   const shutdownPromises: Promise<void>[] = [];
   for (const [taskId, abort] of taskAborts) {
@@ -900,7 +1016,7 @@ export async function shutdownManagedAPI(): Promise<void> {
             })
           );
         } catch (err: any) {
-          console.error(`[API] Failed to update task ${taskId} on shutdown:`, err.message);
+          log.error("Failed to update task on shutdown", { taskId }, { error: err.message });
         }
       })()
     );
@@ -909,5 +1025,5 @@ export async function shutdownManagedAPI(): Promise<void> {
   await Promise.allSettled(shutdownPromises);
   taskAborts.clear();
   taskWorkspaceMap.clear();
-  console.error(`[API] Shutdown complete: ${runningCount} tasks aborted.`);
+  log.info("Shutdown complete", undefined, { tasksAborted: runningCount });
 }

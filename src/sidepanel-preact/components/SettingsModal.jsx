@@ -8,10 +8,17 @@ export function SettingsModal({ config, onClose }) {
   const [agentDefaultIndex, setAgentDefaultIndex] = useState(config.currentAgentDefaultIndex);
   const [newCustomModel, setNewCustomModel] = useState({ name: '', baseUrl: '', modelId: '', apiKey: '' });
   const [skillForm, setSkillForm] = useState({ domain: '', skill: '', isOpen: false, editIndex: -1 });
+  const [managedStatus, setManagedStatus] = useState(null);
 
   useEffect(() => {
     setAgentDefaultIndex(config.currentAgentDefaultIndex);
   }, [config.currentAgentDefaultIndex]);
+
+  useEffect(() => {
+    chrome.runtime.sendMessage({ type: 'GET_MANAGED_STATUS' }, (res) => {
+      if (res) setManagedStatus(res);
+    });
+  }, []);
 
   const handleSave = async () => {
     // Update provider keys
@@ -82,6 +89,12 @@ export function SettingsModal({ config, onClose }) {
             onClick={() => setActiveTab('managed')}
           >
             Managed
+            {managedStatus && (
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%', display: 'inline-block', marginLeft: 4,
+                background: managedStatus.isManaged ? '#2f4a3d' : '#ccc',
+              }} />
+            )}
           </button>
           <button
             class={`tab ${activeTab === 'license' ? 'active' : ''}`}
@@ -513,7 +526,18 @@ function ManagedTab() {
         setPairingToken('');
         setStatus({ isManaged: true, browserSessionId: res.browserSessionId });
       } else {
-        setMessage(`Failed: ${res?.error || 'Unknown error'}`);
+        const err = res?.error || 'Unknown error';
+        let msg;
+        if (err.includes('expired')) {
+          msg = 'Token expired. Generate a new one from the developer console.';
+        } else if (err.includes('consumed') || err.includes('already')) {
+          msg = 'Token already used. Each token can only be used once.';
+        } else if (err.includes('Invalid')) {
+          msg = 'Invalid token. Make sure you copied the full token starting with hic_pair_';
+        } else {
+          msg = `Connection failed: ${err}`;
+        }
+        setMessage(msg);
       }
     });
   };

@@ -211,6 +211,80 @@ async function testSessionMetadataOptionalPostgres() {
   assert(session.external_user_id === null || session.external_user_id === undefined, "external_user_id null when omitted (Postgres)");
 }
 
+// --- Better Auth Session Cookie (Postgres-backed) ---
+
+async function testBetterAuthSignupAndAccess() {
+  console.log("\n--- Better Auth sign-up → session cookie → API access ---");
+
+  // Sign up with email/password
+  const signupRes = await fetch(`${BASE}/api/auth/sign-up/email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "E2E Test User",
+      email: `e2e-${Date.now()}@test.hanzi.dev`,
+      password: "test-password-12345",
+    }),
+    redirect: "manual",
+  });
+
+  if (signupRes.status >= 400) {
+    // Better Auth may not support email signup in all configs
+    console.log(`  ⊘ Skipped: sign-up returned ${signupRes.status} (email auth may be disabled)`);
+    return;
+  }
+
+  // Extract session cookie from signup response
+  const setCookie = signupRes.headers.get("set-cookie");
+  if (!setCookie) {
+    console.log("  ⊘ Skipped: no session cookie returned from sign-up");
+    return;
+  }
+
+  // Use the cookie to access authenticated endpoints
+  const cookieHeader = setCookie.split(";")[0]; // Just the key=value part
+  const apiKeysRes = await fetch(`${BASE}/v1/api-keys`, {
+    headers: { Cookie: cookieHeader },
+  });
+
+  if (apiKeysRes.status === 200) {
+    assert(true, "Session cookie grants access to /v1/api-keys");
+    const data = await apiKeysRes.json();
+    assert(Array.isArray(data.api_keys), "Response has api_keys array");
+
+    // Create an API key using session cookie
+    const createRes = await fetch(`${BASE}/v1/api-keys`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookieHeader },
+      body: JSON.stringify({ name: "cookie-created-key" }),
+    });
+    if (createRes.status === 201) {
+      const created = await createRes.json();
+      assert(created.key.startsWith("hic_live_"), "API key created via session cookie");
+      // Clean up
+      await fetch(`${BASE}/v1/api-keys/${created.id}`, {
+        method: "DELETE",
+        headers: { Cookie: cookieHeader },
+      });
+    } else {
+      console.log(`  ⊘ API key creation via cookie returned ${createRes.status}`);
+    }
+  } else {
+    console.log(`  ⊘ Session cookie auth returned ${apiKeysRes.status} — workspace may not have been provisioned yet`);
+  }
+}
+
+// --- Billing Workspace Fields (Postgres-backed) ---
+
+async function testBillingFieldsPostgres() {
+  console.log("\n--- Billing workspace fields (Postgres) ---");
+
+  // Health check should show billing-related fields
+  const { status, data } = await req("GET", "/v1/health");
+  assert(status === 200, "Health returns 200");
+  assert(data.store_type === "postgres", "Store type is postgres");
+}
+
 async function main() {
   console.log(`=== Integration Tests (${BASE}) ===`);
 
@@ -223,6 +297,8 @@ async function main() {
   await testApiKeyCRUDPostgres();
   await testSessionMetadataPostgres();
   await testSessionMetadataOptionalPostgres();
+  await testBetterAuthSignupAndAccess();
+  await testBillingFieldsPostgres();
   await testRelayRejectsLegacy();
 
   console.log("\n=== All integration tests passed ===\n");

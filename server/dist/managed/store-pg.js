@@ -19,7 +19,8 @@ export function initPgStore(connectionString) {
         max: 10,
         idleTimeoutMillis: 30000,
     });
-    console.error("[PgStore] Connected to Postgres");
+    // Log is imported lazily to avoid circular deps; use direct output here
+    console.error(JSON.stringify({ ts: new Date().toISOString(), level: "info", msg: "Connected to Postgres" }));
 }
 function db() {
     if (!pool)
@@ -30,15 +31,53 @@ function db() {
 export async function createWorkspace(name) {
     const id = randomUUID();
     const now = Date.now();
-    await db().query("INSERT INTO workspaces (id, name, created_at) VALUES ($1, $2, $3)", [id, name, new Date(now)]);
-    return { id, name, createdAt: now };
+    await db().query("INSERT INTO workspaces (id, name, created_at, plan) VALUES ($1, $2, $3, 'free')", [id, name, new Date(now)]);
+    return { id, name, createdAt: now, plan: "free" };
+}
+function rowToWorkspace(r) {
+    return {
+        id: r.id,
+        name: r.name,
+        createdAt: new Date(r.created_at).getTime(),
+        stripeCustomerId: r.stripe_customer_id || undefined,
+        plan: r.plan || "free",
+        subscriptionId: r.subscription_id || undefined,
+        subscriptionStatus: r.subscription_status || undefined,
+    };
 }
 export async function getWorkspace(id) {
     const res = await db().query("SELECT * FROM workspaces WHERE id = $1", [id]);
     if (res.rows.length === 0)
         return null;
-    const r = res.rows[0];
-    return { id: r.id, name: r.name, createdAt: new Date(r.created_at).getTime() };
+    return rowToWorkspace(res.rows[0]);
+}
+export async function updateWorkspaceBilling(id, fields) {
+    const sets = [];
+    const vals = [];
+    let idx = 1;
+    if (fields.stripeCustomerId !== undefined) {
+        sets.push(`stripe_customer_id = $${idx++}`);
+        vals.push(fields.stripeCustomerId);
+    }
+    if (fields.plan !== undefined) {
+        sets.push(`plan = $${idx++}`);
+        vals.push(fields.plan);
+    }
+    if (fields.subscriptionId !== undefined) {
+        sets.push(`subscription_id = $${idx++}`);
+        vals.push(fields.subscriptionId);
+    }
+    if (fields.subscriptionStatus !== undefined) {
+        sets.push(`subscription_status = $${idx++}`);
+        vals.push(fields.subscriptionStatus);
+    }
+    if (sets.length === 0)
+        return getWorkspace(id);
+    vals.push(id);
+    const res = await db().query(`UPDATE workspaces SET ${sets.join(", ")} WHERE id = $${idx} RETURNING *`, vals);
+    if (res.rows.length === 0)
+        return null;
+    return rowToWorkspace(res.rows[0]);
 }
 // --- API Keys ---
 export async function createApiKey(workspaceId, name) {
@@ -193,6 +232,10 @@ export async function listBrowserSessions(workspaceId) {
     const res = await db().query(query);
     return res.rows.map(rowToSession);
 }
+export async function deleteBrowserSession(id, workspaceId) {
+    const res = await db().query("DELETE FROM browser_sessions WHERE id = $1 AND workspace_id = $2", [id, workspaceId]);
+    return (res.rowCount ?? 0) > 0;
+}
 // --- Task Runs ---
 export async function createTaskRun(params) {
     const id = randomUUID();
@@ -250,6 +293,11 @@ export async function getTaskRun(id) {
         return null;
     return rowToTaskRun(res.rows[0]);
 }
+export async function listStuckTasks(maxAgeMs) {
+    const cutoff = new Date(Date.now() - maxAgeMs);
+    const res = await db().query("SELECT * FROM task_runs WHERE status = 'running' AND created_at < $1", [cutoff]);
+    return res.rows.map(rowToTaskRun);
+}
 export async function listTaskRuns(workspaceId, limit = 50) {
     const res = await db().query("SELECT * FROM task_runs WHERE workspace_id = $1 ORDER BY created_at DESC LIMIT $2", [workspaceId, limit]);
     return res.rows.map(rowToTaskRun);
@@ -306,11 +354,9 @@ export async function ensureDefaultWorkspace() {
     // Check for existing workspace
     const existing = await db().query("SELECT * FROM workspaces LIMIT 1");
     if (existing.rows.length > 0) {
-        const ws = { id: existing.rows[0].id, name: existing.rows[0].name, createdAt: new Date(existing.rows[0].created_at).getTime() };
-        // Check for existing key
+        const ws = rowToWorkspace(existing.rows[0]);
         const keyRes = await db().query("SELECT key_prefix FROM api_keys WHERE workspace_id = $1 LIMIT 1", [ws.id]);
         if (keyRes.rows.length > 0) {
-            // Key exists but we can't return plaintext (it's hashed). Return hash as key.
             return {
                 workspace: ws,
                 apiKey: { id: "", key: `${keyRes.rows[0].key_prefix}... (already created, plaintext not available)`, name: "default", workspaceId: ws.id, createdAt: ws.createdAt },

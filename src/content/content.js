@@ -782,4 +782,43 @@ function handleFindAndScroll(payload, sendResponse) {
   }
 }
 
+// ─── Dashboard ↔ Extension Bridge ────────────────────────────────────
+// Allows the developer console (web page) to pair this browser with one click.
+// The page sends a postMessage, the content script relays it to the service worker.
+
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return;
+
+  if (event.data?.type === 'HANZI_PAIR') {
+    const { token, apiUrl } = event.data;
+    if (!token) return;
+
+    chrome.runtime.sendMessage({
+      type: 'MANAGED_PAIR',
+      payload: {
+        pairing_token: token,
+        api_url: apiUrl || window.location.origin,
+      },
+    }, (response) => {
+      window.postMessage({
+        type: 'HANZI_PAIR_RESULT',
+        success: response?.success || false,
+        browserSessionId: response?.browserSessionId,
+        error: response?.error,
+      }, '*');
+    });
+  }
+});
+
+// Respond to extension detection pings from the dashboard
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return;
+  if (event.data?.type === 'HANZI_PING') {
+    window.postMessage({ type: 'HANZI_EXTENSION_READY' }, '*');
+  }
+});
+
+// Also broadcast once on load (for pages that loaded before the listener was set up)
+window.postMessage({ type: 'HANZI_EXTENSION_READY' }, '*');
+
 console.log('[Hanzi in Chrome] Content script loaded');

@@ -7,7 +7,7 @@ Minimal example showing how to embed Hanzi browser automation into your product.
 ## Prerequisites
 
 - Node.js 18+
-- A Hanzi API key ([sign in](https://api.hanzilla.co/api/auth/sign-in/social), then create a key via `POST /v1/api-keys`)
+- A Hanzi API key ([sign in](https://api.hanzilla.co/api/auth/sign-in/social) to your developer console and create one)
 - The [Hanzi Chrome extension](https://chrome.google.com/webstore/detail/iklpkemlmbhemkiojndpbhoakgikpmcd) installed in the browser you want to control
 
 ## Setup

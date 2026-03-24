@@ -36,7 +36,7 @@ console.log(result.answer);
 
 ### 1. Get an API key
 
-[Sign in](https://api.hanzilla.co/api/auth/sign-in/social) to create a workspace, then create an API key via `POST /v1/api-keys`.
+[Sign in](https://api.hanzilla.co/api/auth/sign-in/social) to open your developer console, then create an API key.
 
 ### 2. Connect a browser
 

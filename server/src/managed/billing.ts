@@ -1,18 +1,20 @@
 /**
- * Stripe Billing Integration (not yet active)
+ * Stripe Billing Integration
  *
- * Scaffolding for future billing. Currently:
- * - Checkout session creation exists but webhook handlers don't persist subscription status
- * - Usage metering function exists but is never called from task flow
- * - No plan gating — all authenticated users can create tasks
- * - Usage is tracked internally via store.recordUsage(), not via Stripe
+ * Wired but not yet activated in production (billing env vars not set).
  *
- * Before activating billing:
- * 1. Add plan/subscription status to workspace schema
- * 2. Persist webhook results (checkout.session.completed, subscription updates)
- * 3. Wire recordTaskUsage() into task completion flow
- * 4. Add plan gating to task creation
- * 5. Map workspace IDs to Stripe customer IDs
+ * What's implemented:
+ * - Checkout session creation with workspace metadata
+ * - Webhook handlers persist subscription status to workspace
+ * - Usage metering called from task completion flow
+ * - Plan gating scaffolded in api.ts (soft check, log only — uncomment to enforce)
+ * - Customer ID mapped from checkout.session.completed webhook
+ *
+ * To activate:
+ * 1. Set STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_MANAGED_PRICE_ID
+ * 2. Optionally set STRIPE_API_METER_ID for usage metering
+ * 3. Uncomment the 402 return in api.ts handleCreateTask() to enforce plan gating
+ * 4. Run schema migrations (ALTER TABLE workspaces ADD COLUMN ...)
  *
  * Requires env vars:
  * - STRIPE_SECRET_KEY
@@ -22,17 +24,25 @@
  */
 
 import Stripe from "stripe";
+import { log } from "./log.js";
+import type * as fileStore from "./store.js";
 
 let stripe: Stripe | null = null;
+let S: typeof fileStore | null = null;
+
+/** Set the backing store so billing can persist webhook results. */
+export function setBillingStore(store: typeof fileStore): void {
+  S = store;
+}
 
 export function initBilling(): boolean {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) {
-    console.error("[Billing] No STRIPE_SECRET_KEY — billing disabled");
+    log.info("No STRIPE_SECRET_KEY — billing disabled");
     return false;
   }
   stripe = new Stripe(key);
-  console.error("[Billing] Stripe initialized");
+  log.info("Stripe billing initialized");
   return true;
 }
 
@@ -52,17 +62,23 @@ export async function createCheckoutSession(params: {
   successUrl: string;
   cancelUrl: string;
 }): Promise<{ url: string }> {
-  if (!stripe) throw new Error("Billing not configured");
+  if (!stripe || !S) throw new Error("Billing not configured");
 
   const priceId = process.env.STRIPE_MANAGED_PRICE_ID;
   if (!priceId) throw new Error("STRIPE_MANAGED_PRICE_ID not set");
 
-  const session = await stripe.checkout.sessions.create({
+  // Reuse existing Stripe customer if workspace already has one
+  const workspace = await S.getWorkspace(params.workspaceId);
+  let customerId: string | undefined;
+  if (workspace?.stripeCustomerId) {
+    customerId = workspace.stripeCustomerId;
+  }
+
+  const sessionParams: any = {
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: params.successUrl,
     cancel_url: params.cancelUrl,
-    customer_email: params.email,
     metadata: {
       workspace_id: params.workspaceId,
       user_id: params.userId,
@@ -72,8 +88,15 @@ export async function createCheckoutSession(params: {
         workspace_id: params.workspaceId,
       },
     },
-  });
+  };
 
+  if (customerId) {
+    sessionParams.customer = customerId;
+  } else {
+    sessionParams.customer_email = params.email;
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionParams);
   return { url: session.url! };
 }
 
@@ -107,22 +130,28 @@ export async function recordTaskUsage(params: {
   inputTokens: number;
   outputTokens: number;
 }): Promise<void> {
-  if (!stripe) return; // Billing not configured — silently skip
+  if (!stripe || !S) return;
 
   const meterId = process.env.STRIPE_API_METER_ID;
-  if (!meterId) return; // No meter configured
+  if (!meterId) return;
+
+  // Look up the workspace's Stripe customer ID
+  const workspace = await S.getWorkspace(params.workspaceId);
+  if (!workspace?.stripeCustomerId) {
+    log.warn("Cannot meter usage — workspace has no Stripe customer ID", { workspaceId: params.workspaceId, taskId: params.taskId });
+    return;
+  }
 
   try {
     await stripe.billing.meterEvents.create({
       event_name: "browser_task_completed",
       payload: {
-        stripe_customer_id: params.workspaceId, // Will need mapping to Stripe customer
-        value: "1", // 1 task
+        stripe_customer_id: workspace.stripeCustomerId,
+        value: "1",
       },
     });
   } catch (err: any) {
-    // Don't fail the task if billing fails — log and continue
-    console.error(`[Billing] Failed to record usage for task ${params.taskId}:`, err.message);
+    log.error("Failed to record usage", { taskId: params.taskId }, { error: err.message });
   }
 }
 
@@ -145,7 +174,7 @@ export async function handleWebhook(
   try {
     event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
   } catch (err: any) {
-    console.error("[Billing] Webhook signature verification failed:", err.message);
+    log.error("Webhook signature verification failed", undefined, { error: err.message });
     return { handled: false };
   }
 
@@ -153,9 +182,18 @@ export async function handleWebhook(
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       const workspaceId = session.metadata?.workspace_id;
-      if (workspaceId) {
-        console.error(`[Billing] Checkout completed for workspace ${workspaceId}`);
-        // TODO: Update workspace plan status in database
+      if (workspaceId && S) {
+        try {
+          await S.updateWorkspaceBilling(workspaceId, {
+            stripeCustomerId: session.customer as string,
+            plan: "pro",
+            subscriptionId: session.subscription as string,
+            subscriptionStatus: "active",
+          });
+          log.info("Checkout completed — workspace upgraded", { workspaceId });
+        } catch (err: any) {
+          log.error("Failed to persist checkout result", { workspaceId }, { error: err.message });
+        }
       }
       return { handled: true, event: event.type };
     }
@@ -165,15 +203,30 @@ export async function handleWebhook(
       const subscription = event.data.object as Stripe.Subscription;
       const workspaceId = subscription.metadata?.workspace_id;
       const status = subscription.status;
-      console.error(`[Billing] Subscription ${event.type} for workspace ${workspaceId}: ${status}`);
-      // TODO: Update workspace plan status based on subscription status
+      if (workspaceId && S) {
+        const plan = status === "active" ? "pro" : "free";
+        const subStatus = status === "active" ? "active"
+          : status === "canceled" ? "cancelled"
+          : status === "past_due" ? "past_due"
+          : "cancelled";
+        try {
+          await S.updateWorkspaceBilling(workspaceId, {
+            plan,
+            subscriptionStatus: subStatus,
+          });
+          log.info("Subscription updated", { workspaceId }, { event: event.type, plan, status: subStatus });
+        } catch (err: any) {
+          log.error("Failed to persist subscription update", { workspaceId }, { error: err.message });
+        }
+      }
       return { handled: true, event: event.type };
     }
 
     case "invoice.payment_failed": {
       const invoice = event.data.object as Stripe.Invoice;
-      console.error(`[Billing] Payment failed for customer ${invoice.customer}`);
-      // TODO: Handle failed payment (grace period, disable features, etc.)
+      // Find workspace by Stripe customer ID — requires iterating or a reverse lookup.
+      // For now, log the failure. The subscription.updated webhook will handle the status change.
+      log.warn("Payment failed", undefined, { customer: String(invoice.customer) });
       return { handled: true, event: event.type };
     }
 

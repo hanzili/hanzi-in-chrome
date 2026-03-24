@@ -1,10 +1,63 @@
 -- Hanzi Managed Platform Schema
 -- Run once against Neon Postgres to initialize
 
+-- Better Auth tables (user, session, account, verification)
+CREATE TABLE IF NOT EXISTS "user" (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  "emailVerified" BOOLEAN NOT NULL DEFAULT false,
+  image TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS session (
+  id TEXT PRIMARY KEY,
+  "expiresAt" TIMESTAMPTZ NOT NULL,
+  token TEXT NOT NULL UNIQUE,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "ipAddress" TEXT,
+  "userAgent" TEXT,
+  "userId" TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS account (
+  id TEXT PRIMARY KEY,
+  "accountId" TEXT NOT NULL,
+  "providerId" TEXT NOT NULL,
+  "userId" TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  "accessToken" TEXT,
+  "refreshToken" TEXT,
+  "idToken" TEXT,
+  "accessTokenExpiresAt" TIMESTAMPTZ,
+  "refreshTokenExpiresAt" TIMESTAMPTZ,
+  scope TEXT,
+  password TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS verification (
+  id TEXT PRIMARY KEY,
+  identifier TEXT NOT NULL,
+  value TEXT NOT NULL,
+  "expiresAt" TIMESTAMPTZ NOT NULL,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Hanzi tables
+
 CREATE TABLE IF NOT EXISTS workspaces (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  stripe_customer_id TEXT,                -- Stripe customer ID (set after first checkout)
+  plan TEXT NOT NULL DEFAULT 'free',      -- 'free' | 'pro' | 'enterprise'
+  subscription_id TEXT,                   -- Stripe subscription ID
+  subscription_status TEXT                -- 'active' | 'past_due' | 'cancelled' | null
 );
 
 CREATE TABLE IF NOT EXISTS api_keys (
@@ -46,8 +99,8 @@ CREATE TABLE IF NOT EXISTS browser_sessions (
 CREATE TABLE IF NOT EXISTS task_runs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id UUID NOT NULL REFERENCES workspaces(id),
-  api_key_id UUID NOT NULL,
-  browser_session_id UUID REFERENCES browser_sessions(id),
+  api_key_id TEXT NOT NULL,              -- API key ID or Better Auth user ID
+  browser_session_id UUID REFERENCES browser_sessions(id) ON DELETE SET NULL,
   task TEXT NOT NULL,
   url TEXT,
   context TEXT,
@@ -64,7 +117,7 @@ CREATE TABLE IF NOT EXISTS task_runs (
 CREATE TABLE IF NOT EXISTS usage_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id UUID NOT NULL REFERENCES workspaces(id),
-  api_key_id UUID NOT NULL,
+  api_key_id TEXT NOT NULL,              -- API key ID or Better Auth user ID
   task_run_id UUID NOT NULL REFERENCES task_runs(id),
   input_tokens INTEGER NOT NULL,
   output_tokens INTEGER NOT NULL,
@@ -109,6 +162,16 @@ BEGIN
   END IF;
 END $$;
 ALTER TABLE pairing_tokens ALTER COLUMN created_by TYPE TEXT;
+
+-- Migration: add billing columns to workspaces (safe to re-run)
+ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
+ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS subscription_id TEXT;
+ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS subscription_status TEXT;
+
+-- Migration: change api_key_id columns to TEXT (supports Better Auth user IDs)
+ALTER TABLE task_runs ALTER COLUMN api_key_id TYPE TEXT;
+ALTER TABLE usage_events ALTER COLUMN api_key_id TYPE TEXT;
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_task_runs_workspace ON task_runs(workspace_id, created_at DESC);

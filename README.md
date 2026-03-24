@@ -56,7 +56,7 @@ Embed browser automation in your product. Your app calls the Hanzi API, a real b
 
 ### How it works
 
-1. **Get an API key** — [sign in](https://api.hanzilla.co/api/auth/sign-in/social), then create a key via `POST /v1/api-keys`
+1. **Get an API key** — [sign in](https://api.hanzilla.co/api/auth/sign-in/social) to open your developer console, then create a key
 2. **Pair a browser** — create a pairing token, have your user enter it in the extension
 3. **Run a task** — call the API with a task and a browser session ID
 4. **Get the result** — poll the task or use `runTask()` which blocks until done
@@ -115,6 +115,28 @@ Reusable workflows. Open source — [add your own](https://github.com/hanzili/ll
 | `browser_status` | Check progress. |
 | `browser_stop` | Stop a task. |
 | `browser_screenshot` | Capture current page as PNG. |
+
+## Development
+
+Prerequisites: [Docker](https://docs.docker.com/get-docker/), Node.js 18+.
+
+```bash
+git clone https://github.com/hanzili/hanzi-in-chrome
+cd hanzi-in-chrome
+make dev
+```
+
+This starts Postgres, runs migrations, builds the server + dashboard + extension, and starts the dev servers. Edit `.env` for Google OAuth credentials if you want sign-in to work.
+
+| Command | What it does |
+|---------|-------------|
+| `make dev` | Start everything |
+| `make build` | Build server + dashboard + extension |
+| `make stop` | Stop Postgres |
+| `make clean` | Stop + delete database |
+| `make help` | Show all commands |
+
+Load the extension: open `chrome://extensions`, enable Developer Mode, click "Load unpacked", select the `dist/` folder.
 
 ## Community
 

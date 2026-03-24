@@ -40,7 +40,7 @@ function load() {
         }
     }
     catch {
-        console.error("[Store] Failed to load, starting fresh");
+        // Store file missing or corrupt — start fresh (this is expected on first run)
     }
 }
 function save() {
@@ -59,6 +59,7 @@ export function createWorkspace(name) {
         id: randomUUID(),
         name,
         createdAt: Date.now(),
+        plan: "free",
     };
     data.workspaces[ws.id] = ws;
     save();
@@ -66,6 +67,21 @@ export function createWorkspace(name) {
 }
 export function getWorkspace(id) {
     return data.workspaces[id] || null;
+}
+export function updateWorkspaceBilling(id, fields) {
+    const ws = data.workspaces[id];
+    if (!ws)
+        return null;
+    if (fields.stripeCustomerId !== undefined)
+        ws.stripeCustomerId = fields.stripeCustomerId;
+    if (fields.plan !== undefined)
+        ws.plan = fields.plan;
+    if (fields.subscriptionId !== undefined)
+        ws.subscriptionId = fields.subscriptionId;
+    if (fields.subscriptionStatus !== undefined)
+        ws.subscriptionStatus = fields.subscriptionStatus;
+    save();
+    return ws;
 }
 // --- API Keys ---
 export function createApiKey(workspaceId, name) {
@@ -137,6 +153,11 @@ export function updateTaskRun(id, updates) {
 }
 export function getTaskRun(id) {
     return data.taskRuns[id] || null;
+}
+export function listStuckTasks(maxAgeMs) {
+    const cutoff = Date.now() - maxAgeMs;
+    return Object.values(data.taskRuns)
+        .filter((t) => t.status === "running" && t.createdAt < cutoff);
 }
 export function listTaskRuns(workspaceId, limit = 50) {
     return Object.values(data.taskRuns)
@@ -292,6 +313,14 @@ export function listBrowserSessions(workspaceId) {
         return sessions.filter((s) => s.workspaceId === workspaceId);
     }
     return sessions;
+}
+export function deleteBrowserSession(id, workspaceId) {
+    const session = data.browserSessions[id];
+    if (!session || session.workspaceId !== workspaceId)
+        return false;
+    delete data.browserSessions[id];
+    save();
+    return true;
 }
 // --- Usage Events ---
 export function recordUsage(params) {

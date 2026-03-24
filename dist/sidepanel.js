@@ -966,9 +966,15 @@ function SettingsModal({ config, onClose }) {
   const [agentDefaultIndex, setAgentDefaultIndex] = d(config.currentAgentDefaultIndex);
   const [newCustomModel, setNewCustomModel] = d({ name: "", baseUrl: "", modelId: "", apiKey: "" });
   const [skillForm, setSkillForm] = d({ domain: "", skill: "", isOpen: false, editIndex: -1 });
+  const [managedStatus, setManagedStatus] = d(null);
   y(() => {
     setAgentDefaultIndex(config.currentAgentDefaultIndex);
   }, [config.currentAgentDefaultIndex]);
+  y(() => {
+    chrome.runtime.sendMessage({ type: "GET_MANAGED_STATUS" }, (res) => {
+      if (res) setManagedStatus(res);
+    });
+  }, []);
   const handleSave = async () => {
     for (const [provider, key] of Object.entries(localKeys)) {
       if (key !== config.providerKeys[provider]) {
@@ -1036,7 +1042,17 @@ function SettingsModal({ config, onClose }) {
         {
           class: `tab ${activeTab === "managed" ? "active" : ""}`,
           onClick: () => setActiveTab("managed"),
-          children: "Managed"
+          children: [
+            "Managed",
+            managedStatus && /* @__PURE__ */ u("span", { style: {
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              display: "inline-block",
+              marginLeft: 4,
+              background: managedStatus.isManaged ? "#2f4a3d" : "#ccc"
+            } })
+          ]
         }
       ),
       /* @__PURE__ */ u(
@@ -1441,7 +1457,18 @@ function ManagedTab() {
         setPairingToken("");
         setStatus({ isManaged: true, browserSessionId: res.browserSessionId });
       } else {
-        setMessage(`Failed: ${(res == null ? void 0 : res.error) || "Unknown error"}`);
+        const err = (res == null ? void 0 : res.error) || "Unknown error";
+        let msg;
+        if (err.includes("expired")) {
+          msg = "Token expired. Generate a new one from the developer console.";
+        } else if (err.includes("consumed") || err.includes("already")) {
+          msg = "Token already used. Each token can only be used once.";
+        } else if (err.includes("Invalid")) {
+          msg = "Invalid token. Make sure you copied the full token starting with hic_pair_";
+        } else {
+          msg = `Connection failed: ${err}`;
+        }
+        setMessage(msg);
       }
     });
   };

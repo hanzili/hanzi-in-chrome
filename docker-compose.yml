@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: hanzi
+      POSTGRES_USER: hanzi
+      POSTGRES_PASSWORD: hanzi_dev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./server/src/managed/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hanzi"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
