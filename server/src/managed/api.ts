@@ -748,7 +748,7 @@ async function handleRequest(
 
     // --- Serve landing pages locally (docs, etc.) ---
     if (method === "GET" && (url === "/docs.html" || url?.startsWith("/docs.html"))) {
-      const landingDir = join(new URL(import.meta.url).pathname, "../../../../landing");
+      const landingDir = join(process.cwd(), "landing");
       const filePath = join(landingDir, url === "/docs.html" || url?.startsWith("/docs.html") ? "docs.html" : "index.html");
       if (existsSync(filePath)) {
         res.writeHead(200, { "Content-Type": "text/html" });
@@ -759,7 +759,7 @@ async function handleRequest(
 
     // --- Embeddable pairing snippet ---
     if (method === "GET" && url === "/hanzi-pair.js") {
-      const snippetPath = join(new URL(import.meta.url).pathname, "../../../../sdk/hanzi-pair.js");
+      const snippetPath = join(process.cwd(), "sdk/hanzi-pair.js");
       if (existsSync(snippetPath)) {
         res.writeHead(200, {
           "Content-Type": "application/javascript",
