@@ -457,9 +457,10 @@ function SettingsTab({ keys, loadKeys, setError, profile, credits, loadCredits }
         )}
       </div>
 
-      <div class="card">
-        <h3>Workspace</h3>
-        <p class="step-explain">{profile?.workspace?.name || 'Your workspace'}</p>
+      <div class="card" style={{ background: '#f5f1e8' }}>
+        <h3>Building a product with Hanzi?</h3>
+        <p class="step-explain">Need volume pricing, custom SLAs, or dedicated support? We offer wholesale rates starting at $0.02/task for partners.</p>
+        <a href="mailto:hanzili0217@gmail.com?subject=Partner%20pricing&body=Hi%20Hanzi%20team%2C%0A%0AI%27m%20building%20a%20product%20that%20uses%20browser%20automation.%0A%0AExpected%20volume%3A%20%0AUse%20case%3A%20%0A" class="btn-primary" style={{ display: 'inline-block', textDecoration: 'none', color: 'white', padding: '8px 16px', borderRadius: 8, fontSize: 13, marginTop: 8 }}>Contact us for partner pricing</a>
       </div>
 
       <div class="card">
