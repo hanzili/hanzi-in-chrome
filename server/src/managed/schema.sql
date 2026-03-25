@@ -188,6 +188,11 @@ ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS subscription_status TEXT;
 ALTER TABLE task_runs ALTER COLUMN api_key_id TYPE TEXT;
 ALTER TABLE usage_events ALTER COLUMN api_key_id TYPE TEXT;
 
+-- Migration: credit system for pay-per-task billing
+ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS credit_balance INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS free_tasks_this_month INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS free_tasks_reset_at TIMESTAMPTZ NOT NULL DEFAULT date_trunc('month', now());
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_task_runs_workspace ON task_runs(workspace_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_task_runs_status ON task_runs(status) WHERE status = 'running';

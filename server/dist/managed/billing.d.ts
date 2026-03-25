@@ -28,12 +28,13 @@ export declare function setBillingStore(store: typeof fileStore): void;
 export declare function initBilling(): boolean;
 export declare function isBillingEnabled(): boolean;
 /**
- * Create a Stripe Checkout session for managed subscription.
+ * Create a Stripe Checkout session to buy credits.
  */
 export declare function createCheckoutSession(params: {
     workspaceId: string;
     userId: string;
     email?: string;
+    credits?: number;
     successUrl: string;
     cancelUrl: string;
 }): Promise<{

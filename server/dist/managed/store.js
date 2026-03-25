@@ -60,6 +60,9 @@ export function createWorkspace(name) {
         name,
         createdAt: Date.now(),
         plan: "free",
+        creditBalance: 0,
+        freeTasksThisMonth: 0,
+        freeTasksResetAt: Date.now(),
     };
     data.workspaces[ws.id] = ws;
     save();
@@ -67,6 +70,16 @@ export function createWorkspace(name) {
 }
 export function getWorkspace(id) {
     return data.workspaces[id] || null;
+}
+// --- Credits (file store — no enforcement, always allow) ---
+export function checkTaskAllowance(_workspaceId) {
+    return { allowed: true, source: "free", freeRemaining: 999, creditBalance: 0 };
+}
+export function deductTaskCredit(_workspaceId) {
+    return "free";
+}
+export function addCredits(_workspaceId, _amount) {
+    return 0;
 }
 export function updateWorkspaceBilling(id, fields) {
     const ws = data.workspaces[id];

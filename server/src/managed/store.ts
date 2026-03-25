@@ -37,6 +37,9 @@ export interface Workspace {
   plan: "free" | "pro" | "enterprise";
   subscriptionId?: string;
   subscriptionStatus?: "active" | "past_due" | "cancelled";
+  creditBalance: number;
+  freeTasksThisMonth: number;
+  freeTasksResetAt: number;
 }
 
 export interface TaskRun {
@@ -162,6 +165,9 @@ export function createWorkspace(name: string): Workspace {
     name,
     createdAt: Date.now(),
     plan: "free",
+    creditBalance: 0,
+    freeTasksThisMonth: 0,
+    freeTasksResetAt: Date.now(),
   };
   data.workspaces[ws.id] = ws;
   save();
@@ -170,6 +176,20 @@ export function createWorkspace(name: string): Workspace {
 
 export function getWorkspace(id: string): Workspace | null {
   return data.workspaces[id] || null;
+}
+
+// --- Credits (file store — no enforcement, always allow) ---
+
+export function checkTaskAllowance(_workspaceId: string): { allowed: boolean; source?: string; reason?: string; freeRemaining?: number; creditBalance?: number } {
+  return { allowed: true, source: "free", freeRemaining: 999, creditBalance: 0 };
+}
+
+export function deductTaskCredit(_workspaceId: string): "free" | "credits" {
+  return "free";
+}
+
+export function addCredits(_workspaceId: string, _amount: number): number {
+  return 0;
 }
 
 export function updateWorkspaceBilling(id: string, fields: {

@@ -22,6 +22,9 @@ export interface Workspace {
     plan: "free" | "pro" | "enterprise";
     subscriptionId?: string;
     subscriptionStatus?: "active" | "past_due" | "cancelled";
+    creditBalance: number;
+    freeTasksThisMonth: number;
+    freeTasksResetAt: number;
 }
 export interface PairingToken {
     token: string;
@@ -85,6 +88,27 @@ export declare function updateWorkspaceBilling(id: string, fields: {
     subscriptionId?: string;
     subscriptionStatus?: Workspace["subscriptionStatus"];
 }): Promise<Workspace | null>;
+export interface TaskAllowance {
+    allowed: boolean;
+    reason?: string;
+    source?: "free" | "credits";
+    freeRemaining?: number;
+    creditBalance?: number;
+}
+/**
+ * Check if a workspace can run a task. Returns allowance with source info.
+ * Automatically resets the free tier counter on new month.
+ */
+export declare function checkTaskAllowance(workspaceId: string): Promise<TaskAllowance>;
+/**
+ * Deduct for a completed task. Call ONLY on status="complete".
+ * Uses atomic SQL to prevent double-deduct races.
+ */
+export declare function deductTaskCredit(workspaceId: string): Promise<"free" | "credits">;
+/**
+ * Add purchased credits to a workspace.
+ */
+export declare function addCredits(workspaceId: string, amount: number): Promise<number>;
 export declare function createApiKey(workspaceId: string, name: string): Promise<ApiKey>;
 export declare function validateApiKey(key: string): Promise<ApiKey | null>;
 export declare function listApiKeys(workspaceId: string): Promise<ApiKey[]>;

@@ -32,7 +32,7 @@ export async function createWorkspace(name) {
     const id = randomUUID();
     const now = Date.now();
     await db().query("INSERT INTO workspaces (id, name, created_at, plan) VALUES ($1, $2, $3, 'free')", [id, name, new Date(now)]);
-    return { id, name, createdAt: now, plan: "free" };
+    return { id, name, createdAt: now, plan: "free", creditBalance: 0, freeTasksThisMonth: 0, freeTasksResetAt: now };
 }
 function rowToWorkspace(r) {
     return {
@@ -43,6 +43,9 @@ function rowToWorkspace(r) {
         plan: r.plan || "free",
         subscriptionId: r.subscription_id || undefined,
         subscriptionStatus: r.subscription_status || undefined,
+        creditBalance: r.credit_balance ?? 0,
+        freeTasksThisMonth: r.free_tasks_this_month ?? 0,
+        freeTasksResetAt: r.free_tasks_reset_at ? new Date(r.free_tasks_reset_at).getTime() : Date.now(),
     };
 }
 export async function getWorkspace(id) {
@@ -78,6 +81,77 @@ export async function updateWorkspaceBilling(id, fields) {
     if (res.rows.length === 0)
         return null;
     return rowToWorkspace(res.rows[0]);
+}
+// --- Credits ---
+const FREE_TASKS_PER_MONTH = 20;
+/**
+ * Check if a workspace can run a task. Returns allowance with source info.
+ * Automatically resets the free tier counter on new month.
+ */
+export async function checkTaskAllowance(workspaceId) {
+    const ws = await getWorkspace(workspaceId);
+    if (!ws)
+        return { allowed: false, reason: "Workspace not found" };
+    // Reset free counter if new month
+    const now = new Date();
+    const resetAt = new Date(ws.freeTasksResetAt);
+    if (now.getUTCFullYear() !== resetAt.getUTCFullYear() || now.getUTCMonth() !== resetAt.getUTCMonth()) {
+        await db().query("UPDATE workspaces SET free_tasks_this_month = 0, free_tasks_reset_at = $1 WHERE id = $2", [now, workspaceId]);
+        ws.freeTasksThisMonth = 0;
+    }
+    // Free tier
+    if (ws.freeTasksThisMonth < FREE_TASKS_PER_MONTH) {
+        return {
+            allowed: true,
+            source: "free",
+            freeRemaining: FREE_TASKS_PER_MONTH - ws.freeTasksThisMonth,
+            creditBalance: ws.creditBalance,
+        };
+    }
+    // Paid credits
+    if (ws.creditBalance > 0) {
+        return {
+            allowed: true,
+            source: "credits",
+            freeRemaining: 0,
+            creditBalance: ws.creditBalance,
+        };
+    }
+    return {
+        allowed: false,
+        reason: `Free tier exhausted (${FREE_TASKS_PER_MONTH}/month). Add credits to continue.`,
+        freeRemaining: 0,
+        creditBalance: 0,
+    };
+}
+/**
+ * Deduct for a completed task. Call ONLY on status="complete".
+ * Uses atomic SQL to prevent double-deduct races.
+ */
+export async function deductTaskCredit(workspaceId) {
+    // Try free tier first (atomic increment with check)
+    const freeRes = await db().query(`UPDATE workspaces
+     SET free_tasks_this_month = free_tasks_this_month + 1
+     WHERE id = $1 AND free_tasks_this_month < $2
+     RETURNING free_tasks_this_month`, [workspaceId, FREE_TASKS_PER_MONTH]);
+    if ((freeRes.rowCount ?? 0) > 0)
+        return "free";
+    // Deduct from credit balance (atomic decrement with check)
+    const creditRes = await db().query(`UPDATE workspaces
+     SET credit_balance = credit_balance - 1
+     WHERE id = $1 AND credit_balance > 0
+     RETURNING credit_balance`, [workspaceId,]);
+    if ((creditRes.rowCount ?? 0) > 0)
+        return "credits";
+    // Should not happen if checkTaskAllowance was called first
+    return "free";
+}
+/**
+ * Add purchased credits to a workspace.
+ */
+export async function addCredits(workspaceId, amount) {
+    const res = await db().query(`UPDATE workspaces SET credit_balance = credit_balance + $1 WHERE id = $2 RETURNING credit_balance`, [amount, workspaceId]);
+    return res.rows[0]?.credit_balance ?? 0;
 }
 // --- API Keys ---
 export async function createApiKey(workspaceId, name) {

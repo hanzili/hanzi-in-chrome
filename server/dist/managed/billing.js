@@ -43,35 +43,58 @@ export function initBilling() {
 export function isBillingEnabled() {
     return stripe !== null;
 }
-// --- Checkout ---
+// --- Credit Packs ---
+const CREDIT_PACKS = {};
 /**
- * Create a Stripe Checkout session for managed subscription.
+ * Initialize credit packs from env. Format: STRIPE_CREDIT_PACK_<N>=<credits>:<stripe_price_id>
+ * Example: STRIPE_CREDIT_PACK_1=100:price_abc123
+ *          STRIPE_CREDIT_PACK_2=500:price_def456
+ * Or use a single default: STRIPE_CREDIT_PRICE_ID for 100 credits.
+ */
+function loadCreditPacks() {
+    // Default pack
+    const defaultPrice = process.env.STRIPE_CREDIT_PRICE_ID;
+    if (defaultPrice) {
+        CREDIT_PACKS["100"] = { credits: 100, priceId: defaultPrice };
+    }
+    // Numbered packs
+    for (let i = 1; i <= 5; i++) {
+        const val = process.env[`STRIPE_CREDIT_PACK_${i}`];
+        if (val) {
+            const [credits, priceId] = val.split(":");
+            if (credits && priceId) {
+                CREDIT_PACKS[credits] = { credits: parseInt(credits, 10), priceId };
+            }
+        }
+    }
+}
+/**
+ * Create a Stripe Checkout session to buy credits.
  */
 export async function createCheckoutSession(params) {
     if (!stripe || !S)
         throw new Error("Billing not configured");
-    const priceId = process.env.STRIPE_MANAGED_PRICE_ID;
-    if (!priceId)
-        throw new Error("STRIPE_MANAGED_PRICE_ID not set");
-    // Reuse existing Stripe customer if workspace already has one
+    loadCreditPacks();
+    const requestedCredits = String(params.credits || 100);
+    const pack = CREDIT_PACKS[requestedCredits];
+    if (!pack) {
+        const available = Object.keys(CREDIT_PACKS).join(", ");
+        throw new Error(`No credit pack for ${requestedCredits} credits. Available: ${available || "none configured"}`);
+    }
     const workspace = await S.getWorkspace(params.workspaceId);
     let customerId;
     if (workspace?.stripeCustomerId) {
         customerId = workspace.stripeCustomerId;
     }
     const sessionParams = {
-        mode: "subscription",
-        line_items: [{ price: priceId, quantity: 1 }],
+        mode: "payment",
+        line_items: [{ price: pack.priceId, quantity: 1 }],
         success_url: params.successUrl,
         cancel_url: params.cancelUrl,
         metadata: {
             workspace_id: params.workspaceId,
             user_id: params.userId,
-        },
-        subscription_data: {
-            metadata: {
-                workspace_id: params.workspaceId,
-            },
+            credits: String(pack.credits),
         },
     };
     if (customerId) {
@@ -148,15 +171,18 @@ export async function handleWebhook(rawBody, signature) {
         case "checkout.session.completed": {
             const session = event.data.object;
             const workspaceId = session.metadata?.workspace_id;
+            const credits = parseInt(session.metadata?.credits || "0", 10);
             if (workspaceId && S) {
                 try {
+                    // Persist Stripe customer ID
                     await S.updateWorkspaceBilling(workspaceId, {
                         stripeCustomerId: session.customer,
-                        plan: "pro",
-                        subscriptionId: session.subscription,
-                        subscriptionStatus: "active",
                     });
-                    log.info("Checkout completed — workspace upgraded", { workspaceId });
+                    // Add purchased credits
+                    if (credits > 0) {
+                        const newBalance = await S.addCredits(workspaceId, credits);
+                        log.info("Credits purchased", { workspaceId }, { credits, newBalance });
+                    }
                 }
                 catch (err) {
                     log.error("Failed to persist checkout result", { workspaceId }, { error: err.message });

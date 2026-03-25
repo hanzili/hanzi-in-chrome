@@ -21,6 +21,9 @@ export interface Workspace {
     plan: "free" | "pro" | "enterprise";
     subscriptionId?: string;
     subscriptionStatus?: "active" | "past_due" | "cancelled";
+    creditBalance: number;
+    freeTasksThisMonth: number;
+    freeTasksResetAt: number;
 }
 export interface TaskRun {
     id: string;
@@ -84,6 +87,15 @@ export interface UsageEvent {
 }
 export declare function createWorkspace(name: string): Workspace;
 export declare function getWorkspace(id: string): Workspace | null;
+export declare function checkTaskAllowance(_workspaceId: string): {
+    allowed: boolean;
+    source?: string;
+    reason?: string;
+    freeRemaining?: number;
+    creditBalance?: number;
+};
+export declare function deductTaskCredit(_workspaceId: string): "free" | "credits";
+export declare function addCredits(_workspaceId: string, _amount: number): number;
 export declare function updateWorkspaceBilling(id: string, fields: {
     stripeCustomerId?: string;
     plan?: Workspace["plan"];

@@ -30,6 +30,7 @@ export function App() {
   const [keys, setKeys] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [usage, setUsage] = useState(null);
+  const [credits, setCredits] = useState(null);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('start');
 
@@ -42,9 +43,10 @@ export function App() {
   const loadKeys = useCallback(async () => { const r = await api('GET', '/v1/api-keys'); if (r) setKeys(r.data?.api_keys || []); }, []);
   const loadSessions = useCallback(async () => { const r = await api('GET', '/v1/browser-sessions'); if (r) setSessions(r.data?.sessions || []); }, []);
   const loadUsage = useCallback(async () => { const r = await api('GET', '/v1/usage'); if (r) setUsage(r.data); }, []);
+  const loadCredits = useCallback(async () => { const r = await api('GET', '/v1/billing/credits'); if (r) setCredits(r.data); }, []);
 
   useEffect(() => {
-    Promise.all([loadProfile(), loadKeys(), loadSessions(), loadUsage()]).then(() => setLoading(false));
+    Promise.all([loadProfile(), loadKeys(), loadSessions(), loadUsage(), loadCredits()]).then(() => setLoading(false));
     const interval = setInterval(loadSessions, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -78,7 +80,15 @@ export function App() {
           <h1>{workspaceName}</h1>
           <div class="subtitle">Hi, {firstName}</div>
         </div>
-        <button class="signout" onClick={signOut}>Sign out</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {credits && (
+            <div style={{ textAlign: 'right', fontSize: 13, color: 'var(--muted)' }}>
+              <div><strong style={{ color: 'var(--ink)', fontSize: 16 }}>{(credits.free_remaining || 0) + (credits.credit_balance || 0)}</strong> tasks left</div>
+              <div>{credits.free_remaining || 0} free + {credits.credit_balance || 0} credits</div>
+            </div>
+          )}
+          <button class="signout" onClick={signOut}>Sign out</button>
+        </div>
       </div>
 
       <div class="tabs">
@@ -103,7 +113,7 @@ export function App() {
       )}
 
       {tab === 'settings' && (
-        <SettingsTab keys={keys} loadKeys={loadKeys} setError={setError} profile={profile} />
+        <SettingsTab keys={keys} loadKeys={loadKeys} setError={setError} profile={profile} credits={credits} loadCredits={loadCredits} />
       )}
 
       {error && <div class="error-toast" onClick={() => setError(null)}>{error}</div>}
@@ -384,7 +394,7 @@ function SessionRow({ session: s, onRemove }) {
 
 // ─── Settings Tab ────────────────────────────────────
 
-function SettingsTab({ keys, loadKeys, setError, profile }) {
+function SettingsTab({ keys, loadKeys, setError, profile, credits, loadCredits }) {
   const [newKeyName, setNewKeyName] = useState('');
   const [createdKey, setCreatedKey] = useState(null);
 
@@ -424,9 +434,32 @@ function SettingsTab({ keys, loadKeys, setError, profile }) {
       </div>
 
       <div class="card">
+        <h3>Credits & Usage</h3>
+        {credits ? (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, margin: '8px 0 12px' }}>
+              <div style={{ padding: 12, background: '#f5f1e8', borderRadius: 8, textAlign: 'center' }}>
+                <div style={{ fontSize: 28, fontWeight: 700 }}>{credits.free_remaining || 0}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>free tasks left</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>of {credits.free_tasks_per_month}/month</div>
+              </div>
+              <div style={{ padding: 12, background: '#f5f1e8', borderRadius: 8, textAlign: 'center' }}>
+                <div style={{ fontSize: 28, fontWeight: 700 }}>{credits.credit_balance || 0}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>purchased credits</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>$0.05/task</div>
+              </div>
+            </div>
+            <p class="step-explain">You only pay for completed tasks. Errors and timeouts are free.</p>
+            <BuyCreditsButtons loadCredits={loadCredits} setError={setError} />
+          </div>
+        ) : (
+          <p class="step-explain">Loading...</p>
+        )}
+      </div>
+
+      <div class="card">
         <h3>Workspace</h3>
         <p class="step-explain">{profile?.workspace?.name || 'Your workspace'}</p>
-        <p class="step-explain">Plan: {profile?.workspace?.plan || 'free'} (early access)</p>
       </div>
 
       <div class="card">
@@ -438,6 +471,49 @@ function SettingsTab({ keys, loadKeys, setError, profile }) {
           <a href="https://discord.gg/hahgu5hcA5" target="_blank">Discord Community</a>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Buy Credits ─────────────────────────────────────
+
+function BuyCreditsButtons({ loadCredits, setError }) {
+  const [buying, setBuying] = useState(false);
+
+  const buy = async (credits) => {
+    setBuying(true);
+    const r = await api('POST', '/v1/billing/checkout', {
+      credits,
+      success_url: location.origin + '/dashboard?checkout=success',
+      cancel_url: location.origin + '/dashboard',
+    });
+    setBuying(false);
+    if (r?.data?.url) {
+      window.location.href = r.data.url;
+    } else {
+      setError(r?.data?.error || 'Billing not available yet');
+    }
+  };
+
+  // Check for checkout success redirect
+  useEffect(() => {
+    if (location.search.includes('checkout=success')) {
+      loadCredits();
+      history.replaceState(null, '', '/dashboard');
+    }
+  }, []);
+
+  return (
+    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+      <button class="btn-primary" onClick={() => buy(100)} disabled={buying} style={{ fontSize: 13 }}>
+        100 credits — $5
+      </button>
+      <button class="btn-secondary" onClick={() => buy(500)} disabled={buying} style={{ fontSize: 13 }}>
+        500 — $20
+      </button>
+      <button class="btn-secondary" onClick={() => buy(1500)} disabled={buying} style={{ fontSize: 13 }}>
+        1500 — $50
+      </button>
     </div>
   );
 }

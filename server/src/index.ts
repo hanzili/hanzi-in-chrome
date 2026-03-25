@@ -41,6 +41,54 @@ import { describeCredentials, resolveCredentials } from "./llm/credentials.js";
 import { callLLM } from "./llm/client.js";
 import { checkAndIncrementUsage, getLicenseStatus } from "./license/manager.js";
 
+// --- Managed proxy mode ---
+// When HANZI_API_KEY is set, tasks are proxied to the managed API instead of
+// running locally. This lets users without their own LLM key use Hanzi managed.
+const MANAGED_API_KEY = process.env.HANZI_API_KEY;
+const MANAGED_API_URL = process.env.HANZI_API_URL || "https://api.hanzilla.co";
+const IS_MANAGED_MODE = !!MANAGED_API_KEY;
+
+async function managedApiCall(method: string, path: string, body?: any): Promise<any> {
+  const res = await fetch(`${MANAGED_API_URL}${path}`, {
+    method,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${MANAGED_API_KEY}` },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return res.json();
+}
+
+async function runManagedTask(task: string, url?: string, context?: string): Promise<{ status: string; answer: string; steps: number; error?: string }> {
+  // Find a connected browser session
+  const sessionsRes = await managedApiCall("GET", "/v1/browser-sessions");
+  const connected = sessionsRes?.sessions?.find((s: any) => s.status === "connected");
+  if (!connected) {
+    return { status: "error", answer: "No browser connected. Open Chrome with the Hanzi extension and pair it first.", steps: 0 };
+  }
+
+  // Create task
+  const created = await managedApiCall("POST", "/v1/tasks", {
+    task, url, context, browser_session_id: connected.id,
+  });
+  if (created.error) return { status: "error", answer: created.error, steps: 0 };
+
+  // Poll until done (max 5 min)
+  const taskId = created.id;
+  const deadline = Date.now() + TASK_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 2000));
+    const status = await managedApiCall("GET", `/v1/tasks/${taskId}`);
+    if (status.status !== "running") {
+      return {
+        status: status.status,
+        answer: status.answer || "No answer.",
+        steps: status.steps || 0,
+        error: status.error,
+      };
+    }
+  }
+  return { status: "timeout", answer: "Task still running. Check back later.", steps: 0 };
+}
+
 // --- Session tracking ---
 
 interface Session {
@@ -962,6 +1010,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           return { content: [{ type: "text", text: "Error: task cannot be empty" }], isError: true };
         }
 
+        // --- Managed proxy mode: forward to api.hanzilla.co ---
+        if (IS_MANAGED_MODE) {
+          console.error(`[MCP] Managed mode — proxying task to ${MANAGED_API_URL}`);
+          const result = await runManagedTask(task, url, context);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            isError: result.status === "error",
+          };
+        }
+
+        // --- Local BYOM mode ---
+
         // Check license / usage limit
         const usage = await checkAndIncrementUsage();
         if (!usage.allowed) {
@@ -1153,11 +1213,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   console.error("[MCP] Starting Hanzi in Chrome MCP Server v2.0...");
 
-  // Startup diagnostics
-  const credDesc = describeCredentials();
-  console.error(`[MCP] Credentials: ${credDesc}`);
-  const licenseStatus = getLicenseStatus();
-  console.error(`[MCP] License: ${licenseStatus.message}`);
+  if (IS_MANAGED_MODE) {
+    console.error(`[MCP] Mode: MANAGED (proxying tasks to ${MANAGED_API_URL})`);
+    console.error(`[MCP] API key: ${MANAGED_API_KEY!.slice(0, 20)}...`);
+  } else {
+    console.error("[MCP] Mode: BYOM (local agent loop)");
+    // Startup diagnostics
+    const credDesc = describeCredentials();
+    console.error(`[MCP] Credentials: ${credDesc}`);
+    const licenseStatus = getLicenseStatus();
+    console.error(`[MCP] License: ${licenseStatus.message}`);
+  }
 
   connection = new WebSocketClient({
     role: "mcp",

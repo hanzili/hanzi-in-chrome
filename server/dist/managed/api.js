@@ -309,12 +309,17 @@ async function handleCreateTask(body, apiKey, requestId) {
             data: { error: "browser_session_id is required. Create one via POST /v1/browser-sessions/pair" },
         };
     }
-    // --- Plan gating (soft check — log but don't block during early access) ---
-    // Uncomment the 402 return to enforce after billing goes live.
-    const workspace = await S.getWorkspace(apiKey.workspaceId);
-    if (workspace && workspace.plan === "free" && workspace.subscriptionStatus === "cancelled") {
-        log.warn("Task from cancelled subscription", { workspaceId: apiKey.workspaceId, requestId });
-        // return { status: 402, data: { error: "Subscription cancelled. Upgrade to continue." } };
+    // --- Credit check (free tier + paid credits) ---
+    const allowance = await S.checkTaskAllowance(apiKey.workspaceId);
+    if (!allowance.allowed) {
+        return {
+            status: 402,
+            data: {
+                error: allowance.reason,
+                free_remaining: allowance.freeRemaining,
+                credit_balance: allowance.creditBalance,
+            },
+        };
     }
     // --- Rate limit + concurrency (checked AFTER validation so bad requests don't burn quota) ---
     if (!checkRateLimit(apiKey.workspaceId)) {
@@ -412,6 +417,16 @@ async function handleCreateTask(body, apiKey, requestId) {
     })
         .then(async (result) => {
         const status = result.status === "complete" ? "complete" : "error";
+        // Deduct credit ONLY for completed tasks — errors/timeouts are free
+        if (status === "complete") {
+            try {
+                const source = await S.deductTaskCredit(apiKey.workspaceId);
+                log.info("Task credit deducted", { taskId: taskRun.id, workspaceId: apiKey.workspaceId }, { source });
+            }
+            catch (err) {
+                log.warn("Credit deduction failed", { taskId: taskRun.id }, { error: err.message });
+            }
+        }
         // Record usage BEFORE marking task complete — if this fails, we retry or log.
         // This ordering prevents "complete task with no billing event" scenarios.
         try {
@@ -930,9 +945,20 @@ async function handleRequest(req, res) {
             return;
         }
         // --- Billing ---
+        // GET /v1/billing/credits — check credit balance + free tier status
+        if (method === "GET" && url === "/v1/billing/credits") {
+            const allowance = await S.checkTaskAllowance(apiKey.workspaceId);
+            sendJson(req, res, 200, {
+                free_remaining: allowance.freeRemaining,
+                credit_balance: allowance.creditBalance,
+                free_tasks_per_month: 20,
+            });
+            return;
+        }
+        // POST /v1/billing/checkout — buy credits
         if (method === "POST" && url === "/v1/billing/checkout") {
             if (!isBillingEnabled()) {
-                sendJson(req, res, 503, { error: "Billing not configured" });
+                sendJson(req, res, 503, { error: "Billing not configured. Contact support." });
                 return;
             }
             const body = await parseBody(req);
@@ -940,8 +966,9 @@ async function handleRequest(req, res) {
                 workspaceId: apiKey.workspaceId,
                 userId: apiKey.id,
                 email: body.email,
-                successUrl: body.success_url || "https://browse.hanzilla.co?checkout=success",
-                cancelUrl: body.cancel_url || "https://browse.hanzilla.co?checkout=cancel",
+                credits: body.credits || 100,
+                successUrl: body.success_url || "https://api.hanzilla.co/dashboard?checkout=success",
+                cancelUrl: body.cancel_url || "https://api.hanzilla.co/dashboard?checkout=cancel",
             });
             sendJson(req, res, 200, session);
             return;
