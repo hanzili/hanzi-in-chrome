@@ -416,9 +416,9 @@ async function promptAccessMode(isInteractive: boolean): Promise<AccessMode> {
   console.log(`        ${c.dim('Bring your own Claude, GPT, Gemini, or custom API key.')}`);
   console.log(`        ${c.dim('Everything runs locally — no data leaves your machine.')}`);
   console.log('');
-  console.log(`     ${c.bold('2')}  ${c.cyan('Hanzi-managed access')}`);
-  console.log(`        ${c.dim('We handle model routing — no API key needed.')}`);
-  console.log(`        ${c.dim('Currently available by request (early access).')}`);
+  console.log(`     ${c.bold('2')}  ${c.cyan('Hanzi managed')} ${c.dim('($0.05/task, 20 free/month)')}`);
+  console.log(`        ${c.dim('We handle the AI — no API key needed.')}`);
+  console.log(`        ${c.dim('Sign in with Google, get 20 free tasks instantly.')}`);
   console.log('');
   console.log(`     ${c.dim('s')}  ${c.dim('Skip — set up later')}`);
   console.log('');
@@ -430,24 +430,99 @@ async function promptAccessMode(isInteractive: boolean): Promise<AccessMode> {
   return 'byom'; // default for '1' or anything else
 }
 
-// ── Managed access (by request) ──────────────────────────────────────
+// ── Managed access ──────────────────────────────────────────────────
+
+const MANAGED_DASHBOARD_URL = 'https://api.hanzilla.co/dashboard';
+const MANAGED_SIGNIN_URL = 'https://api.hanzilla.co/api/auth/sign-in/social';
+
+let managedApiKey: string | null = null;
 
 async function handleManagedAccess(): Promise<void> {
   console.log('');
-  console.log(`  ${c.cyan('●')}  ${c.bold('Managed access')}`);
+  console.log(`  ${c.cyan('●')}  ${c.bold('Hanzi managed')}`);
+  console.log(`  ${c.dim('     20 free tasks/month. Only completed tasks count.')}\n`);
+
+  console.log(`     Opening your browser to sign in...`);
+  openUrl(MANAGED_DASHBOARD_URL);
+  console.log(`     ${c.cyan(MANAGED_DASHBOARD_URL)}`);
   console.log('');
-  console.log(`     Managed access lets Hanzi handle the AI for you.`);
-  console.log(`     No API key needed — you sign in and connect your browser.`);
-  console.log('');
-  console.log(`     ${c.yellow('This is currently set up by request (early access).')}`);
-  console.log(`     Contact us to get provisioned:`);
-  console.log('');
-  console.log(`     ${c.cyan('Email:')}   hanzili0217@gmail.com`);
-  console.log(`     ${c.cyan('Discord:')} https://discord.gg/hahgu5hcA5`);
-  console.log('');
-  console.log(`     Once you receive a managed token, enter it in the`);
-  console.log(`     Chrome extension: click the Hanzi icon → Settings → Managed tab.`);
-  console.log('');
+  console.log(`     ${c.bold('1.')} Sign in with Google`);
+  console.log(`     ${c.bold('2.')} Create an API key in the dashboard`);
+  console.log(`     ${c.bold('3.')} Copy and paste it below\n`);
+
+  const key = await ask('  Paste your API key (hic_live_...): ');
+  const trimmed = key.trim();
+
+  if (!trimmed || !trimmed.startsWith('hic_live_')) {
+    console.log(`\n  ${c.yellow('●')}  Skipped. You can set up managed later by running setup again.`);
+    return;
+  }
+
+  // Validate the key
+  try {
+    const res = await fetch(`https://api.hanzilla.co/v1/billing/credits`, {
+      headers: { Authorization: `Bearer ${trimmed}` },
+    });
+    const data = await res.json() as any;
+    if (res.ok && data.free_remaining !== undefined) {
+      managedApiKey = trimmed;
+      console.log(`\n  ${c.green('✓')}  Key validated! ${data.free_remaining} free tasks + ${data.credit_balance || 0} credits available.`);
+    } else {
+      console.log(`\n  ${c.red('✗')}  Invalid key: ${data.error || 'authentication failed'}`);
+      console.log(`     Check the key in your dashboard at ${c.cyan(MANAGED_DASHBOARD_URL)}`);
+    }
+  } catch (err: any) {
+    console.log(`\n  ${c.yellow('●')}  Could not validate key (network error). Saving anyway.`);
+    managedApiKey = trimmed;
+  }
+}
+
+function openUrl(url: string): void {
+  try {
+    const cmd = platform() === 'darwin' ? `open "${url}"`
+      : platform() === 'win32' ? `start "${url}"`
+      : `xdg-open "${url}"`;
+    execSync(cmd, { stdio: 'ignore' });
+  } catch {}
+}
+
+/**
+ * Re-inject MCP configs with HANZI_API_KEY env var for managed mode.
+ * Updates JSON configs directly. For Claude Code, re-runs the CLI command with env.
+ */
+async function injectManagedKey(apiKey: string, agents: AgentConfig[]): Promise<void> {
+  const managedEntry = {
+    ...MCP_ENTRY,
+    env: { HANZI_API_KEY: apiKey },
+  };
+
+  for (const agent of agents) {
+    try {
+      if (agent.method === 'json-merge' && agent.configPath) {
+        const configPath = agent.configPath();
+        if (existsSync(configPath)) {
+          const raw = readFileSync(configPath, 'utf-8');
+          const config = JSON.parse(raw);
+          if (config.mcpServers?.["hanzi-browser"]) {
+            config.mcpServers["hanzi-browser"] = managedEntry;
+            writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+            console.log(`     ${c.green('✓')}  Updated ${agent.name} with managed API key`);
+          }
+        }
+      } else if (agent.method === 'cli-command' && agent.slug === 'claude-code') {
+        // Claude Code: remove and re-add with env
+        try {
+          execSync('claude mcp remove browser', { stdio: 'ignore' });
+        } catch {}
+        execSync(`claude mcp add browser -e HANZI_API_KEY=${apiKey} -- npx -y hanzi-in-chrome`, {
+          stdio: 'ignore',
+        });
+        console.log(`     ${c.green('✓')}  Updated Claude Code with managed API key`);
+      }
+    } catch (err: any) {
+      console.log(`     ${c.yellow('●')}  Could not update ${agent.name}: ${err.message}`);
+    }
+  }
 }
 
 // ── BYOM credential setup ────────────────────────────────────────────
@@ -714,6 +789,10 @@ export async function runSetup(options: { only?: string; yes?: boolean } = {}): 
       await promptByomCredentials();
     } else if (accessMode === 'managed') {
       await handleManagedAccess();
+      // Re-configure agents with HANZI_API_KEY env var
+      if (managedApiKey) {
+        await injectManagedKey(managedApiKey, detected);
+      }
     } else {
       console.log(`\n  ${c.dim('○')}  ${c.dim('Skipped — set up credentials later in the Chrome extension.')}`);
     }
@@ -742,8 +821,8 @@ export async function runSetup(options: { only?: string; yes?: boolean } = {}): 
     if (configured > 0) {
       console.log(`     ${c.green('▸')}  Restart your agents to pick up the new MCP config.`);
     }
-    if (accessMode === 'managed') {
-      console.log(`     ${c.cyan('▸')}  Managed access: contact us to get provisioned, then pair in the extension.`);
+    if (accessMode === 'managed' && managedApiKey) {
+      console.log(`     ${c.cyan('▸')}  Managed mode configured — 20 free tasks/month.`);
     } else if (hasCreds) {
       console.log(`     ${c.green('▸')}  Credentials detected — Hanzi is ready to use.`);
     } else {
@@ -753,9 +832,11 @@ export async function runSetup(options: { only?: string; yes?: boolean } = {}): 
       console.log(`     ${c.red('▸')}  ${errors} agent${errors === 1 ? '' : 's'} failed — check the errors above.`);
     }
     console.log('');
-    if (accessMode === 'managed') {
-      console.log(`  ${c.bold('Next:')} once you receive your managed token, enter it in the`);
-      console.log(`  Chrome extension → Settings → Managed tab. Then try a browser task.`);
+    if (accessMode === 'managed' && managedApiKey) {
+      console.log(`  ${c.bold('Try it:')} ask your agent to do something in the browser.`);
+      console.log(`  ${c.dim('  Example: "Go to Hacker News and tell me the top 3 stories"')}`);
+    } else if (accessMode === 'managed') {
+      console.log(`  ${c.bold('Next:')} sign in at ${c.cyan(MANAGED_DASHBOARD_URL)}, create an API key, and re-run setup.`);
     } else if (hasCreds) {
       console.log(`  ${c.bold('Try it:')} ask your agent to do something in the browser.`);
       console.log(`  ${c.dim('  Example: "Go to Hacker News and tell me the top 3 stories"')}`);
