@@ -939,10 +939,15 @@ async function handleRequest(
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ provider, callbackURL }),
+            redirect: "manual",
           });
-          const data = await internalRes.json() as any;
+          const data = await internalRes.json().catch(() => null) as any;
           if (data?.url) {
-            res.writeHead(302, { Location: data.url });
+            // Forward Set-Cookie headers so the browser gets the OAuth state cookie
+            const cookies = internalRes.headers.getSetCookie?.() || [];
+            const headers: Record<string, string | string[]> = { Location: data.url };
+            if (cookies.length > 0) headers["Set-Cookie"] = cookies;
+            res.writeHead(302, headers);
             res.end();
             return;
           }
