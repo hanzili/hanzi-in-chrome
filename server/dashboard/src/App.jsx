@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'preact/hooks';
+import posthog from 'posthog-js';
 import { api, redirectToSignIn } from './api';
 
 // ─── Utility ─────────────────────────────────────────
@@ -40,7 +41,19 @@ export function App() {
   const [paired, setPaired] = useState(false);
 
   const [needsAuth, setNeedsAuth] = useState(false);
-  const loadProfile = useCallback(async () => { const r = await api('GET', '/v1/me'); if (r?.unauthorized) { setNeedsAuth(true); return; } if (r?.data) setProfile(r.data); }, []);
+  const loadProfile = useCallback(async () => {
+    const r = await api('GET', '/v1/me');
+    if (r?.unauthorized) { setNeedsAuth(true); return; }
+    if (r?.data) {
+      setProfile(r.data);
+      if (r.data.user?.email) {
+        posthog.identify(r.data.user.id || r.data.user.email, {
+          email: r.data.user.email,
+          name: r.data.user.name,
+        });
+      }
+    }
+  }, []);
   const loadKeys = useCallback(async () => { const r = await api('GET', '/v1/api-keys'); if (r) setKeys(r.data?.api_keys || []); }, []);
   const loadSessions = useCallback(async () => { const r = await api('GET', '/v1/browser-sessions'); if (r) setSessions(r.data?.sessions || []); }, []);
   const loadUsage = useCallback(async () => { const r = await api('GET', '/v1/usage'); if (r) setUsage(r.data); }, []);
@@ -149,6 +162,7 @@ function GettingStartedTab({ keys, loadKeys, setError, extensionReady, pairing, 
 
   const pairBrowser = async () => {
     setPairing(true);
+    posthog.capture('connect_browser_clicked');
     const r = await api('POST', '/v1/browser-sessions/pair', { label: 'Developer testing' });
     if (!r || r.status !== 201) { setPairing(false); setError(r?.data?.error || 'Failed'); return; }
     window.postMessage({ type: 'HANZI_PAIR', token: r.data.pairing_token, apiUrl: location.origin }, '*');
@@ -160,6 +174,7 @@ function GettingStartedTab({ keys, loadKeys, setError, extensionReady, pairing, 
     if (!taskInput.trim()) return;
     if (!sid) { setTaskStatus('error'); setTaskAnswer('No connected browser session found. Try refreshing the page.'); return; }
     setTaskStatus('running'); setTaskAnswer(''); setTaskSteps(0);
+    posthog.capture('test_task_run');
     const r = await api('POST', '/v1/tasks', { task: taskInput.trim(), browser_session_id: sid });
     if (!r || r.status !== 201) { setTaskStatus('error'); setTaskAnswer(r?.data?.error || 'Failed'); return; }
     const taskId = r.data.id;
@@ -262,7 +277,7 @@ Read the codebase to understand the stack and project structure, then ask me the
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
             <button class="btn-primary" onClick={() => { navigator.clipboard.writeText(INTEGRATION_PROMPT); }}
               style={{ fontSize: 13 }}
-              ref={el => { if (el) el.onclick = () => { navigator.clipboard.writeText(INTEGRATION_PROMPT); el.textContent = 'Copied!'; setTimeout(() => el.textContent = 'Copy integration prompt', 1500); }; }}>
+              ref={el => { if (el) el.onclick = () => { navigator.clipboard.writeText(INTEGRATION_PROMPT); posthog.capture('integration_prompt_copied'); el.textContent = 'Copied!'; setTimeout(() => el.textContent = 'Copy integration prompt', 1500); }; }}>
               Copy integration prompt
             </button>
             <a href="/docs.html#build-with-hanzi" class="btn-secondary" style={{ textDecoration: 'none', padding: '6px 14px', borderRadius: 8, fontSize: 13 }}>Read the docs</a>
