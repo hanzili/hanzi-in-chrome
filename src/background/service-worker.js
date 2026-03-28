@@ -45,6 +45,8 @@ import {
   setManagedSession, clearManagedSession, getManagedSessionInfo, sendToMcpRelay,
 } from './modules/mcp-bridge.js';
 import { checkAndIncrementUsage, activateLicense, getLicenseStatus, deactivateLicense } from './managers/license-manager.js';
+import { initErrorReporting, captureError } from './modules/error-reporter.js';
+initErrorReporting();
 
 // ============================================
 // CONSTANTS
@@ -1142,6 +1144,10 @@ async function startTask(tabId, task, shouldAskBeforeActing = true, images = [],
     // Check if this was a user cancellation
     const isCancelled = error.name === 'AbortError' || uiSessionState.cancelled;
 
+    if (!isCancelled) {
+      captureError(error, { source: 'ui_agent_loop' });
+    }
+
     uiSessionState.currentTask.status = isCancelled ? 'stopped' : 'error';
     uiSessionState.currentTask.error = error.message;
     uiSessionState.currentTask.endTime = new Date().toISOString();
@@ -1287,6 +1293,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ success: false, error: data.error || 'Pairing failed' });
           }
         } catch (err) {
+          captureError(err, { source: 'managed_pair' });
           sendResponse({ success: false, error: err.message });
         }
       })();
@@ -1339,6 +1346,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           console.error('[ServiceWorker] ✗ OAuth login failed:', error);
           console.error('[ServiceWorker] Error message:', error.message);
           console.error('[ServiceWorker] Error stack:', error.stack);
+          captureError(error, { source: 'oauth_login' });
           sendResponse({ success: false, error: error.message });
         });
       return true;
@@ -1582,10 +1590,12 @@ async function handleMcpStartTask(sessionId, task, url, context, licenseKey) {
     void persistMcpSessions();
     session.runPromise = startMcpTaskInternal(sessionId, tabId, task).catch(error => {
       console.error(`[MCP] Task execution error:`, error);
+      captureError(error, { source: 'mcp_task_execution' });
       sendMcpError(sessionId, error.message);
     });
   } catch (error) {
     console.error(`[MCP] Task start error:`, error);
+    captureError(error, { source: 'mcp_task_start' });
     sendMcpError(sessionId, error.message);
   }
 }
@@ -1746,6 +1756,10 @@ async function startMcpTaskInternal(sessionId, tabId, task) {
 
     const isCancelled = error.name === 'AbortError' || session.cancelled;
     const errorMessage = isCancelled ? 'Stopped by user' : error.message;
+
+    if (!isCancelled) {
+      captureError(error, { source: 'mcp_agent_loop' });
+    }
 
     if (isCancelled) {
       session.status = 'stopped';
