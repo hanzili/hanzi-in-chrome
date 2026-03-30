@@ -453,11 +453,13 @@ function useChat() {
     });
   }, []);
   const approvePlan = q(() => {
-    chrome.runtime.sendMessage({ type: "PLAN_APPROVAL_RESPONSE", payload: { approved: true } });
+    chrome.runtime.sendMessage({ type: "PLAN_APPROVAL_RESPONSE", payload: { approved: true } }).catch(() => {
+    });
     setPendingPlan(null);
   }, []);
   const cancelPlan = q(() => {
-    chrome.runtime.sendMessage({ type: "PLAN_APPROVAL_RESPONSE", payload: { approved: false } });
+    chrome.runtime.sendMessage({ type: "PLAN_APPROVAL_RESPONSE", payload: { approved: false } }).catch(() => {
+    });
     setPendingPlan(null);
   }, []);
   const addImage = q((dataUrl) => {

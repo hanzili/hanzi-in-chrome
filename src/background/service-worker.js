@@ -424,7 +424,13 @@ async function ensureContentScripts(tabId) {
  */
 async function sendToContent(tabId, type, payload = {}) {
   await ensureContentScripts(tabId);
-  return await chrome.tabs.sendMessage(tabId, { type, payload }, { frameId: 0 });
+  try {
+    return await chrome.tabs.sendMessage(tabId, { type, payload }, { frameId: 0 });
+  } catch (e) {
+    // Content script may not be ready or tab may have navigated
+    console.warn(`[sendToContent] Failed to send ${type} to tab ${tabId}:`, e.message);
+    return { success: false, error: e.message };
+  }
 }
 
 // ============================================
@@ -899,6 +905,15 @@ ${mcpSession.context}</system-reminder>`,
     const toolResults = [];
     for (const toolUse of toolUses) {
       if (isRunCancelled()) {
+        // Add stub results for all remaining tool_uses so the conversation
+        // history stays valid (Codex/OpenAI requires every function_call to
+        // have a function_call_output)
+        for (const tu of toolUses) {
+          if (!toolResults.find(r => r.tool_use_id === tu.id)) {
+            toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: 'Task cancelled by user' });
+          }
+        }
+        messages.push({ role: 'user', content: toolResults });
         return { success: false, message: 'Task stopped by user', messages, steps };
       }
 
@@ -910,6 +925,13 @@ ${mcpSession.context}</system-reminder>`,
       });
 
       if (isRunCancelled()) {
+        // Add stub results for remaining unresolved tool_uses
+        for (const tu of toolUses) {
+          if (!toolResults.find(r => r.tool_use_id === tu.id)) {
+            toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: 'Task cancelled by user' });
+          }
+        }
+        messages.push({ role: 'user', content: toolResults });
         return { success: false, message: 'Task stopped by user', messages, steps };
       }
 
@@ -941,6 +963,13 @@ ${mcpSession.context}</system-reminder>`,
 
       // Check for cancellation
       if (result && result.cancelled) {
+        // Add stub results for all unresolved tool_uses
+        for (const tu of toolUses) {
+          if (!toolResults.find(r => r.tool_use_id === tu.id)) {
+            toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: result.message || 'Task cancelled' });
+          }
+        }
+        messages.push({ role: 'user', content: toolResults });
         return { success: false, message: result.message, messages, steps };
       }
 

@@ -173,11 +173,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Plan approval
   planApprove.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ type: 'PLAN_APPROVAL_RESPONSE', payload: { approved: true } });
+    chrome.runtime.sendMessage({ type: 'PLAN_APPROVAL_RESPONSE', payload: { approved: true } }).catch(() => {});
     planModal.classList.add('hidden');
   });
   planCancel.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ type: 'PLAN_APPROVAL_RESPONSE', payload: { approved: false } });
+    chrome.runtime.sendMessage({ type: 'PLAN_APPROVAL_RESPONSE', payload: { approved: false } }).catch(() => {});
     planModal.classList.add('hidden');
   });
 
