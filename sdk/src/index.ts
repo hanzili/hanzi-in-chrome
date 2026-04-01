@@ -239,11 +239,42 @@ export class HanziClient {
     return this.getTask(task.id);
   }
 
+  // --- API Keys ---
+
+  /** Create a new API key. Returns the full key — store it, it won't be shown again. */
+  async createApiKey(name?: string): Promise<{ id: string; key: string; name: string }> {
+    const data = await this.request("POST", "/v1/api-keys", { name });
+    return { id: data.id, key: data.key, name: data.name };
+  }
+
+  /** List all API keys for your workspace. Keys are shown as prefixes only. */
+  async listApiKeys(): Promise<{ id: string; keyPrefix: string; name: string; createdAt: number }[]> {
+    const data = await this.request("GET", "/v1/api-keys");
+    return (data.keys || []).map((k: any) => ({
+      id: k.id,
+      keyPrefix: k.key_prefix ?? k.keyPrefix,
+      name: k.name,
+      createdAt: k.created_at ?? k.createdAt,
+    }));
+  }
+
+  /** Delete an API key. */
+  async deleteApiKey(keyId: string): Promise<void> {
+    await this.request("DELETE", `/v1/api-keys/${keyId}`);
+  }
+
   // --- Usage ---
 
   /** Get usage summary for your workspace. */
   async getUsage(): Promise<UsageSummary> {
-    return this.request("GET", "/v1/usage");
+    const data = await this.request("GET", "/v1/usage");
+    return {
+      totalInputTokens: data.total_input_tokens ?? data.totalInputTokens ?? 0,
+      totalOutputTokens: data.total_output_tokens ?? data.totalOutputTokens ?? 0,
+      totalApiCalls: data.total_api_calls ?? data.totalApiCalls ?? 0,
+      totalCostUsd: data.total_cost_usd ?? data.totalCostUsd ?? 0,
+      taskCount: data.task_count ?? data.taskCount ?? 0,
+    };
   }
 
   /** Get credit balance and free tier status. */
@@ -260,11 +291,10 @@ export class HanziClient {
 
   /** Check if the API is reachable. Does not require auth. */
   async health(): Promise<{ status: string; relayConnected: boolean }> {
-    const res = await fetch(`${this.baseUrl}/v1/health`);
-    const data = await res.json();
+    const data = await this.request("GET", "/v1/health");
     return {
       status: data.status,
-      relayConnected: data.relay_connected,
+      relayConnected: data.relay_connected ?? data.relayConnected,
     };
   }
 
