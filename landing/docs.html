@@ -284,8 +284,8 @@ GET /v1/tasks/:id/steps
   → Full execution log for debugging.
 
 GET /v1/tasks/:id/screenshots/:step
-  Returns: {"screenshot": "data:image/png;base64,..."}
-  → Screenshot at a specific step, useful for debugging UIs.
+  Returns: {"screenshot": "iVBORw0KGgo..."}
+  → Base64 JPEG screenshot at a specific step. Prefix with data:image/jpeg;base64, to display.
 
 GET /v1/billing/credits
   Returns: {"free_remaining": 20, "credit_balance": 0, "free_tasks_per_month": 20}
@@ -512,8 +512,9 @@ curl -X POST https://api.hanzilla.co/v1/tasks \
         </div>
         <div class="code-block"><pre># Response (200)
 {
-  "screenshot": "data:image/png;base64,iVBORw0KGgo..."
+  "screenshot": "iVBORw0KGgo..."
 }</pre></div>
+        <p>The <code>screenshot</code> field contains raw base64-encoded image data (JPEG). To display it, prefix with <code>data:image/jpeg;base64,</code>.</p>
 
         <h3>Webhooks</h3>
         <p>Instead of polling, pass a <code>webhook_url</code> when creating a task. Hanzi will POST the result to your URL when the task finishes:</p>

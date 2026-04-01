@@ -7,22 +7,21 @@ Find relevant X/Twitter conversations and draft replies — powered by Hanzi Bro
 Two-agent design. The browser agent and the strategy AI have different jobs:
 
 ```
-Browser Agent (Gemini Flash via Hanzi)     Strategy AI (Claude via ccproxy)
+Browser Agent (Gemini Flash via Hanzi)     Strategy AI (Claude)
   │                                          │
-  │ "Search X for these keywords"            │ "Here's what the browser saw.
-  │  Just browse. Click, scroll, read.       │  Extract tweets. Draft replies."
-  │  Don't output anything structured.       │  Smart analysis + structured output.
-  │                                          │
+  │ "Search X for these keywords"            │ "Here are the raw results.
+  │  Browse, scroll, read, return answer.    │  Extract tweets. Draft replies."
+  │                                          │  Smart analysis + structured output.
   ▼                                          ▼
-  Browsing log (task_steps)  ──────────→   Tweets + draft replies
+  Task answer (plain text)  ──────────→   Tweets + draft replies
 ```
 
-The browser agent never outputs JSON — it just browses. All `read_page` results are logged in `task_steps`. After browsing, we fetch the steps and pipe them to the strategy AI for extraction and analysis.
+The browser agent returns a plain-text answer describing what it found. The strategy AI then extracts structured tweet data and drafts replies.
 
 This pattern works because:
-- Flash is good at browser interaction, bad at structured output
+- Flash is good at browser interaction, returns natural-language summaries
 - Claude is good at analysis and structured output, doesn't need a browser
-- The browsing log (`GET /v1/tasks/:id/steps`) contains everything the browser saw
+- The task answer (`GET /v1/tasks/:id` → `answer` field) contains everything the browser saw
 
 ## Setup
 
@@ -60,10 +59,11 @@ npm start
 |--------|------|-------------|-------|
 | POST | /api/analyze | Generate marketing strategy | Strategy AI |
 | POST | /api/read-url | Read a website via browser | Browser |
-| POST | /api/search | Search X + extract tweets from browsing log | Browser → Strategy AI |
+| POST | /api/search-one | Search one keyword on X | Browser |
+| POST | /api/extract | Extract structured tweets from search summaries | Strategy AI |
 | POST | /api/draft | Score tweets + draft replies | Strategy AI |
-| POST | /api/drafts/:id/post | Post one approved reply | Browser |
+| POST | /api/post | Post one approved reply | Browser |
 
 ## Data
 
-Product strategy and drafts are persisted in localStorage (browser) and in-memory on the server. Restart the server to reset server state. Clear localStorage to reset client state.
+Product strategy and drafts are persisted in localStorage (browser). The server is stateless — all state lives in the client. Clear localStorage to reset.

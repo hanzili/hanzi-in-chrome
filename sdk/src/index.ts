@@ -56,6 +56,8 @@ export interface BrowserSession {
   status: "connected" | "disconnected";
   connectedAt: number;
   lastHeartbeat: number;
+  label?: string;
+  externalUserId?: string;
 }
 
 export interface PairingTokenResponse {
@@ -133,8 +135,14 @@ export class HanziClient {
   // --- Browser Sessions ---
 
   /** Create a pairing token. Give this to the extension user to connect their browser. */
-  async createPairingToken(): Promise<PairingTokenResponse> {
-    const data = await this.request("POST", "/v1/browser-sessions/pair");
+  async createPairingToken(options?: {
+    label?: string;
+    externalUserId?: string;
+  }): Promise<PairingTokenResponse> {
+    const body: any = {};
+    if (options?.label) body.label = options.label;
+    if (options?.externalUserId) body.external_user_id = options.externalUserId;
+    const data = await this.request("POST", "/v1/browser-sessions/pair", Object.keys(body).length ? body : undefined);
     return {
       pairingToken: data.pairing_token,
       expiresAt: data.expires_at,
@@ -148,8 +156,10 @@ export class HanziClient {
     return data.sessions.map((s: any) => ({
       id: s.id,
       status: s.status,
-      connectedAt: s.connected_at,
-      lastHeartbeat: s.last_heartbeat,
+      connectedAt: s.connected_at ?? s.connectedAt,
+      lastHeartbeat: s.last_heartbeat ?? s.lastHeartbeat,
+      label: s.label || undefined,
+      externalUserId: (s.external_user_id ?? s.externalUserId) || undefined,
     }));
   }
 
@@ -204,7 +214,7 @@ export class HanziClient {
     }));
   }
 
-  /** Get the screenshot captured at a specific step of a task. Returns base64 PNG data. */
+  /** Get the screenshot captured at a specific step of a task. Returns base64 JPEG data. */
   async getScreenshot(taskId: string, step: number): Promise<string> {
     const data = await this.request("GET", `/v1/tasks/${taskId}/screenshots/${step}`);
     return data.screenshot;

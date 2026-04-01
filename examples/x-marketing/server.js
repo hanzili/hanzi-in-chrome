@@ -78,7 +78,7 @@ function checkRate(req, res, action) {
   const now = Date.now();
   let entry = rateLimits.get(ip);
   if (!entry || now - entry.reset > 86400000) {
-    entry = { analyze: 0, search: 0, post: 0, email: 0, reset: now };
+    entry = { analyze: 0, search: 0, post: 0, email: 0, extract: 0, reset: now };
     rateLimits.set(ip, entry);
   }
   if (entry[action] >= LIMITS[action]) {
@@ -148,7 +148,14 @@ app.get("/", (req, res) => {
 app.get("/v1/browser-sessions", async (req, res) => {
   try {
     const sessions = await hanziClient.listSessions();
-    res.json({ sessions });
+    res.json({ sessions: sessions.map(s => ({
+      id: s.id,
+      status: s.status,
+      connected_at: s.connectedAt,
+      last_heartbeat: s.lastHeartbeat,
+      label: s.label || null,
+      external_user_id: s.externalUserId || null,
+    })) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 app.post("/v1/browser-sessions/pair", async (req, res) => {

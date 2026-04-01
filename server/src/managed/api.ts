@@ -1379,13 +1379,33 @@ async function handleRequest(
     }
 
     if (method === "GET" && url === "/v1/tasks") {
+      if (isPublishableKey(apiKey)) {
+        sendJson(req, res, 403, { error: "Publishable keys cannot access tasks. Use a secret key (hic_live_...)." });
+        return;
+      }
       const tasks = await S.listTaskRuns(apiKey.workspaceId);
-      sendJson(req, res, 200, { tasks });
+      sendJson(req, res, 200, {
+        tasks: tasks.map((r) => ({
+          id: r.id,
+          status: r.status,
+          task: r.task,
+          answer: r.answer,
+          steps: r.steps,
+          usage: r.usage,
+          browser_session_id: r.browserSessionId,
+          created_at: r.createdAt,
+          completed_at: r.completedAt,
+        })),
+      });
       return;
     }
 
     const taskMatch = url?.match(/^\/v1\/tasks\/([^/]+)(\/cancel|\/steps|\/screenshots\/(\d+))?$/);
     if (taskMatch) {
+      if (isPublishableKey(apiKey)) {
+        sendJson(req, res, 403, { error: "Publishable keys cannot access tasks. Use a secret key (hic_live_...)." });
+        return;
+      }
       const taskId = taskMatch[1];
       const run = await S.getTaskRun(taskId);
 
@@ -1415,9 +1435,7 @@ async function handleRequest(
           sendJson(req, res, 404, { error: "No screenshot at this step" });
           return;
         }
-        const buf = Buffer.from(screenshot, "base64");
-        res.writeHead(200, { "Content-Type": "image/jpeg", "Content-Length": buf.length });
-        res.end(buf);
+        sendJson(req, res, 200, { screenshot });
         return;
       }
 
@@ -1492,9 +1510,13 @@ async function handleRequest(
     }
 
     if (method === "GET" && url === "/v1/api-keys") {
+      if (isPublishableKey(apiKey)) {
+        sendJson(req, res, 403, { error: "Publishable keys cannot list API keys." });
+        return;
+      }
       const keys = await S.listApiKeys(apiKey.workspaceId);
       sendJson(req, res, 200, {
-        api_keys: keys.map((k) => ({
+        keys: keys.map((k) => ({
           id: k.id,
           key_prefix: k.keyPrefix ? k.keyPrefix + "..." : k.key.slice(0, 12) + "...",
           name: k.name,
