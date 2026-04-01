@@ -311,14 +311,57 @@ interface BrowserInfo {
   slug: string;
   macApp: string;       // macOS .app name
   linuxBin: string;     // Linux binary name
+  winPaths: string[];   // Windows executable paths
 }
 
 const BROWSERS: BrowserInfo[] = [
-  { name: 'Google Chrome',   slug: 'chrome',  macApp: 'Google Chrome',   linuxBin: 'google-chrome' },
-  { name: 'Brave',           slug: 'brave',   macApp: 'Brave Browser',   linuxBin: 'brave-browser' },
-  { name: 'Microsoft Edge',  slug: 'edge',    macApp: 'Microsoft Edge',  linuxBin: 'microsoft-edge' },
-  { name: 'Arc',             slug: 'arc',     macApp: 'Arc',             linuxBin: 'arc' },
-  { name: 'Chromium',        slug: 'chromium', macApp: 'Chromium',       linuxBin: 'chromium-browser' },
+  {
+    name: 'Google Chrome',
+    slug: 'chrome',
+    macApp: 'Google Chrome',
+    linuxBin: 'google-chrome',
+    winPaths: [
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    ],
+  },
+  {
+    name: 'Brave',
+    slug: 'brave',
+    macApp: 'Brave Browser',
+    linuxBin: 'brave-browser',
+    winPaths: [
+      'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+      'C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+    ],
+  },
+  {
+    name: 'Microsoft Edge',
+    slug: 'edge',
+    macApp: 'Microsoft Edge',
+    linuxBin: 'microsoft-edge',
+    winPaths: [
+      'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    ],
+  },
+  {
+    name: 'Arc',
+    slug: 'arc',
+    macApp: 'Arc',
+    linuxBin: 'arc',
+    winPaths: [],
+  },
+  {
+    name: 'Chromium',
+    slug: 'chromium',
+    macApp: 'Chromium',
+    linuxBin: 'chromium-browser',
+    winPaths: [
+      'C:\\Program Files\\Chromium\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Chromium\\Application\\chrome.exe',
+    ],
+  },
 ];
 
 export function detectBrowsers(deps: BrowserDetectionDeps = {}): BrowserInfo[] {
@@ -328,6 +371,9 @@ export function detectBrowsers(deps: BrowserDetectionDeps = {}): BrowserInfo[] {
   return BROWSERS.filter(b => {
     if (plat === 'darwin') {
       return pathExists(`/Applications/${b.macApp}.app`);
+    }
+    if (plat === 'win32') {
+      return b.winPaths.some(path => pathExists(path));
     }
     try {
       runCommand(`which ${b.linuxBin}`, { stdio: 'ignore' });
@@ -342,17 +388,31 @@ export function resolveInteractiveMode(options: { yes?: boolean } = {}, stdinIsT
   return options.yes ? false : stdinIsTTY;
 }
 
+export function buildBrowserOpenCommand(browser: BrowserInfo, url: string, plat: NodeJS.Platform): string {
+  if (plat === 'darwin') {
+    return `open -a "${browser.macApp}" "${url}"`;
+  }
+  if (plat === 'win32') {
+    const exePath = browser.winPaths.find(path => existsSync(path)) ?? browser.winPaths[0];
+    if (!exePath) return `cmd /c start "" "${url}"`;
+    return `cmd /c start "" "${exePath}" "${url}"`;
+  }
+  return `${browser.linuxBin} "${url}" &`;
+}
+
+export function buildSystemOpenCommand(url: string, plat: NodeJS.Platform): string {
+  if (plat === 'darwin') return `open "${url}"`;
+  if (plat === 'win32') return `cmd /c start "" "${url}"`;
+  return `xdg-open "${url}"`;
+}
+
 function openInBrowser(browser: BrowserInfo, url: string): void {
   const plat = platform();
   try {
-    if (plat === 'darwin') {
-      execSync(`open -a "${browser.macApp}" "${url}"`, { stdio: 'ignore' });
-    } else {
-      execSync(`${browser.linuxBin} "${url}" &`, { stdio: 'ignore' });
-    }
+    execSync(buildBrowserOpenCommand(browser, url, plat), { stdio: 'ignore' });
   } catch {
     // Fallback: system default
-    execSync(`open "${url}" 2>/dev/null || xdg-open "${url}" 2>/dev/null`, { stdio: 'ignore' });
+    execSync(buildSystemOpenCommand(url, plat), { stdio: 'ignore' });
   }
 }
 
