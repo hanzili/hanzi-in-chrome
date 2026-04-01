@@ -39,6 +39,28 @@ interface SetupResult {
   detail: string;
 }
 
+interface AgentRegistryDeps {
+  home?: string;
+  plat?: NodeJS.Platform;
+  appData?: string;
+  pathExists?: (path: string) => boolean;
+  runCommand?: (command: string, options?: any) => Buffer | string;
+}
+
+interface JsonConfigDeps {
+  pathExists?: (path: string) => boolean;
+  readTextFile?: (path: string, encoding: BufferEncoding) => string;
+  writeTextFile?: (path: string, contents: string) => void;
+  ensureDir?: (path: string, options: { recursive: boolean }) => void;
+  copyFile?: (source: string, destination: string) => void;
+}
+
+interface BrowserDetectionDeps {
+  plat?: NodeJS.Platform;
+  pathExists?: (path: string) => boolean;
+  runCommand?: (command: string, options?: any) => Buffer | string;
+}
+
 // ── Style ──────────────────────────────────────────────────────────────
 
 const c = {
@@ -99,12 +121,15 @@ const MCP_ENTRY = {
 
 // ── Agent registry ─────────────────────────────────────────────────────
 
-function getAgentRegistry(): AgentConfig[] {
-  const home = homedir();
-  const plat = platform();
+export function getAgentRegistry(deps: AgentRegistryDeps = {}): AgentConfig[] {
+  const home = deps.home ?? homedir();
+  const plat = deps.plat ?? platform();
+  const appData = deps.appData ?? process.env.APPDATA ?? join(home, 'AppData', 'Roaming');
+  const pathExists = deps.pathExists ?? existsSync;
+  const runCommand = deps.runCommand ?? execSync;
 
   const hasCli = (bin: string) => {
-    try { execSync(`which ${bin}`, { stdio: 'ignore' }); return true; } catch { return false; }
+    try { runCommand(`which ${bin}`, { stdio: 'ignore' }); return true; } catch { return false; }
   };
 
   return [
@@ -124,7 +149,7 @@ function getAgentRegistry(): AgentConfig[] {
       method: 'json-merge',
       configPath: () => join(home, '.cursor', 'mcp.json'),
       skillsDir: () => join(home, '.cursor', 'skills'),
-      detect: () => existsSync(join(home, '.cursor')),
+      detect: () => pathExists(join(home, '.cursor')),
     },
     {
       name: 'Windsurf',
@@ -132,7 +157,7 @@ function getAgentRegistry(): AgentConfig[] {
       method: 'json-merge',
       configPath: () => join(home, '.codeium', 'windsurf', 'mcp_config.json'),
       skillsDir: () => join(home, '.codeium', 'windsurf', 'skills'),
-      detect: () => existsSync(join(home, '.codeium', 'windsurf')),
+      detect: () => pathExists(join(home, '.codeium', 'windsurf')),
     },
     {
       name: 'VS Code',
@@ -140,7 +165,7 @@ function getAgentRegistry(): AgentConfig[] {
       method: 'json-merge',
       configPath: () => join(home, '.vscode', 'mcp.json'),
       skillsDir: () => join(home, '.vscode', 'skills'),
-      detect: () => existsSync(join(home, '.vscode')),
+      detect: () => pathExists(join(home, '.vscode')),
     },
     {
       name: 'Codex',
@@ -148,7 +173,7 @@ function getAgentRegistry(): AgentConfig[] {
       method: 'json-merge',
       configPath: () => join(home, '.codex', 'mcp.json'),
       skillsDir: () => join(home, '.agents', 'skills'),
-      detect: () => existsSync(join(home, '.codex')) || hasCli('codex'),
+      detect: () => pathExists(join(home, '.codex')) || hasCli('codex'),
     },
     {
       name: 'Claude Desktop',
@@ -156,13 +181,13 @@ function getAgentRegistry(): AgentConfig[] {
       method: 'json-merge',
       configPath: () => {
         if (plat === 'darwin') return join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
-        if (plat === 'win32') return join(process.env.APPDATA || join(home, 'AppData', 'Roaming'), 'Claude', 'claude_desktop_config.json');
+        if (plat === 'win32') return join(appData, 'Claude', 'claude_desktop_config.json');
         return join(home, '.config', 'Claude', 'claude_desktop_config.json');
       },
       detect: () => {
-        if (plat === 'darwin') return existsSync(join(home, 'Library', 'Application Support', 'Claude'));
-        if (plat === 'win32') return existsSync(join(process.env.APPDATA || join(home, 'AppData', 'Roaming'), 'Claude'));
-        return existsSync(join(home, '.config', 'Claude'));
+        if (plat === 'darwin') return pathExists(join(home, 'Library', 'Application Support', 'Claude'));
+        if (plat === 'win32') return pathExists(join(appData, 'Claude'));
+        return pathExists(join(home, '.config', 'Claude'));
       },
     },
     {
@@ -171,7 +196,7 @@ function getAgentRegistry(): AgentConfig[] {
       method: 'json-merge',
       configPath: () => join(home, '.gemini', 'settings.json'),
       skillsDir: () => join(home, '.gemini', 'skills'),
-      detect: () => existsSync(join(home, '.gemini')) || hasCli('gemini'),
+      detect: () => pathExists(join(home, '.gemini')) || hasCli('gemini'),
     },
     {
       name: 'Amp',
@@ -179,21 +204,21 @@ function getAgentRegistry(): AgentConfig[] {
       method: 'json-merge',
       configPath: () => join(home, '.amp', 'mcp.json'),
       skillsDir: () => join(home, '.amp', 'skills'),
-      detect: () => existsSync(join(home, '.amp')),
+      detect: () => pathExists(join(home, '.amp')),
     },
     {
       name: 'Cline',
       slug: 'cline',
       method: 'json-merge',
       configPath: () => join(home, '.cline', 'mcp_settings.json'),
-      detect: () => existsSync(join(home, '.cline')),
+      detect: () => pathExists(join(home, '.cline')),
     },
     {
       name: 'Roo Code',
       slug: 'roo-code',
       method: 'json-merge',
       configPath: () => join(home, '.roo-code', 'mcp_settings.json'),
-      detect: () => existsSync(join(home, '.roo-code')),
+      detect: () => pathExists(join(home, '.roo-code')),
     },
   ];
 }
@@ -206,18 +231,23 @@ function stripJsonComments(text: string): string {
     .replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
-function mergeJsonConfig(configPath: string): SetupResult {
+export function mergeJsonConfig(configPath: string, deps: JsonConfigDeps = {}): SetupResult {
   const agentName = configPath;
+  const pathExists = deps.pathExists ?? existsSync;
+  const readTextFile = deps.readTextFile ?? readFileSync;
+  const writeTextFile = deps.writeTextFile ?? writeFileSync;
+  const ensureDir = deps.ensureDir ?? mkdirSync;
+  const copyFile = deps.copyFile ?? copyFileSync;
 
   try {
-    if (!existsSync(configPath)) {
-      mkdirSync(join(configPath, '..'), { recursive: true });
+    if (!pathExists(configPath)) {
+      ensureDir(join(configPath, '..'), { recursive: true });
       const config = { mcpServers: { "hanzi-browser": MCP_ENTRY } };
-      writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+      writeTextFile(configPath, JSON.stringify(config, null, 2) + '\n');
       return { agent: agentName, status: 'configured', detail: `created ${configPath}` };
     }
 
-    const raw = readFileSync(configPath, 'utf-8');
+    const raw = readTextFile(configPath, 'utf-8');
     let config: any;
     try {
       config = JSON.parse(raw);
@@ -226,9 +256,9 @@ function mergeJsonConfig(configPath: string): SetupResult {
         config = JSON.parse(stripJsonComments(raw));
       } catch {
         const bakPath = configPath + '.bak';
-        copyFileSync(configPath, bakPath);
+        copyFile(configPath, bakPath);
         config = { mcpServers: { "hanzi-browser": MCP_ENTRY } };
-        writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+        writeTextFile(configPath, JSON.stringify(config, null, 2) + '\n');
         return { agent: agentName, status: 'configured', detail: `backed up malformed config to ${bakPath}` };
       }
     }
@@ -242,7 +272,7 @@ function mergeJsonConfig(configPath: string): SetupResult {
 
     if (!config.mcpServers) config.mcpServers = {};
     config.mcpServers["hanzi-browser"] = MCP_ENTRY;
-    writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+    writeTextFile(configPath, JSON.stringify(config, null, 2) + '\n');
     return { agent: agentName, status: 'configured', detail: `merged into ${configPath}` };
   } catch (err: any) {
     if (err.code === 'EACCES' || err.code === 'EPERM') {
@@ -291,19 +321,25 @@ const BROWSERS: BrowserInfo[] = [
   { name: 'Chromium',        slug: 'chromium', macApp: 'Chromium',       linuxBin: 'chromium-browser' },
 ];
 
-function detectBrowsers(): BrowserInfo[] {
-  const plat = platform();
+export function detectBrowsers(deps: BrowserDetectionDeps = {}): BrowserInfo[] {
+  const plat = deps.plat ?? platform();
+  const pathExists = deps.pathExists ?? existsSync;
+  const runCommand = deps.runCommand ?? execSync;
   return BROWSERS.filter(b => {
     if (plat === 'darwin') {
-      return existsSync(`/Applications/${b.macApp}.app`);
+      return pathExists(`/Applications/${b.macApp}.app`);
     }
     try {
-      execSync(`which ${b.linuxBin}`, { stdio: 'ignore' });
+      runCommand(`which ${b.linuxBin}`, { stdio: 'ignore' });
       return true;
     } catch {
       return false;
     }
   });
+}
+
+export function resolveInteractiveMode(options: { yes?: boolean } = {}, stdinIsTTY = process.stdin.isTTY ?? false): boolean {
+  return options.yes ? false : stdinIsTTY;
 }
 
 function openInBrowser(browser: BrowserInfo, url: string): void {
@@ -773,7 +809,7 @@ export async function runSetup(options: { only?: string; yes?: boolean } = {}): 
 
   const registry = getAgentRegistry();
   const only = options.only;
-  const interactive = options.yes ? false : (process.stdin.isTTY ?? false);
+  const interactive = resolveInteractiveMode(options);
 
   // ── Banner ──
   if (interactive) {

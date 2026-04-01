@@ -26,7 +26,7 @@
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "cli": "node dist/cli.js",
-    "test": "npx tsx test/test-agents.ts",
+    "test": "vitest run",
     "test:live": "npx tsx test/test-live.ts",
     "test:followup": "npx tsx test/test-followup.ts"
   },
