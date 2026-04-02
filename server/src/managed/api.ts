@@ -70,6 +70,63 @@ function categorizeError(err: Error): string {
   return "internal";
 }
 
+type TaskStepInsertParams = {
+  taskRunId: string;
+  step: number;
+  status: string;
+  toolName?: string;
+  toolInput?: Record<string, any>;
+  output?: string;
+  screenshot?: string;
+  durationMs?: number;
+};
+
+function normalizeToolOutput(rawOutput: ToolResult["output"]): string {
+  if (typeof rawOutput === "string") return rawOutput.slice(0, 50000);
+  if (!rawOutput) return "";
+  try {
+    return JSON.stringify(rawOutput).slice(0, 50000);
+  } catch {
+    return String(rawOutput).slice(0, 50000);
+  }
+}
+
+export function buildToolResultTaskSteps(params: {
+  taskRunId: string;
+  step: number;
+  toolName: string;
+  result: ToolResult;
+  durationMs: number;
+}): TaskStepInsertParams[] {
+  const { taskRunId, step, toolName, result, durationMs } = params;
+  const taskSteps: TaskStepInsertParams[] = [];
+  const toolOutput = normalizeToolOutput(result.output);
+
+  if (toolOutput) {
+    taskSteps.push({
+      taskRunId,
+      step,
+      status: "tool_output",
+      toolName,
+      output: toolOutput,
+      durationMs,
+    });
+  }
+
+  if (result.screenshot?.data) {
+    taskSteps.push({
+      taskRunId,
+      step,
+      status: "screenshot",
+      toolName,
+      screenshot: result.screenshot.data,
+      durationMs,
+    });
+  }
+
+  return taskSteps;
+}
+
 let isSessionConnectedFn: ((id: string) => boolean) | null = null;
 let relayPort: number = 7862;
 
@@ -386,16 +443,15 @@ async function handleRelayCreateTask(message: any) {
     executeTool: async (toolName: string, toolInput: Record<string, any>) => {
       const startMs = Date.now();
       const result = await executeToolViaRelay(toolName, toolInput, browserSessionId);
-      // Save screenshot from tool result (best-effort)
-      if (result.screenshot?.data) {
-        S.insertTaskStep({
-          taskRunId: taskRun.id,
-          step: currentStep,
-          status: "screenshot",
-          toolName,
-          screenshot: result.screenshot.data,
-          durationMs: Date.now() - startMs,
-        }).catch(() => {});
+      const durationMs = Date.now() - startMs;
+      for (const taskStep of buildToolResultTaskSteps({
+        taskRunId: taskRun.id,
+        step: currentStep,
+        toolName,
+        result,
+        durationMs,
+      })) {
+        S.insertTaskStep(taskStep).catch(() => {});
       }
       return result;
     },
@@ -762,31 +818,14 @@ async function handleCreateTask(
       const startMs = Date.now();
       const result = await executeToolViaRelay(toolName, toolInput, browser_session_id);
       const durationMs = Date.now() - startMs;
-      // Save tool result content (best-effort) — enables browsing log access via GET /v1/tasks/:id/steps
-      const rawOutput = result.output;
-      const toolOutput = typeof rawOutput === "string" ? rawOutput
-        : rawOutput ? JSON.stringify(rawOutput).slice(0, 50000)
-        : "";
-      if (toolOutput) {
-        S.insertTaskStep({
-          taskRunId: taskRun.id,
-          step: currentStep,
-          status: "tool_output",
-          toolName,
-          output: toolOutput.slice(0, 50000), // cap at 50KB per step
-          durationMs,
-        }).catch(() => {});
-      }
-      // Save screenshot from tool result
-      if (result.screenshot?.data) {
-        S.insertTaskStep({
-          taskRunId: taskRun.id,
-          step: currentStep,
-          status: "screenshot",
-          toolName,
-          screenshot: result.screenshot.data,
-          durationMs,
-        }).catch(() => {});
+      for (const taskStep of buildToolResultTaskSteps({
+        taskRunId: taskRun.id,
+        step: currentStep,
+        toolName,
+        result,
+        durationMs,
+      })) {
+        S.insertTaskStep(taskStep).catch(() => {});
       }
       return result;
     },
@@ -1821,13 +1860,14 @@ export async function runInternalTask(params: {
       url,
       executeTool: async (toolName: string, toolInput: Record<string, any>) => {
         const result = await executeToolViaRelay(toolName, toolInput, browserSessionId);
-        // Save tool output for browsing log
-        const rawOutput = result.output;
-        const toolOutput = typeof rawOutput === "string" ? rawOutput
-          : rawOutput ? JSON.stringify(rawOutput).slice(0, 50000)
-          : "";
-        if (toolOutput) {
-          S.insertTaskStep({ taskRunId: taskRun.id, step: currentStep, status: "tool_output", toolName, output: toolOutput.slice(0, 50000) }).catch(() => {});
+        for (const taskStep of buildToolResultTaskSteps({
+          taskRunId: taskRun.id,
+          step: currentStep,
+          toolName,
+          result,
+          durationMs: 0,
+        })) {
+          S.insertTaskStep(taskStep).catch(() => {});
         }
         return result;
       },
