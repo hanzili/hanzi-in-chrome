@@ -1,7 +1,7 @@
 /**
  * `hanzi-browser setup` — auto-detect AI agents and inject MCP config.
  *
- * Scans the machine for Claude Code, Cursor, Windsurf, and Claude Desktop,
+ * Scans the machine for Claude Code, Cursor, Windsurf, VS Code, Zed, and Claude Desktop,
  * then merges the Hanzi MCP server entry into each agent's config file.
  */
 
@@ -29,6 +29,7 @@ interface AgentConfig {
   method: 'json-merge' | 'cli-command';
   detect: () => boolean;
   configPath?: () => string;
+  configKey?: string;  // JSON key for MCP servers, defaults to 'mcpServers'
   cliCommand?: string;
   skillsDir?: () => string;
 }
@@ -220,6 +221,18 @@ export function getAgentRegistry(deps: AgentRegistryDeps = {}): AgentConfig[] {
       configPath: () => join(home, '.roo-code', 'mcp_settings.json'),
       detect: () => pathExists(join(home, '.roo-code')),
     },
+    {
+      name: 'Zed',
+      slug: 'zed',
+      method: 'json-merge',
+      configPath: () => join(home, '.config', 'zed', 'settings.json'),
+      configKey: 'context_servers',
+      skillsDir: () => join(home, '.config', 'zed', 'skills'),
+      detect: () => {
+        if (plat === 'darwin') return pathExists(join(home, '.config', 'zed')) || pathExists('/Applications/Zed.app');
+        return pathExists(join(home, '.config', 'zed')) || hasCli('zed');
+      },
+    },
   ];
 }
 
@@ -231,7 +244,7 @@ function stripJsonComments(text: string): string {
     .replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
-export function mergeJsonConfig(configPath: string, deps: JsonConfigDeps = {}): SetupResult {
+export function mergeJsonConfig(configPath: string, deps: JsonConfigDeps = {}, configKey = 'mcpServers'): SetupResult {
   const agentName = configPath;
   const pathExists = deps.pathExists ?? existsSync;
   const readTextFile = deps.readTextFile ?? readFileSync;
@@ -242,7 +255,7 @@ export function mergeJsonConfig(configPath: string, deps: JsonConfigDeps = {}): 
   try {
     if (!pathExists(configPath)) {
       ensureDir(join(configPath, '..'), { recursive: true });
-      const config = { mcpServers: { "hanzi-browser": MCP_ENTRY } };
+      const config = { [configKey]: { "hanzi-browser": MCP_ENTRY } };
       writeTextFile(configPath, JSON.stringify(config, null, 2) + '\n');
       return { agent: agentName, status: 'configured', detail: `created ${configPath}` };
     }
@@ -257,21 +270,21 @@ export function mergeJsonConfig(configPath: string, deps: JsonConfigDeps = {}): 
       } catch {
         const bakPath = configPath + '.bak';
         copyFile(configPath, bakPath);
-        config = { mcpServers: { "hanzi-browser": MCP_ENTRY } };
+        config = { [configKey]: { "hanzi-browser": MCP_ENTRY } };
         writeTextFile(configPath, JSON.stringify(config, null, 2) + '\n');
         return { agent: agentName, status: 'configured', detail: `backed up malformed config to ${bakPath}` };
       }
     }
 
-    if (config.mcpServers?.["hanzi-browser"]) {
-      const existing = config.mcpServers["hanzi-browser"];
+    if (config[configKey]?.["hanzi-browser"]) {
+      const existing = config[configKey]["hanzi-browser"];
       if (existing.command === MCP_ENTRY.command && JSON.stringify(existing.args) === JSON.stringify(MCP_ENTRY.args)) {
         return { agent: agentName, status: 'already-configured', detail: configPath };
       }
     }
 
-    if (!config.mcpServers) config.mcpServers = {};
-    config.mcpServers["hanzi-browser"] = MCP_ENTRY;
+    if (!config[configKey]) config[configKey] = {};
+    config[configKey]["hanzi-browser"] = MCP_ENTRY;
     writeTextFile(configPath, JSON.stringify(config, null, 2) + '\n');
     return { agent: agentName, status: 'configured', detail: `merged into ${configPath}` };
   } catch (err: any) {
@@ -650,8 +663,9 @@ async function injectManagedKey(apiKey: string, agents: AgentConfig[]): Promise<
         if (existsSync(configPath)) {
           const raw = readFileSync(configPath, 'utf-8');
           const config = JSON.parse(raw);
-          if (config.mcpServers?.["hanzi-browser"]) {
-            config.mcpServers["hanzi-browser"] = managedEntry;
+          const key = agent.configKey ?? 'mcpServers';
+          if (config[key]?.["hanzi-browser"]) {
+            config[key]["hanzi-browser"] = managedEntry;
             writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
             console.log(`     ${c.green('✓')}  Updated ${agent.name} with managed API key`);
           }
@@ -970,7 +984,7 @@ export async function runSetup(options: { only?: string; yes?: boolean } = {}): 
     if (agent.method === 'cli-command') {
       result = runClaudeCodeSetup();
     } else {
-      result = mergeJsonConfig(agent.configPath!());
+      result = mergeJsonConfig(agent.configPath!(), {}, agent.configKey);
     }
     results.push({ ...result, agent: agent.name });
     await sleep(150);

@@ -21,6 +21,7 @@ describe('getAgentRegistry', () => {
     const cursorDir = join('/Users/tester', '.cursor');
     const vscodeDir = join('/Users/tester', '.vscode');
     const claudeDesktopDir = join('/Users/tester', 'Library', 'Application Support', 'Claude');
+    const zedConfigDir = join('/Users/tester', '.config', 'zed');
     const registry = getAgentRegistry({
       home: '/Users/tester',
       plat: 'darwin',
@@ -29,6 +30,7 @@ describe('getAgentRegistry', () => {
         cursorDir,
         vscodeDir,
         claudeDesktopDir,
+        zedConfigDir,
       ].includes(path),
       runCommand: (command) => {
         seenCommands.push(command);
@@ -47,8 +49,23 @@ describe('getAgentRegistry', () => {
     expect(registry.find(agent => agent.slug === 'claude-code')?.detect()).toBe(true);
     expect(registry.find(agent => agent.slug === 'claude-desktop')?.configPath?.())
       .toBe(join('/Users/tester', 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json'));
+    expect(registry.find(agent => agent.slug === 'zed')?.detect()).toBe(true);
+    expect(registry.find(agent => agent.slug === 'zed')?.configPath?.())
+      .toBe(join('/Users/tester', '.config', 'zed', 'settings.json'));
+    expect(registry.find(agent => agent.slug === 'zed')?.configKey).toBe('context_servers');
     expect(seenCommands).toContain('which claude');
     expect(seenCommands).toContain('which codex');
+  });
+
+  it('detects Zed on macOS via .app bundle', () => {
+    const registry = getAgentRegistry({
+      home: '/Users/tester',
+      plat: 'darwin',
+      pathExists: (path) => path === '/Applications/Zed.app',
+      runCommand: () => { throw new Error('not installed'); },
+    });
+
+    expect(registry.find(agent => agent.slug === 'zed')?.detect()).toBe(true);
   });
 
   it('uses the Windows APPDATA path for Claude Desktop', () => {
@@ -102,6 +119,33 @@ describe('mergeJsonConfig', () => {
         command: 'npx',
         args: ['-y', 'hanzi-browse'],
       });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('uses custom configKey for agents like Zed (context_servers)', () => {
+    const dir = makeTempDir();
+    try {
+      const configPath = join(dir, 'settings.json');
+      writeFileSync(configPath, JSON.stringify({
+        theme: 'One Dark',
+        context_servers: {
+          existing: { command: 'node', args: ['other.js'] },
+        },
+      }, null, 2));
+
+      const result = mergeJsonConfig(configPath, {}, 'context_servers');
+      const merged = JSON.parse(readFileSync(configPath, 'utf-8'));
+
+      expect(result.status).toBe('configured');
+      expect(merged.theme).toBe('One Dark');
+      expect(merged.context_servers.existing).toEqual({ command: 'node', args: ['other.js'] });
+      expect(merged.context_servers['hanzi-browser']).toEqual({
+        command: 'npx',
+        args: ['-y', 'hanzi-browse'],
+      });
+      expect(merged.mcpServers).toBeUndefined();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
