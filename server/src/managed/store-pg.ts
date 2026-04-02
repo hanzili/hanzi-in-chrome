@@ -82,6 +82,7 @@ export interface TaskRun {
   createdAt: number;
   completedAt?: number;
   webhookUrl?: string;
+  turns?: any[];
 }
 
 export interface UsageEvent {
@@ -531,6 +532,7 @@ export async function updateTaskRun(id: string, updates: Partial<TaskRun>): Prom
     setClauses.push(`api_calls = $${idx++}`); values.push(updates.usage.apiCalls);
   }
   if (updates.completedAt !== undefined) { setClauses.push(`completed_at = $${idx++}`); values.push(new Date(updates.completedAt)); }
+  if (updates.turns !== undefined) { setClauses.push(`turns = $${idx++}`); values.push(JSON.stringify(updates.turns)); }
 
   if (setClauses.length === 0) return null;
   values.push(id);
@@ -581,6 +583,7 @@ function rowToTaskRun(r: any): TaskRun {
     usage: { inputTokens: r.input_tokens, outputTokens: r.output_tokens, apiCalls: r.api_calls },
     createdAt: new Date(r.created_at).getTime(),
     completedAt: r.completed_at ? new Date(r.completed_at).getTime() : undefined,
+    turns: r.turns ? (typeof r.turns === 'string' ? JSON.parse(r.turns) : r.turns) : undefined,
   };
 }
 

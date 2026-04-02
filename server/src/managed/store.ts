@@ -58,6 +58,8 @@ export interface TaskRun {
   createdAt: number;
   completedAt?: number;
   webhookUrl?: string;
+  /** Structured turn-by-turn agent log */
+  turns?: any[];
 }
 
 export interface PairingToken {

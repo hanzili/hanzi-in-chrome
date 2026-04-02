@@ -154,13 +154,14 @@ export async function addCredits(workspaceId, amount) {
     return res.rows[0]?.credit_balance ?? 0;
 }
 // --- API Keys ---
-export async function createApiKey(workspaceId, name) {
-    const plainKey = `hic_live_${randomBytes(24).toString("hex")}`;
+export async function createApiKey(workspaceId, name, type = "secret") {
+    const prefix = type === "publishable" ? "hic_pub_" : "hic_live_";
+    const plainKey = `${prefix}${randomBytes(24).toString("hex")}`;
     const keyHash = hashSecret(plainKey);
     const id = randomUUID();
     const now = Date.now();
-    await db().query("INSERT INTO api_keys (id, key_hash, key_prefix, name, workspace_id, created_at) VALUES ($1, $2, $3, $4, $5, $6)", [id, keyHash, plainKey.slice(0, 20), name, workspaceId, new Date(now)]);
-    return { id, key: plainKey, name, workspaceId, createdAt: now };
+    await db().query("INSERT INTO api_keys (id, key_hash, key_prefix, name, workspace_id, created_at, type) VALUES ($1, $2, $3, $4, $5, $6, $7)", [id, keyHash, plainKey.slice(0, 20), name, workspaceId, new Date(now), type]);
+    return { id, key: plainKey, name, workspaceId, createdAt: now, type };
 }
 export async function validateApiKey(key) {
     const keyHash = hashSecret(key);
@@ -171,10 +172,12 @@ export async function validateApiKey(key) {
     return {
         id: r.id,
         key: keyHash,
+        keyPrefix: r.key_prefix,
         name: r.name,
         workspaceId: r.workspace_id,
         createdAt: new Date(r.created_at).getTime(),
         lastUsedAt: r.last_used_at ? new Date(r.last_used_at).getTime() : undefined,
+        type: r.type || "secret",
     };
 }
 export async function listApiKeys(workspaceId) {
@@ -353,6 +356,10 @@ export async function updateTaskRun(id, updates) {
         setClauses.push(`completed_at = $${idx++}`);
         values.push(new Date(updates.completedAt));
     }
+    if (updates.turns !== undefined) {
+        setClauses.push(`turns = $${idx++}`);
+        values.push(JSON.stringify(updates.turns));
+    }
     if (setClauses.length === 0)
         return null;
     values.push(id);
@@ -391,6 +398,7 @@ function rowToTaskRun(r) {
         usage: { inputTokens: r.input_tokens, outputTokens: r.output_tokens, apiCalls: r.api_calls },
         createdAt: new Date(r.created_at).getTime(),
         completedAt: r.completed_at ? new Date(r.completed_at).getTime() : undefined,
+        turns: r.turns ? (typeof r.turns === 'string' ? JSON.parse(r.turns) : r.turns) : undefined,
     };
 }
 export async function insertTaskStep(params) {

@@ -16,6 +16,8 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "crypto";
 import { initVertex } from "../llm/vertex.js";
+import { getClaudeCredentials, getClaudeKeychainCredentials, getCodexCredentials } from "../llm/credentials.js";
+import { handleApiProxy } from "../relay/api-proxy.js";
 import { startManagedAPI, initManagedAPI, handleRelayMessage, setStoreModule, onSessionDisconnected, shutdownManagedAPI, recoverStuckTasks, runInternalTask } from "./api.js";
 import { initScheduler, startScheduler, stopScheduler } from "./scheduler.js";
 import { notifyDraftsReady } from "./notify.js";
@@ -204,6 +206,86 @@ function setupRelayHandlers(wss) {
                 const sender = relayClients.get(ws);
                 if (!sender)
                     return;
+                if (msg.type === "proxy_api_call" && sender.role === "extension") {
+                    await handleApiProxy(ws, msg, (message) => console.error(`[Relay] ${message}`));
+                    return;
+                }
+                // Match standalone relay behavior for onboarding / credential import flows.
+                if (msg.type === "status_query") {
+                    const ext = getLegacyExtension();
+                    ws.send(JSON.stringify({
+                        type: "status_response",
+                        requestId: msg.requestId,
+                        extensionConnected: !!ext && ext.ws.readyState === WebSocket.OPEN,
+                    }));
+                    return;
+                }
+                if (msg.type === "read_credentials" && sender.role === "extension") {
+                    const { credentialType } = msg;
+                    try {
+                        if (credentialType === "claude") {
+                            const creds = getClaudeCredentials() || getClaudeKeychainCredentials();
+                            if (creds) {
+                                ws.send(JSON.stringify({
+                                    type: "credentials_result",
+                                    requestId: msg.requestId,
+                                    credentialType: "claude",
+                                    credentials: {
+                                        accessToken: creds.accessToken,
+                                        refreshToken: creds.refreshToken,
+                                        expiresAt: creds.expiresAt,
+                                    },
+                                }));
+                            }
+                            else {
+                                ws.send(JSON.stringify({
+                                    type: "credentials_result",
+                                    requestId: msg.requestId,
+                                    credentialType: "claude",
+                                    error: "Claude credentials not found. Run `claude login` first.",
+                                }));
+                            }
+                        }
+                        else if (credentialType === "codex") {
+                            const creds = getCodexCredentials();
+                            if (creds) {
+                                ws.send(JSON.stringify({
+                                    type: "credentials_result",
+                                    requestId: msg.requestId,
+                                    credentialType: "codex",
+                                    credentials: {
+                                        accessToken: creds.accessToken,
+                                        refreshToken: creds.refreshToken,
+                                        accountId: creds.accountId,
+                                    },
+                                }));
+                            }
+                            else {
+                                ws.send(JSON.stringify({
+                                    type: "credentials_result",
+                                    requestId: msg.requestId,
+                                    credentialType: "codex",
+                                    error: "Codex credentials not found. Run `codex auth login` first.",
+                                }));
+                            }
+                        }
+                        else {
+                            ws.send(JSON.stringify({
+                                type: "credentials_result",
+                                requestId: msg.requestId,
+                                error: `Unknown credential type: ${credentialType}`,
+                            }));
+                        }
+                    }
+                    catch (err) {
+                        ws.send(JSON.stringify({
+                            type: "credentials_result",
+                            requestId: msg.requestId,
+                            error: err.message,
+                        }));
+                    }
+                    return;
+                }
                 // --- Managed routing: route by targetSessionId ---
                 // SECURITY: Only the internal managed backend (authenticated with relay_secret)
                 // can route to managed sessions. Self-declared roles are NOT trusted.

@@ -18,12 +18,30 @@
  *   DELETE /v1/api-keys/:id              - Delete an API key
  *   GET    /v1/health                    - Health check (no auth)
  */
+import { type ToolResult } from "../agent/loop.js";
 import type { WebSocketClient } from "../ipc/websocket-client.js";
 import * as fileStore from "./store.js";
 /**
  * Swap the backing store (e.g., to Postgres). Called by deploy.ts when DATABASE_URL is set.
  */
 export declare function setStoreModule(storeModule: typeof fileStore): void;
+type TaskStepInsertParams = {
+    taskRunId: string;
+    step: number;
+    status: string;
+    toolName?: string;
+    toolInput?: Record<string, any>;
+    output?: string;
+    screenshot?: string;
+    durationMs?: number;
+};
+export declare function buildToolResultTaskSteps(params: {
+    taskRunId: string;
+    step: number;
+    toolName: string;
+    result: ToolResult;
+    durationMs: number;
+}): TaskStepInsertParams[];
 /**
  * Startup sweep: mark any tasks still "running" from a previous process as errored.
  * Call once after store initialization.
@@ -40,7 +58,7 @@ export declare function onSessionDisconnected(browserSessionId: string): void;
  */
 export declare function initManagedAPI(relay: WebSocketClient, sessionConnectedCheck?: (id: string) => boolean, actualRelayPort?: number): void;
 /**
- * Handle incoming relay messages (tool results from extension).
+ * Handle incoming relay messages (tool results + LLM requests from extension).
  */
 export declare function handleRelayMessage(message: any): boolean;
 /**
@@ -63,3 +81,4 @@ export declare function startManagedAPI(port?: number): void;
  * Called on SIGTERM/SIGINT to avoid leaving tasks in a permanent "running" state.
  */
 export declare function shutdownManagedAPI(): Promise<void>;
+export {};

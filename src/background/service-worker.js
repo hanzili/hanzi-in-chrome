@@ -64,10 +64,6 @@ const LLM_WATCHDOG_TIMEOUT_MS = 180000;
 let taskDebugLog = [];
 initLogging(taskDebugLog);
 
-// ============================================
-// STATE
-// ============================================
-
 const uiSessionState = {
   currentTask: null,
   cancelled: false,
@@ -213,108 +209,8 @@ async function restoreMcpSessions() {
   }
 }
 
-/**
- * ============================================================================
- * POPUP/WINDOW TRACKING
- * ============================================================================
- *
- * The listeners below (chrome.tabs.onCreated, chrome.windows.onCreated) were
- * designed to automatically track popup windows and new tabs opened by agent
- * actions (e.g., payment flows, OAuth redirects, external links).
- *
- * STATUS: DISABLED (but tracking still works via tabs_context tool)
- *
- * KNOWN ISSUE - CHROME FULLSCREEN BUG:
- * Chrome crashes when a new tab is created in the same window while in
- * fullscreen mode. This is a Chrome-level bug, not caused by our extension.
- * Disabling these listeners doesn't fix the crash, but we keep them disabled
- * to reduce any potential interference.
- *
- * WHAT WORKS:
- * - Non-fullscreen mode: New tabs and popups are tracked correctly
- * - Fullscreen + new popup window: Works fine
- * - Fullscreen + new tab (same window): Chrome crashes (Chrome bug)
- *
- * WORKAROUND FOR DEMOS:
- * Run the agent in non-fullscreen mode if the workflow involves opening
- * new tabs in the same window (e.g., payment checkouts).
- *
- * NOTE: Even with these listeners disabled, the tabs_context tool still
- * correctly detects new tabs via chrome.tabs.query. The agent successfully
- * handles payment flows and multi-tab interactions in non-fullscreen mode.
- *
- * TO RE-ENABLE (if needed):
- * 1. Remove the early `return;` statements in both listeners
- * 2. Test thoroughly in fullscreen mode
- * ============================================================================
- */
-
-// Listen for new tabs and track ones that might be opened by agent actions
-chrome.tabs.onCreated.addListener(async (tab) => {
-  // DISABLED: This was causing browser crashes in fullscreen mode
-  return;
-
-  // DISABLED CODE BELOW (unreachable):
-  // If no active session, don't track
-  // eslint-disable-next-line no-unreachable, no-undef
-  if (!isAnySessionActive()) return;
-
-  console.log(`[TAB TRACKING] New tab created: ${tab.id}, openerTabId: ${tab.openerTabId}, windowId: ${tab.windowId}`);
-
-  // Track if opener is one of our managed tabs
-  if (tab.openerTabId) {
-    const isOpenerManaged = await isTabManagedByAgent(tab.openerTabId);
-    if (isOpenerManaged) {
-      agentOpenedTabs.add(tab.id);
-      console.log(`[TAB TRACKING] Tracking tab ${tab.id} (opened by agent tab ${tab.openerTabId})`);
-      return;
-    }
-  }
-
-  // Also track tabs in new popup windows that appear during active session
-  // These might be payment popups, OAuth flows, etc.
-  try {
-    const window = await chrome.windows.get(tab.windowId);
-    if (window.type === 'popup' && isAnySessionActive()) {
-      agentOpenedTabs.add(tab.id);
-      console.log(`[TAB TRACKING] Tracking popup tab ${tab.id} (popup window during active session)`);
-    }
-  } catch (e) {
-    // Window might not exist
-  }
-});
-
-// Listen for new windows (catches popup windows)
-// NOTE: Disabled to fix browser crashes in fullscreen mode
-chrome.windows.onCreated.addListener(async (window) => {
-  // DISABLED: This was causing browser crashes in fullscreen mode
-  return;
-
-  // DISABLED CODE BELOW (unreachable):
-  // eslint-disable-next-line no-unreachable
-  if (!isAnySessionActive()) return;
-
-  console.log(`[WINDOW TRACKING] New window created: ${window.id}, type: ${window.type}`);
-
-  // If it's a popup window during an active session, track its tabs
-  if (window.type === 'popup') {
-    // Wait a moment for tabs to be created in the window
-    await new Promise(r => setTimeout(r, 100));
-
-    const tabs = await chrome.tabs.query({ windowId: window.id });
-    for (const tab of tabs) {
-      if (!agentOpenedTabs.has(tab.id)) {
-        agentOpenedTabs.add(tab.id);
-        console.log(`[WINDOW TRACKING] Tracking tab ${tab.id} from popup window ${window.id}`);
-      }
-    }
-  }
-});
-
-// Clean up tracking when tabs are closed
-chrome.tabs.onRemoved.addListener((_tabId) => {
-  // Tab cleanup handled by tab manager now
-});
+// Tab tracking for popups/new windows is handled by tabs_context tool.
+// Automatic listeners were removed — they caused Chrome fullscreen crashes.
 
 // Tab management delegated to tab-manager.js
 // Initialize tab manager with shared state
@@ -633,6 +529,147 @@ async function executeTool(toolName, toolInput, sessionTabGroupId = null, mcpSes
 }
 
 // ============================================
+// AGENT LOOP — helpers
+// ============================================
+
+/**
+ * Build tab context for system-reminder injection.
+ * Queries all tabs in the session's window (or falls back to the initial tab).
+ * @returns {{ tabInfo: Object, currentTabUrl: string|null }}
+ */
+async function buildTabContext(initialTabId, mcpSession, taskLog) {
+  const tabInfo = { availableTabs: [], initialTabId, domainSkills: [] };
+  let currentTabUrl = null;
+  try {
+    const windowId = mcpSession?.windowId;
+    if (windowId) {
+      const win = await chrome.windows.get(windowId, { populate: true });
+      tabInfo.availableTabs = (win.tabs || [])
+        .filter(t => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('about:'))
+        .map(t => ({ tabId: t.id, title: t.title || 'New Tab', url: t.url, active: t.active }));
+      const activeTab = (win.tabs || []).find(t => t.active);
+      currentTabUrl = activeTab?.url || null;
+    }
+
+    if (tabInfo.availableTabs.length === 0) {
+      const tab = await chrome.tabs.get(initialTabId);
+      currentTabUrl = tab.url || null;
+      tabInfo.availableTabs = [{
+        tabId: initialTabId,
+        title: tab.title || 'New Tab',
+        url: tab.url || 'chrome://newtab/',
+        active: tab.active,
+      }];
+    }
+
+    if (currentTabUrl) {
+      const skills = getDomainSkills(currentTabUrl, getConfig().userSkills || []);
+      if (skills.length > 0) {
+        tabInfo.domainSkills = skills.map(s => ({ domain: s.domain, skill: s.skill }));
+        if (taskLog) {
+          await taskLog('SKILLS', `Loaded ${skills.length} domain skill(s) for ${currentTabUrl}`, { domains: skills.map(s => s.domain) });
+        }
+      }
+    }
+  } catch {
+    // Tab/window not accessible, use defaults
+  }
+  return { tabInfo, currentTabUrl };
+}
+
+/**
+ * Format a single tool execution result into the message format expected by the LLM.
+ * Handles screenshots (image+text), cancellations, and plain text/object results.
+ * @returns {{ toolResult: Object, updatePayload: Object }}
+ */
+function formatToolResult(toolUse, result, sessionId, mcpSession, steps) {
+  const isScreenshot = result && result.base64Image;
+  const isError = result?.error || (typeof result === 'string' && result.includes('Error:'));
+
+  if (result && result.base64Image) {
+    const mediaType = result.imageFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+
+    // Save screenshot for logging
+    const dataUrl = `data:${mediaType};base64,${result.base64Image}`;
+    if (mcpSession) {
+      mcpSession.screenshots.push(dataUrl);
+    } else {
+      uiSessionState.taskScreenshots.push(dataUrl);
+    }
+
+    // Store in capturedScreenshots map for view_screenshot tool
+    if (result.imageId) {
+      getCapturedScreenshots(sessionId).set(result.imageId, dataUrl);
+    }
+
+    const textMessage = result.output || (result.imageId ? `Screenshot captured (ID: ${result.imageId})` : 'Screenshot captured');
+    return {
+      toolResult: {
+        type: 'tool_result',
+        tool_use_id: toolUse.id,
+        content: [
+          { type: 'text', text: textMessage },
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: result.base64Image } },
+        ],
+      },
+      updatePayload: { step: steps, status: 'executed', tool: toolUse.name, input: toolUse.input, result: textMessage.substring(0, 100) },
+    };
+  }
+
+  // Enhance error messages for better LLM understanding
+  let content = typeof result === 'string' ? result : JSON.stringify(result);
+  if (typeof result === 'string' && result.toLowerCase().includes('error')) {
+    content = enhanceErrorMessage(result);
+  }
+
+  return {
+    toolResult: {
+      type: 'tool_result',
+      tool_use_id: toolUse.id,
+      content,
+    },
+    updatePayload: {
+      step: steps,
+      status: 'executed',
+      tool: toolUse.name,
+      input: toolUse.input,
+      result: typeof result === 'string' ? result.substring(0, 200) : 'done',
+    },
+  };
+}
+
+/**
+ * Inject pending MCP follow-up messages into the conversation.
+ * Returns the updated injection counter.
+ */
+async function injectMcpMessages(mcpSession, mcpMessagesInjected, messages, initialTabId, steps, onUpdate, taskLog) {
+  if (!mcpSession || mcpSession.messages.length <= mcpMessagesInjected) {
+    return mcpMessagesInjected;
+  }
+
+  const newMessages = mcpSession.messages.slice(mcpMessagesInjected);
+  await taskLog('MCP', `Injecting ${newMessages.length} follow-up message(s) from user`);
+
+  // Build fresh tab context
+  const { tabInfo: freshTabInfo } = await buildTabContext(initialTabId, mcpSession, null);
+
+  for (const msg of newMessages) {
+    if (msg.role === 'user') {
+      messages.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: msg.content },
+          { type: 'text', text: `<system-reminder>${JSON.stringify(freshTabInfo)}</system-reminder>` },
+        ]
+      });
+      onUpdate({ step: steps, status: 'message', text: `[User follow-up]: ${msg.content}` });
+    }
+  }
+
+  return mcpSession.messages.length;
+}
+
+// ============================================
 // AGENT LOOP
 // ============================================
 
@@ -681,45 +718,8 @@ async function runAgentLoop(initialTabId, task, onUpdate, images = [], askBefore
     }
   }
 
-  // Get tab info for system-reminder — query ALL tabs in the session's window
-  let tabInfo = { availableTabs: [], initialTabId, domainSkills: [] };
-  let currentTabUrl = null; // Track current URL for tool filtering
-  try {
-    // For MCP sessions with a dedicated window, show all tabs in that window
-    const windowId = mcpSession?.windowId;
-    if (windowId) {
-      const win = await chrome.windows.get(windowId, { populate: true });
-      tabInfo.availableTabs = (win.tabs || [])
-        .filter(t => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('about:'))
-        .map(t => ({ tabId: t.id, title: t.title || 'New Tab', url: t.url, active: t.active }));
-      // Use the active tab's URL for domain skills, fallback to initialTabId
-      const activeTab = (win.tabs || []).find(t => t.active);
-      currentTabUrl = activeTab?.url || null;
-    }
-
-    // Fallback: if no window or no tabs found, use the initial tab directly
-    if (tabInfo.availableTabs.length === 0) {
-      const tab = await chrome.tabs.get(initialTabId);
-      currentTabUrl = tab.url || null;
-      tabInfo.availableTabs = [{
-        tabId: initialTabId,
-        title: tab.title || 'New Tab',
-        url: tab.url || 'chrome://newtab/',
-        active: tab.active,
-      }];
-    }
-
-    // Add domain-specific skills for the current page
-    if (currentTabUrl) {
-      const skills = getDomainSkills(currentTabUrl, getConfig().userSkills || []);
-      if (skills.length > 0) {
-        tabInfo.domainSkills = skills.map(s => ({ domain: s.domain, skill: s.skill }));
-        await taskLog('SKILLS', `Loaded ${skills.length} domain skill(s) for ${currentTabUrl}`, { domains: skills.map(s => s.domain) });
-      }
-    }
-  } catch (e) {
-    // Tab/window not accessible, use defaults
-  }
+  // Get tab info for system-reminder
+  const { tabInfo, currentTabUrl } = await buildTabContext(initialTabId, mcpSession, taskLog);
 
   // Build new user message with optional images and system-reminders
   const userContent = [];
@@ -778,44 +778,8 @@ ${mcpSession.context}</system-reminder>`,
       return { success: false, message: 'Task stopped by user', messages, steps };
     }
 
-    // Check for new MCP messages at start of each turn (handles turns with no tool calls)
-    if (mcpSession && mcpSession.messages.length > mcpMessagesInjected) {
-      const newMessages = mcpSession.messages.slice(mcpMessagesInjected);
-      mcpMessagesInjected = mcpSession.messages.length;
-
-      await taskLog('MCP', `Injecting ${newMessages.length} follow-up message(s) from user (start of turn)`);
-
-      // Build fresh tab context — query all tabs in the session's window
-      let freshTabInfo = { availableTabs: [], initialTabId, domainSkills: [] };
-      try {
-        const windowId = mcpSession?.windowId;
-        if (windowId) {
-          const win = await chrome.windows.get(windowId, { populate: true });
-          freshTabInfo.availableTabs = (win.tabs || [])
-            .filter(t => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('about:'))
-            .map(t => ({ tabId: t.id, title: t.title || 'New Tab', url: t.url, active: t.active }));
-        }
-        if (freshTabInfo.availableTabs.length === 0) {
-          const tab = await chrome.tabs.get(initialTabId);
-          freshTabInfo.availableTabs = [{ tabId: initialTabId, title: tab.title || 'New Tab', url: tab.url || 'chrome://newtab/', active: tab.active }];
-        }
-      } catch {
-        // Tab/window gone mid-execution — agent will discover via tabs_context
-      }
-
-      for (const msg of newMessages) {
-        if (msg.role === 'user') {
-          messages.push({
-            role: 'user',
-            content: [
-              { type: 'text', text: msg.content },
-              { type: 'text', text: `<system-reminder>${JSON.stringify(freshTabInfo)}</system-reminder>` },
-            ]
-          });
-          onUpdate({ step: steps, status: 'message', text: `[User follow-up]: ${msg.content}` });
-        }
-      }
-    }
+    // Check for new MCP messages at start of each turn
+    mcpMessagesInjected = await injectMcpMessages(mcpSession, mcpMessagesInjected, messages, initialTabId, steps, onUpdate, taskLog);
 
     steps++;
     onUpdate({ step: steps, status: 'thinking' });
@@ -938,32 +902,19 @@ ${mcpSession.context}</system-reminder>`,
       // Log structured tool result
       const isScreenshot = result && result.base64Image;
       const isError = result?.error || (typeof result === 'string' && result.includes('Error:'));
-
-      // For logging, strip base64 data from result object
-      const safeResult = isScreenshot ? {
-        output: result.output,
-        imageId: result.imageId,
-        imageFormat: result.imageFormat,
-      } : result;
+      const safeResult = isScreenshot ? { output: result.output, imageId: result.imageId, imageFormat: result.imageFormat } : result;
 
       await taskLog('TOOL_RESULT', `Result from ${toolUse.name}`, {
-        tool: toolUse.name,
-        toolUseId: toolUse.id,
-        success: !isError,
+        tool: toolUse.name, toolUseId: toolUse.id, success: !isError,
         resultType: isScreenshot ? 'screenshot' : typeof result,
-        // For screenshots, reference the file (use session screenshots length as counter)
         screenshot: isScreenshot ? `screenshot_${(mcpSession?.screenshots || uiSessionState.taskScreenshots).length + 1}.jpeg` : null,
-        // For text results, include full content
         textResult: typeof result === 'string' ? result : null,
-        // For object results (not screenshots), include structure without base64
         objectResult: typeof result === 'object' && !isScreenshot ? result : (isScreenshot ? safeResult : null),
-        // Error info
         error: isError ? (typeof result === 'string' ? result : result.error) : null
       });
 
       // Check for cancellation
       if (result && result.cancelled) {
-        // Add stub results for all unresolved tool_uses
         for (const tu of toolUses) {
           if (!toolResults.find(r => r.tool_use_id === tu.id)) {
             toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: result.message || 'Task cancelled' });
@@ -973,81 +924,18 @@ ${mcpSession.context}</system-reminder>`,
         return { success: false, message: result.message, messages, steps };
       }
 
-      // Handle screenshot results
-      // computer-tool uses cdpHelper.screenshot() which already handles DPR scaling
-      // Returns { base64Image, imageId, imageFormat, output }
-      // Note: scroll/scroll_to actions also return base64Image with an output message
-      if (result && result.base64Image) {
-        const mediaType = result.imageFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+      if (isScreenshot) {
         await taskLog('SCREENSHOT_API', `Sending to API: ${result.base64Image.length} chars, format=${result.imageFormat}`);
-
-        // Save screenshot for logging as separate file (use per-session storage for MCP tasks)
-        const dataUrl = `data:${mediaType};base64,${result.base64Image}`;
-        if (mcpSession) {
-          mcpSession.screenshots.push(dataUrl);
-        } else {
-          uiSessionState.taskScreenshots.push(dataUrl);
-        }
-
-        // Store in capturedScreenshots map so view_screenshot tool can retrieve it
-        if (result.imageId) {
-          getCapturedScreenshots(sessionId).set(result.imageId, dataUrl);
-        }
-
-        // Include the actual output message if present (e.g., "Scrolled down by 5 ticks at (x, y)")
-        // Fall back to generic screenshot message if no output
-        const textMessage = result.output || (result.imageId ? `Screenshot captured (ID: ${result.imageId})` : 'Screenshot captured');
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: toolUse.id,
-          content: [
-            { type: 'text', text: textMessage },
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: result.base64Image } },
-          ],
-        });
-        onUpdate({ step: steps, status: 'executed', tool: toolUse.name, input: toolUse.input, result: textMessage.substring(0, 100) });
-      } else {
-        // Enhance error messages for better LLM understanding
-        let content = typeof result === 'string' ? result : JSON.stringify(result);
-        if (typeof result === 'string' && result.toLowerCase().includes('error')) {
-          content = enhanceErrorMessage(result);
-        }
-
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: toolUse.id,
-          content: content,
-        });
-        onUpdate({
-          step: steps,
-          status: 'executed',
-          tool: toolUse.name,
-          input: toolUse.input,
-          result: typeof result === 'string' ? result.substring(0, 200) : 'done',
-        });
       }
+      const { toolResult, updatePayload } = formatToolResult(toolUse, result, sessionId, mcpSession, steps);
+      toolResults.push(toolResult);
+      onUpdate(updatePayload);
     }
 
     messages.push({ role: 'user', content: toolResults });
 
     // Check for new MCP messages injected during execution
-    if (mcpSession && mcpSession.messages.length > mcpMessagesInjected) {
-      const newMessages = mcpSession.messages.slice(mcpMessagesInjected);
-      mcpMessagesInjected = mcpSession.messages.length;
-
-      await taskLog('MCP', `Injecting ${newMessages.length} follow-up message(s) from user`);
-
-      // Inject each new message as a user message
-      for (const msg of newMessages) {
-        if (msg.role === 'user') {
-          messages.push({
-            role: 'user',
-            content: [{ type: 'text', text: msg.content }]
-          });
-          onUpdate({ step: steps, status: 'message', text: `[User follow-up]: ${msg.content}` });
-        }
-      }
-    }
+    mcpMessagesInjected = await injectMcpMessages(mcpSession, mcpMessagesInjected, messages, initialTabId, steps, onUpdate, taskLog);
   }
 
   return { success: false, message: `Reached max steps (${maxSteps})`, messages, steps };
@@ -1285,17 +1173,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       deactivateLicense().then(result => sendResponse(result));
       return true;
 
+    case 'MANAGED_SET_SESSION': {
+      // Page already called register API — just store the session credentials
+      const { session_token, browser_session_id, relay_url } = payload;
+      if (session_token) {
+        setManagedSession(session_token, browser_session_id, relay_url);
+        sendResponse({ success: true });
+      } else {
+        sendResponse({ success: false, error: 'No session token' });
+      }
+      return false;
+    }
+
     case 'MANAGED_PAIR': {
-      // Exchange a pairing token for a managed session
-      // Also captures the current active tab as the session's browser context
+      // Exchange a pairing token for a managed session (legacy: used by embed widget)
+      // Deduplicate: multiple content scripts can relay the same token
       const { pairing_token, api_url } = payload;
+      if (!pairing_token) { sendResponse({ success: false, error: 'No token' }); return false; }
+      if (globalThis._pairingInFlight === pairing_token) {
+        // Already processing this exact token — wait for the first attempt's result
+        sendResponse({ success: false, error: 'Pairing already in progress' });
+        return false;
+      }
+      globalThis._pairingInFlight = pairing_token;
       const baseUrl = api_url || 'http://localhost:3456';
       (async () => {
         try {
-          // Don't capture the current tab (which is likely the dashboard).
-          // A dedicated tab will be created lazily on first tool execution in mcp-bridge.js.
-          const capturedTabId = null;
-
           const res = await fetch(`${baseUrl}/v1/browser-sessions/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1311,12 +1214,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               return u.origin;
             })() : baseUrl;
             setManagedSession(data.session_token, data.browser_session_id, pairUrl);
-            // Persist the captured tab as the session's owned context
-            if (capturedTabId && data.browser_session_id) {
-              const tabMap = (await chrome.storage.local.get('managed_session_tabs')).managed_session_tabs || {};
-              tabMap[data.browser_session_id] = capturedTabId;
-              await chrome.storage.local.set({ managed_session_tabs: tabMap });
-            }
             sendResponse({ success: true, browserSessionId: data.browser_session_id });
           } else {
             sendResponse({ success: false, error: data.error || 'Pairing failed' });
@@ -1324,6 +1221,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         } catch (err) {
           captureError(err, { source: 'managed_pair' });
           sendResponse({ success: false, error: err.message });
+        } finally {
+          globalThis._pairingInFlight = null;
         }
       })();
       return true;
@@ -1362,104 +1261,64 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return false;
 
     case 'START_OAUTH_LOGIN':
-      console.log('[ServiceWorker] START_OAUTH_LOGIN message received');
-      console.log('[ServiceWorker] Calling startOAuthLogin()...');
       startOAuthLogin()
         .then(async tokens => {
-          console.log('[ServiceWorker] ✓ OAuth login successful');
-          console.log('[ServiceWorker] Reloading config to pick up authMethod...');
           await loadConfig();
-          console.log('[ServiceWorker] Config reloaded, authMethod:', getConfig().authMethod);
-          console.log('[ServiceWorker] Tokens received, sending response to sidepanel');
           sendResponse({ success: true, tokens });
         })
         .catch(error => {
-          console.error('[ServiceWorker] ✗ OAuth login failed:', error);
-          console.error('[ServiceWorker] Error message:', error.message);
-          console.error('[ServiceWorker] Error stack:', error.stack);
           captureError(error, { source: 'oauth_login' });
           sendResponse({ success: false, error: error.message });
         });
       return true;
 
     case 'OAUTH_LOGOUT':
-      console.log('[ServiceWorker] OAUTH_LOGOUT message received');
       logout().then(async () => {
-        console.log('[ServiceWorker] ✓ OAuth logout complete');
-        console.log('[ServiceWorker] Reloading config to clear authMethod...');
         await loadConfig();
-        console.log('[ServiceWorker] Config reloaded');
         sendResponse({ success: true });
       });
       return true;
 
     case 'GET_OAUTH_STATUS':
-      console.log('[ServiceWorker] GET_OAUTH_STATUS message received');
-      getAuthStatus().then(status => {
-        console.log('[ServiceWorker] OAuth status:', status);
-        sendResponse(status);
-      });
+      getAuthStatus().then(status => sendResponse(status));
       return true;
 
     case 'IMPORT_CLI_CREDENTIALS':
-      console.log('[ServiceWorker] IMPORT_CLI_CREDENTIALS message received');
-      console.log('[ServiceWorker] Calling importCLICredentials()...');
       importCLICredentials()
         .then(async credentials => {
-          console.log('[ServiceWorker] ✓ CLI credentials import successful');
-          console.log('[ServiceWorker] Reloading config to pick up authMethod...');
           await loadConfig();
-          console.log('[ServiceWorker] Config reloaded, authMethod:', getConfig().authMethod);
-          console.log('[ServiceWorker] Credentials received, sending response to sidepanel');
           sendResponse({ success: true, credentials });
         })
         .catch(error => {
-          console.error('[ServiceWorker] ✗ CLI credentials import failed:', error);
-          console.error('[ServiceWorker] Error message:', error.message);
-          console.error('[ServiceWorker] Error stack:', error.stack);
           sendResponse({ success: false, error: error.message });
         });
       return true;
 
     case 'CLEAR_CHAT':
-      // Clear conversation history for new chat session
       uiSessionState.conversationHistory = [];
       sendResponse({ success: true });
       return false;
 
     case 'IMPORT_CODEX_CREDENTIALS':
-      console.log('[ServiceWorker] IMPORT_CODEX_CREDENTIALS message received');
-      console.log('[ServiceWorker] Calling importCodexCredentials()...');
       importCodexCredentials()
         .then(async credentials => {
-          console.log('[ServiceWorker] ✓ Codex credentials import successful');
-          console.log('[ServiceWorker] Reloading config...');
           await loadConfig();
-          console.log('[ServiceWorker] Credentials received, sending response to sidepanel');
           sendResponse({ success: true, credentials });
         })
         .catch(error => {
-          console.error('[ServiceWorker] ✗ Codex credentials import failed:', error);
-          console.error('[ServiceWorker] Error message:', error.message);
           sendResponse({ success: false, error: error.message });
         });
       return true;
 
     case 'CODEX_LOGOUT':
-      console.log('[ServiceWorker] CODEX_LOGOUT message received');
       logoutCodex().then(async () => {
-        console.log('[ServiceWorker] ✓ Codex logout complete');
         await loadConfig();
         sendResponse({ success: true });
       });
       return true;
 
     case 'GET_CODEX_STATUS':
-      console.log('[ServiceWorker] GET_CODEX_STATUS message received');
-      getCodexAuthStatus().then(status => {
-        console.log('[ServiceWorker] Codex status:', status);
-        sendResponse(status);
-      });
+      getCodexAuthStatus().then(status => sendResponse(status));
       return true;
   }
 });

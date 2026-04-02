@@ -140,75 +140,51 @@ export const DOMAIN_SKILLS = [
   },
   {
     domain: 'twitter.com',
-    antiBot: true,  // Twitter detects automation
-    skill: `X/Twitter UI patterns:
-
-## CRITICAL: Reply Textbox Handling
-- The reply/compose box is a CONTENTEDITABLE div, not a regular input
-- You MUST click inside the textbox FIRST to focus it, THEN type your message
-- If text doesn't appear, click the textbox again and retry typing
-- After typing your message, click the blue "Reply" or "Post" button IMMEDIATELY
-- Don't overthink - once you've typed the message, just click Reply!
-
-## Replying to Tweets (Most Common Task)
-- To find someone's tweets quickly: use search with "from:username" (e.g., from:elonmusk)
-- DON'T endlessly scroll looking for the "perfect" tweet - pick a relevant one and reply
-- Click the speech bubble (💬) icon below a tweet to open the reply composer
-- Type your reply, then click the blue "Reply" button - be decisive!
-- The reply will appear as a thread under the original tweet
-
-## Posting & Composing
-- Compose new post: click the blue "Post" button in sidebar (desktop) or floating button (mobile)
-- The pencil/compose icon opens PUBLIC post composer, NOT direct messages
-- Below each post: reply (speech bubble), repost (arrows), like (heart), share icons
-
-## Direct Messages (DMs)
-- To DM: go to user's PROFILE page, look for "Message" button next to Follow
-- If no Message button visible: user has DMs disabled OR you need Twitter Premium to DM non-followers
-- DO NOT use the compose/pencil button for DMs - that's for public posts only
-- The Messages icon in sidebar shows existing conversations, not for starting new DMs with non-contacts
-
-## Navigation & Search
-- Profile: click on username or profile picture
-- Search operators: 'from:username' (their tweets), 'to:username' (replies to them)
-- Use search URL directly: x.com/search?q=from:username&f=live for recent tweets
-- Timeline shows posts in feed - but search is faster for finding specific user's content`
+    antiBot: true,
+    // Same as x.com — twitter.com redirects to x.com but match both
+    skill: `See x.com domain skill — twitter.com redirects to x.com.`
   },
   {
     domain: 'x.com',
-    antiBot: true,  // Twitter/X detects automation
-    skill: `X/Twitter UI patterns:
+    antiBot: true,
+    skill: `X/Twitter — verified patterns (updated 2026-03-30)
 
-## CRITICAL: Reply Textbox Handling
-- The reply/compose box is a CONTENTEDITABLE div, not a regular input
-- You MUST click inside the textbox FIRST to focus it, THEN type your message
-- If text doesn't appear, click the textbox again and retry typing
-- After typing your message, click the blue "Reply" or "Post" button IMMEDIATELY
-- Don't overthink - once you've typed the message, just click Reply!
+## Reading pages (CRITICAL)
+- X loads content asynchronously — page looks empty for 3-5 seconds after navigation.
+- read_page often returns ONLY "To view keyboard shortcuts" — tweets haven't loaded yet.
+- DO NOT re-navigate to the same URL. That resets loading and makes it worse.
+- Instead: wait 5 seconds, then use get_page_text — it reads visible text and is more reliable.
+- If get_page_text returns nothing, scroll down once and try again.
 
-## Replying to Tweets (Most Common Task)
-- To find someone's tweets quickly: use search with "from:username" (e.g., from:elonmusk)
-- DON'T endlessly scroll looking for the "perfect" tweet - pick a relevant one and reply
-- Click the speech bubble (💬) icon below a tweet to open the reply composer
-- Type your reply, then click the blue "Reply" button - be decisive!
-- The reply will appear as a thread under the original tweet
+## Search
+- URL: x.com/search?q={encoded_query}&src=typed_query&f=live
+- After navigating, wait 5 seconds, then get_page_text (NOT read_page).
+- Scroll down once to load more tweets, then get_page_text again.
+- Tweet URLs in page text follow pattern: /status/{id}
 
-## Posting & Composing
-- Compose new post: click the blue "Post" button in sidebar (desktop) or floating button (mobile)
-- The pencil/compose icon opens PUBLIC post composer, NOT direct messages
-- Below each post: reply (speech bubble), repost (arrows), like (heart), share icons
+## Text input (CRITICAL — Draft.js)
+- form_input DOES NOT WORK — Draft.js ignores programmatic input.
+- computer type action GARBLES TEXT.
+- ONLY RELIABLE METHOD — use javascript_tool:
+  document.querySelector('[data-testid="tweetTextarea_0"]').focus();
+  document.execCommand('insertText', false, 'your reply text here');
+- Always verify text appeared by reading after insertion.
 
-## Direct Messages (DMs)
-- To DM: go to user's PROFILE page, look for "Message" button next to Follow
-- If no Message button visible: user has DMs disabled OR you need Twitter Premium to DM non-followers
-- DO NOT use the compose/pencil button for DMs - that's for public posts only
-- The Messages icon in sidebar shows existing conversations, not for starting new DMs with non-contacts
+## Replying to a tweet
+1. Navigate to tweet URL (x.com/{handle}/status/{id})
+2. Wait 3 seconds, read the page
+3. Click the reply/comment icon (speech bubble) in the action bar
+4. Use javascript_tool to insert text (see above)
+5. Verify text appeared, then click blue "Reply" button
+6. Wait 2 seconds to confirm reply posted
 
-## Navigation & Search
-- Profile: click on username or profile picture
-- Search operators: 'from:username' (their tweets), 'to:username' (replies to them)
-- Use search URL directly: x.com/search?q=from:username&f=live for recent tweets
-- Timeline shows posts in feed - but search is faster for finding specific user's content`
+## Known traps
+- DO NOT scroll looking for "Post your reply" — reply box appears after clicking comment icon
+- x.com/compose/post may open — that's fine, type and click Reply there
+- "Leave site?" dialog — ALWAYS click Cancel, finish posting first
+- Reply button is disabled until text is entered — verify first
+- Space replies 15+ seconds apart (rate limiting)
+- NEVER navigate to the same URL you're already on`
   },
   {
     domain: 'openemr.io',

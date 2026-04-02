@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connect your browser — Hanzi</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f7f3ea; color: #1f1711; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; }
+    .card { max-width: 420px; width: 100%; background: #fffdf8; border: 1px solid #e5ddd0; border-radius: 16px; padding: 32px; text-align: center; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    p { font-size: 15px; color: #6d6256; line-height: 1.6; margin-bottom: 20px; }
+    .status { padding: 16px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; font-weight: 500; }
+    .status-connecting { background: #fceee4; color: #8d4524; }
+    .status-success { background: #e8f0ec; color: #2f4a3d; }
+    .status-error { background: #fce4e4; color: #c62828; }
+    .status-install { background: #f5f1e8; color: #6d6256; }
+    a { color: #ad5a34; font-weight: 600; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #e5ddd0; border-top-color: #ad5a34; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .small { font-size: 12px; color: #6d6256; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Connect your browser</h1>
+    <p>This will connect your Chrome browser so the app can run tasks in it securely.</p>
+    <div id="status" class="status status-connecting">
+      <span class="spinner"></span> Detecting Hanzi extension...
+    </div>
+    <p class="small">Powered by <a href="https://browse.hanzilla.co">Hanzi</a></p>
+  </div>
+
+  <script>
+    const TOKEN = "{{TOKEN}}";
+    const API_URL = "{{API_URL}}";
+    const EXTENSION_URL = "{{EXTENSION_URL}}";
+    const statusEl = document.getElementById("status");
+
+    // Step 1: Detect extension
+    let extensionDetected = false;
+
+    window.addEventListener("message", (e) => {
+      if (e.data?.type === "HANZI_EXTENSION_READY" && !extensionDetected) {
+        extensionDetected = true;
+        doPair();
+      }
+      if (e.data?.type === "HANZI_SESSION_SET") {
+        statusEl.className = "status status-success";
+        statusEl.innerHTML = "✓ Browser connected! You can close this tab.";
+      }
+    });
+
+    window.postMessage({ type: "HANZI_PING" }, "*");
+
+    setTimeout(() => {
+      if (!extensionDetected) {
+        statusEl.className = "status status-install";
+        statusEl.innerHTML = 'Hanzi extension not found. <a href="' + EXTENSION_URL + '" target="_blank">Install it here</a>, then reload this page.';
+      }
+    }, 2000);
+
+    // Step 2: Page calls register API directly (same-origin, no content script relay)
+    async function doPair() {
+      statusEl.className = "status status-connecting";
+      statusEl.innerHTML = '<span class="spinner"></span> Connecting...';
+      try {
+        const res = await fetch(API_URL + "/v1/browser-sessions/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pairing_token: TOKEN }),
+        });
+        const data = await res.json();
+        if (!data.session_token) {
+          statusEl.className = "status status-error";
+          statusEl.innerHTML = "Pairing failed: " + (data.error || "unknown error");
+          return;
+        }
+        // Step 3: Tell extension to set the session (no API call needed from extension)
+        const relayUrl = data.relay_port
+          ? (() => { const u = new URL(API_URL); u.port = String(data.relay_port); return u.origin; })()
+          : API_URL;
+        window.postMessage({
+          type: "HANZI_SET_SESSION",
+          sessionToken: data.session_token,
+          browserSessionId: data.browser_session_id,
+          relayUrl: relayUrl,
+        }, "*");
+      } catch (err) {
+        statusEl.className = "status status-error";
+        statusEl.innerHTML = "Pairing failed: " + err.message;
+      }
+    }
+  </script>
+</body>
+</html>

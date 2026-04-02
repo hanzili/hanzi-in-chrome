@@ -335,6 +335,16 @@ export async function handleComputer(input) {
     if (!toolInput.action) {
       throw new Error("Action parameter is required");
     }
+
+    // Normalize common LLM mistakes in action names
+    if (toolInput.action === "scroll_direction" || toolInput.action === "scroll_down" || toolInput.action === "scroll_up") {
+      if (!toolInput.scroll_direction && (toolInput.action === "scroll_down" || toolInput.action === "scroll_up")) {
+        toolInput.scroll_direction = toolInput.action === "scroll_down" ? "down" : "up";
+      }
+      toolInput.action = "scroll";
+      if (!toolInput.coordinate) toolInput.coordinate = [500, 400];
+    }
+
     if (!toolInput.tabId) {
       throw new Error("No active tab found in context");
     }

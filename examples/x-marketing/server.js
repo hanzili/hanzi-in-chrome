@@ -20,11 +20,9 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { HanziClient } from '../../sdk/dist/index.js';
 
-// Disable proxy for all outbound fetch
-delete process.env.http_proxy;
-delete process.env.https_proxy;
-delete process.env.HTTP_PROXY;
-delete process.env.HTTPS_PROXY;
+// Keep proxy for external API calls (needed in China etc.)
+// but bypass for localhost via no_proxy
+if (!process.env.no_proxy) process.env.no_proxy = 'localhost,127.0.0.1';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -64,8 +62,6 @@ const hanziClient = new HanziClient({
 });
 
 // Load X.com site patterns for browser tasks
-const xPatternPath = join(__dirname, "../../server/site-patterns/x.com.md");
-const X_SITE_PATTERN = existsSync(xPatternPath) ? readFileSync(xPatternPath, "utf-8") : "";
 const HTML = readFileSync(join(__dirname, "index.html"), "utf-8");
 
 // ── Rate Limiting (per IP, resets daily) ─────────────────────
@@ -219,28 +215,29 @@ app.post("/api/search-one", async (req, res) => {
     console.log(`[Browser] Searching keyword: "${keyword}"`);
     const task = await hanziClient.createTask({
       browserSessionId: browser_session_id,
-      task: `${X_SITE_PATTERN ? "<site_pattern>\n" + X_SITE_PATTERN + "\n</site_pattern>\n\n" : ""}Open a new tab. Go to https://x.com/search?q=${encodeURIComponent(keyword)}&src=typed_query&f=live
+      task: `Search X for: "${keyword}"
 
-IMPORTANT RULES:
-- After navigating, wait 5 seconds. X loads tweets asynchronously.
-- Use get_page_text (NOT read_page) to read tweet content. read_page often returns only "keyboard shortcuts" on X.
-- If you see no tweets, DO NOT navigate to the same URL again. Just wait 3 more seconds and use get_page_text again.
-- NEVER re-navigate to a URL you are already on.
-- Maximum 15 steps. Report what you have by step 12.
+Navigate to https://x.com/search?q=${encodeURIComponent(keyword)}&src=typed_query&f=live
+
+X BEHAVIOR — read carefully:
+- X loads tweets asynchronously. After navigating, wait 5 seconds before reading.
+- Use get_page_text (NOT read_page) to read tweets. read_page returns only "keyboard shortcuts" on X.
+- If get_page_text returns nothing useful, wait 3 more seconds and try again. NEVER re-navigate to the same URL.
+- Scroll down once to load more tweets, then get_page_text again.
 
 Steps:
-1. Navigate to the search URL above
+1. Navigate to the search URL
 2. Wait 5 seconds
-3. Use get_page_text to read the page
-4. Scroll down once: {"action": "scroll", "coordinate": [500, 400], "scroll_amount": 3, "scroll_direction": "down"}
-5. Wait 2 seconds, then use get_page_text again
+3. get_page_text
+4. Scroll down: {"action": "scroll", "coordinate": [500, 400], "scroll_amount": 3, "scroll_direction": "down"}
+5. Wait 2 seconds, get_page_text again
 6. Write your summary
 
-For each tweet you find, include:
-- The FULL tweet URL (contains /status/ — this is CRITICAL)
-- The author's @handle and display name
-- The full tweet text
-- Approximate engagement counts (likes, replies, retweets)
+For each tweet, include:
+- The FULL tweet URL (must contain /status/)
+- Author @handle and display name
+- Full tweet text
+- Engagement counts (likes, replies, retweets)
 
 List ALL tweets as a numbered list.`,
     });

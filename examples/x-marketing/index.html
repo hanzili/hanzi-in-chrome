@@ -878,13 +878,16 @@ async function postAll() {
   save(); render();
 
   let ok = 0, fail = 0;
-  for (let i = 0; i < approved.length; i++) {
-    const result = await api('POST', '/api/post', {
+  // Fire all posts in parallel — each gets its own browser tab
+  const results = await Promise.allSettled(approved.map(d =>
+    api('POST', '/api/post', {
       browser_session_id: browserSid,
-      tweet_url: approved[i].tweet_url,
-      reply_text: approved[i].reply_text,
-    });
-    if (result && result.result === 'complete') {
+      tweet_url: d.tweet_url,
+      reply_text: d.reply_text,
+    })
+  ));
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled' && r.value?.result === 'complete') {
       approved[i].status = 'posted';
       approved[i].posted_at = new Date().toISOString();
       ok++;
@@ -892,9 +895,8 @@ async function postAll() {
       approved[i].status = 'failed';
       fail++;
     }
-    save(); render();
-    if (i < approved.length - 1) await new Promise(r => setTimeout(r, 15000));
-  }
+  });
+  save(); render();
 
   postingInProgress = false;
   save();

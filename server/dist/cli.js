@@ -20,6 +20,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { WebSocketClient } from './ipc/websocket-client.js';
 import { writeSessionStatus, readSessionStatus, appendSessionLog, listSessions, deleteSessionFiles, getSessionLogPath, getSessionScreenshotPath, } from './cli/session-files.js';
+import { buildScreenshotPayload, buildStatusPayload, buildStopPayload, buildTaskCompletePayload, buildTaskErrorPayload, } from './cli/json-output.js';
 // Parse command line arguments
 const args = process.argv.slice(2);
 const command = args[0];
@@ -67,7 +68,7 @@ function handleMessage(message) {
             appendSessionLog(sessionId, `[COMPLETE] ${answer}`);
             writeSessionStatus(sessionId, { status: 'complete', result: answer });
             if (jsonOutput) {
-                console.log(JSON.stringify({ session_id: sessionId, status: 'completed', result }));
+                console.log(JSON.stringify(buildTaskCompletePayload(sessionId, result)));
             }
             else {
                 console.log(`\n[CLI] Task completed: ${sessionId}`);
@@ -80,7 +81,7 @@ function handleMessage(message) {
             appendSessionLog(sessionId, `[ERROR] ${data.error}`);
             writeSessionStatus(sessionId, { status: 'error', error: data.error });
             if (jsonOutput) {
-                console.log(JSON.stringify({ session_id: sessionId, status: 'error', error: data.error }));
+                console.log(JSON.stringify(buildTaskErrorPayload(sessionId, data.error)));
             }
             else {
                 console.error(`\n[CLI] Task error: ${data.error}`);
@@ -193,12 +194,12 @@ function cmdStatus() {
             console.error(`Session not found: ${sessionId}`);
             process.exit(1);
         }
-        console.log(JSON.stringify(status, jsonOutput ? undefined : null, jsonOutput ? undefined : 2));
+        console.log(JSON.stringify(buildStatusPayload(status), jsonOutput ? undefined : null, jsonOutput ? undefined : 2));
     }
     else {
         const allSessions = listSessions();
         if (jsonOutput) {
-            console.log(JSON.stringify(allSessions));
+            console.log(JSON.stringify(buildStatusPayload(allSessions)));
         }
         else if (allSessions.length === 0) {
             console.log('No sessions found.');
@@ -267,11 +268,21 @@ async function cmdStop() {
     await connection.send({ type: 'mcp_stop_task', sessionId, remove });
     if (remove) {
         deleteSessionFiles(sessionId);
-        console.log(`Session ${sessionId} stopped and removed.`);
+        if (jsonOutput) {
+            console.log(JSON.stringify(buildStopPayload(sessionId, true)));
+        }
+        else {
+            console.log(`Session ${sessionId} stopped and removed.`);
+        }
     }
     else {
         writeSessionStatus(sessionId, { status: 'stopped' });
-        console.log(`Session ${sessionId} stopped.`);
+        if (jsonOutput) {
+            console.log(JSON.stringify(buildStopPayload(sessionId, false)));
+        }
+        else {
+            console.log(`Session ${sessionId} stopped.`);
+        }
     }
     disconnectAndExit(0);
 }
@@ -281,7 +292,9 @@ async function cmdScreenshot() {
     activeSessionId = requestId;
     await initConnection();
     await connection.send({ type: 'mcp_screenshot', sessionId: requestId });
-    console.log(`Screenshot requested for ${requestId}. Waiting for image...\n`);
+    if (!jsonOutput) {
+        console.log(`Screenshot requested for ${requestId}. Waiting for image...\n`);
+    }
     const data = await new Promise((resolve) => {
         pendingScreenshotResolve = resolve;
         setTimeout(() => {
@@ -296,7 +309,12 @@ async function cmdScreenshot() {
     }
     const screenshotPath = getSessionScreenshotPath(requestId);
     writeFileSync(screenshotPath, Buffer.from(data, 'base64'));
-    console.log(`[CLI] Screenshot saved: ${screenshotPath}`);
+    if (jsonOutput) {
+        console.log(JSON.stringify(buildScreenshotPayload(requestId, screenshotPath)));
+    }
+    else {
+        console.log(`[CLI] Screenshot saved: ${screenshotPath}`);
+    }
     disconnectAndExit(0);
 }
 // --- Skills ---
@@ -408,6 +426,7 @@ Commands:
                             Each session gets its own browser window.
 
   status [session_id]       Show status of session(s)
+    --json                  Output machine-readable JSON
 
   message <session_id> <msg>  Send follow-up instructions to a session
                               Reuses the same browser window and page state.
@@ -417,8 +436,10 @@ Commands:
 
   stop <session_id>         Stop a session
     --remove, -r            Also delete session files
+    --json                  Output machine-readable JSON
 
   screenshot [session_id]   Take a screenshot
+    --json                  Output machine-readable JSON
 
   setup                     Auto-detect AI agents and configure MCP
     --only <agent>          Only configure one agent (claude-code, cursor, windsurf, claude-desktop)

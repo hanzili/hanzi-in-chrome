@@ -16,7 +16,8 @@
  */
 import { WebSocketServer, WebSocket } from 'ws';
 import { randomUUID } from 'crypto';
-import { getClaudeCredentials, getClaudeKeychainCredentials, getCodexCredentials, refreshClaudeToken, saveClaudeCredentials, } from '../llm/credentials.js';
+import { getClaudeCredentials, getClaudeKeychainCredentials, getCodexCredentials, } from '../llm/credentials.js';
+import { handleApiProxy } from './api-proxy.js';
 const DEFAULT_PORT = 7862;
 const port = parseInt(process.env.WS_RELAY_PORT || String(DEFAULT_PORT), 10);
 const clients = new Map();
@@ -260,117 +261,6 @@ wss.on('connection', (ws) => {
         log(`WebSocket error: ${err.message}`);
     });
 });
-/**
- * Proxy API calls with Claude Code impersonation headers.
- * Reads OAuth token, makes the API call, streams SSE events back to extension.
- */
-async function handleApiProxy(ws, msg) {
-    const { requestId, url, body } = msg;
-    const PROXY_TIMEOUT_MS = 150000;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
-    const EXPIRY_BUFFER_MS = 60 * 1000;
-    const getFreshClaudeCredentials = async () => {
-        const existing = getClaudeCredentials() || getClaudeKeychainCredentials();
-        if (!existing) {
-            return null;
-        }
-        if (existing.expiresAt && existing.expiresAt > Date.now() + EXPIRY_BUFFER_MS) {
-            return existing;
-        }
-        log('Claude OAuth token expired or near expiry, refreshing before proxy call');
-        const refreshed = await refreshClaudeToken(existing.refreshToken);
-        saveClaudeCredentials(refreshed);
-        return refreshed;
-    };
-    try {
-        // Read OAuth credentials
-        let creds = await getFreshClaudeCredentials();
-        if (!creds) {
-            ws.send(JSON.stringify({ type: 'proxy_api_error', requestId, error: 'No Claude credentials found' }));
-            return;
-        }
-        // Claude Code impersonation headers
-        const headers = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${creds.accessToken}`,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true',
-            'anthropic-beta': 'claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14',
-            'x-app': 'cli',
-            'user-agent': 'claude-code/2.1.29 (Darwin; arm64)',
-        };
-        let response = await fetch(url, { method: 'POST', headers, body, signal: controller.signal });
-        if (response.status === 401) {
-            log('Claude proxy request got 401, refreshing token and retrying once');
-            const refreshed = await refreshClaudeToken(creds.refreshToken);
-            saveClaudeCredentials(refreshed);
-            creds = refreshed;
-            headers.Authorization = `Bearer ${creds.accessToken}`;
-            response = await fetch(url, { method: 'POST', headers, body, signal: controller.signal });
-        }
-        if (!response.ok) {
-            const errorText = await response.text().catch(() => '');
-            clearTimeout(timeoutId);
-            ws.send(JSON.stringify({
-                type: 'proxy_api_error',
-                requestId,
-                error: `API error: ${response.status} - ${errorText.slice(0, 500)}`,
-            }));
-            return;
-        }
-        // Parse SSE stream and forward events to extension
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done)
-                break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop();
-            for (const line of lines) {
-                if (!line.startsWith('data: '))
-                    continue;
-                const data = line.slice(6);
-                if (data === '[DONE]')
-                    continue;
-                try {
-                    const event = JSON.parse(data);
-                    // Forward each SSE event to extension
-                    if (ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({
-                            type: 'proxy_stream_chunk',
-                            requestId,
-                            data: event,
-                        }));
-                    }
-                }
-                catch {
-                    // Skip malformed JSON
-                }
-            }
-        }
-        clearTimeout(timeoutId);
-        // Signal stream complete
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'proxy_stream_end', requestId }));
-        }
-    }
-    catch (err) {
-        clearTimeout(timeoutId);
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                type: 'proxy_api_error',
-                requestId,
-                error: err.name === 'AbortError'
-                    ? `API proxy request timed out after ${PROXY_TIMEOUT_MS / 1000} seconds`
-                    : err.message,
-            }));
-        }
-    }
-}
 // Graceful shutdown
 process.on('SIGINT', () => {
     log('Shutting down...');

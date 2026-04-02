@@ -52,18 +52,20 @@ describe('getAgentRegistry', () => {
   });
 
   it('uses the Windows APPDATA path for Claude Desktop', () => {
+    // path.join on non-Windows uses '/' — normalize for cross-platform test
+    const normalize = (p: string) => p.replace(/[\\/]/g, '/');
     const registry = getAgentRegistry({
       home: 'C:\\Users\\tester',
       plat: 'win32',
       appData: 'C:\\Users\\tester\\AppData\\Roaming',
-      pathExists: (path) => path === 'C:\\Users\\tester\\AppData\\Roaming\\Claude',
+      pathExists: (path) => normalize(path) === 'C:/Users/tester/AppData/Roaming/Claude',
       runCommand: () => { throw new Error('not installed'); },
     });
 
     const claudeDesktop = registry.find(agent => agent.slug === 'claude-desktop');
     expect(claudeDesktop?.detect()).toBe(true);
-    expect(claudeDesktop?.configPath?.())
-      .toBe('C:\\Users\\tester\\AppData\\Roaming\\Claude\\claude_desktop_config.json');
+    expect(normalize(claudeDesktop?.configPath?.() ?? ''))
+      .toBe('C:/Users/tester/AppData/Roaming/Claude/claude_desktop_config.json');
   });
 });
 

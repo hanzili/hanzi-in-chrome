@@ -28,13 +28,14 @@ import {
   type AgentLoopResult,
   type ToolResult,
 } from "../agent/loop.js";
+import { callLLM } from "../llm/client.js";
 import type { WebSocketClient } from "../ipc/websocket-client.js";
 import * as fileStore from "./store.js";
 import type { ApiKey } from "./store.js";
 import { createAuth, resolveSessionToWorkspace, resolveSessionProfile } from "./auth.js";
 import { initBilling, isBillingEnabled, createCheckoutSession, handleWebhook, recordTaskUsage } from "./billing.js";
-import { existsSync, readFileSync } from "fs";
-import { join, extname } from "path";
+import { handlePageRoutes } from "./routes/pages.js";
+import { handleSessionRoutes, handleTaskRoutes, handleKeyAndBillingRoutes } from "./routes/api.js";
 
 // Active store module — defaults to file store, can be swapped to Postgres via setStoreModule()
 let S: typeof fileStore = fileStore;
@@ -307,9 +308,33 @@ export function initManagedAPI(
 }
 
 /**
- * Handle incoming relay messages (tool results from extension).
+ * Handle incoming relay messages (tool results + LLM requests from extension).
  */
 export function handleRelayMessage(message: any): boolean {
+  // Handle LLM proxy requests from extension (e.g., find tool needs LLM)
+  if (message?.type === "llm_request" && message.requestId) {
+    const { requestId, messages, maxTokens, sessionId } = message;
+    (async () => {
+      try {
+        const response = await callLLM({ messages, system: [], tools: [] });
+        relayConnection?.send({
+          type: "llm_response",
+          requestId,
+          targetSessionId: sessionId,
+          content: response.content,
+        } as any);
+      } catch (err: any) {
+        relayConnection?.send({
+          type: "llm_response",
+          requestId,
+          targetSessionId: sessionId,
+          error: err.message,
+        } as any);
+      }
+    })();
+    return true;
+  }
+
   if (message?.type === "tool_result" && message.requestId) {
     const pending = pendingToolExec.get(message.requestId);
     if (pending) {
@@ -442,7 +467,7 @@ async function handleRelayCreateTask(message: any) {
     context: context || undefined,
     executeTool: async (toolName: string, toolInput: Record<string, any>) => {
       const startMs = Date.now();
-      const result = await executeToolViaRelay(toolName, toolInput, browserSessionId);
+      const result = await executeToolViaRelay(toolName, toolInput, browserSessionId, taskRun.id);
       const durationMs = Date.now() - startMs;
       for (const taskStep of buildToolResultTaskSteps({
         taskRunId: taskRun.id,
@@ -525,6 +550,7 @@ async function handleRelayCreateTask(message: any) {
             answer: result.answer,
             steps: result.steps,
             usage: result.usage,
+            turns: result.turns,
             completedAt: Date.now(),
           });
           break;
@@ -592,7 +618,8 @@ async function handleRelayCreateTask(message: any) {
 async function executeToolViaRelay(
   toolName: string,
   toolInput: Record<string, any>,
-  browserSessionId: string
+  browserSessionId: string,
+  taskId?: string
 ): Promise<ToolResult> {
   if (!relayConnection) {
     throw new Error("Relay not connected");
@@ -624,6 +651,7 @@ async function executeToolViaRelay(
       requestId,
       targetSessionId: browserSessionId,
       browserSessionId,
+      taskId,
       tool: toolName,
       input: toolInput,
     } as any);
@@ -667,6 +695,13 @@ async function authenticate(req: IncomingMessage): Promise<ApiKey | null> {
 
 function isPublishableKey(apiKey: ApiKey): boolean {
   return apiKey.type === "publishable" || apiKey.keyPrefix?.startsWith("hic_pub_") === true;
+}
+
+/** Returns true (and sends 403) if the key is publishable. Use: `if (rejectPublishable(...)) return;` */
+function rejectPublishable(apiKey: ApiKey, req: IncomingMessage, res: ServerResponse, action: string): boolean {
+  if (!isPublishableKey(apiKey)) return false;
+  sendJson(req, res, 403, { error: `Publishable keys cannot ${action}. Use a secret key (hic_live_...).` });
+  return true;
 }
 
 // --- Handlers ---
@@ -816,7 +851,7 @@ async function handleCreateTask(
     context,
     executeTool: async (toolName, toolInput) => {
       const startMs = Date.now();
-      const result = await executeToolViaRelay(toolName, toolInput, browser_session_id);
+      const result = await executeToolViaRelay(toolName, toolInput, browser_session_id, taskRun.id);
       const durationMs = Date.now() - startMs;
       for (const taskStep of buildToolResultTaskSteps({
         taskRunId: taskRun.id,
@@ -891,6 +926,7 @@ async function handleCreateTask(
             answer: result.answer,
             steps: result.steps,
             usage: result.usage,
+            turns: result.turns,
             completedAt: Date.now(),
           });
           updated = true;
@@ -1130,127 +1166,8 @@ async function handleRequest(
       return;
     }
 
-    // --- Dashboard + root redirect ---
-
-    // Serve dashboard static files from dist/dashboard/
-    if (method === "GET" && url?.startsWith("/dashboard")) {
-      const thisFile = new URL(import.meta.url).pathname;
-      const dashboardDir = join(thisFile, "../../dashboard");
-      let filePath = url === "/dashboard" || url === "/dashboard/"
-        ? join(dashboardDir, "index.html")
-        : join(dashboardDir, url.replace("/dashboard/", ""));
-
-      if (existsSync(filePath)) {
-        const ext = extname(filePath);
-        const mimeTypes: Record<string, string> = {
-          ".html": "text/html", ".js": "application/javascript",
-          ".css": "text/css", ".json": "application/json",
-          ".svg": "image/svg+xml", ".png": "image/png",
-        };
-        const cacheControl = ext === ".html" ? "no-cache, no-store, must-revalidate" : "public, max-age=31536000, immutable";
-        res.writeHead(200, { "Content-Type": mimeTypes[ext] || "application/octet-stream", "Cache-Control": cacheControl });
-        res.end(readFileSync(filePath));
-        return;
-      }
-      // SPA fallback — serve index.html for unmatched dashboard routes
-      const indexPath = join(dashboardDir, "index.html");
-      if (existsSync(indexPath)) {
-        res.writeHead(200, { "Content-Type": "text/html", "Cache-Control": "no-cache, no-store, must-revalidate" });
-        res.end(readFileSync(indexPath));
-        return;
-      }
-    }
-
-    if (method === "GET" && url === "/") {
-      // Authenticated users → dashboard. Others → landing page.
-      const session = await resolveSessionToWorkspace(req);
-      if (session) {
-        res.writeHead(302, { Location: "/dashboard" });
-        res.end();
-      } else {
-        res.writeHead(302, { Location: "https://browse.hanzilla.co" });
-        res.end();
-      }
-      return;
-    }
-
-    // --- Serve landing pages locally (docs, etc.) ---
-    if (method === "GET" && (url === "/docs.html" || url?.startsWith("/docs.html"))) {
-      const landingDir = join(process.cwd(), "landing");
-      const filePath = join(landingDir, url === "/docs.html" || url?.startsWith("/docs.html") ? "docs.html" : "index.html");
-      if (existsSync(filePath)) {
-        res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(readFileSync(filePath));
-        return;
-      }
-    }
-
-    // --- Embeddable pairing component (Stripe Elements-style) ---
-    if (method === "GET" && url === "/embed.js") {
-      const embedPath = join(process.cwd(), "landing/embed.js");
-      if (existsSync(embedPath)) {
-        res.writeHead(200, {
-          "Content-Type": "application/javascript",
-          "Access-Control-Allow-Origin": "*",
-          "Cache-Control": "public, max-age=3600",
-        });
-        res.end(readFileSync(embedPath));
-      } else {
-        res.writeHead(404);
-        res.end("Not found");
-      }
-      return;
-    }
-
-    // --- Legacy pairing snippet ---
-    if (method === "GET" && url === "/hanzi-pair.js") {
-      const snippetPath = join(process.cwd(), "sdk/hanzi-pair.js");
-      if (existsSync(snippetPath)) {
-        res.writeHead(200, {
-          "Content-Type": "application/javascript",
-          "Access-Control-Allow-Origin": "*",
-          "Cache-Control": "public, max-age=3600",
-        });
-        res.end(readFileSync(snippetPath));
-      } else {
-        res.writeHead(404);
-        res.end("Not found");
-      }
-      return;
-    }
-
-    // --- Self-service pairing for direct sidepanel users (/pair-self) ---
-    // One-click: sign in → auto-create workspace → auto-pair extension
-    if (method === "GET" && url === "/pair-self") {
-      const session = await resolveSessionToWorkspace(req);
-      if (!session) {
-        // Not signed in — redirect to Google OAuth, come back after
-        res.writeHead(302, { Location: "/api/auth/sign-in/social?provider=google&callbackURL=/pair-self" });
-        res.end();
-        return;
-      }
-      // User is signed in — auto-create a pairing token for their workspace
-      try {
-        const wsKeys = await S.listApiKeys(session.workspaceId);
-        const createdBy = wsKeys.length > 0 ? wsKeys[0].id : session.workspaceId;
-        const token = await S.createPairingToken(session.workspaceId, createdBy, { label: "Sidepanel" });
-        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-        res.end(getSelfPairPageHtml(token._plainToken, req.headers.host || ""));
-      } catch (err: any) {
-        res.writeHead(500, { "Content-Type": "text/html" });
-        res.end(`<html><body><p>Error: ${err.message}</p><a href="/pair-self">Try again</a></body></html>`);
-      }
-      return;
-    }
-
-    // --- Hosted pairing page (/pair/:token) ---
-    const pairMatch = url?.match(/^\/pair\/(.+)$/);
-    if (method === "GET" && pairMatch) {
-      const token = pairMatch[1];
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(getPairingPageHtml(token, req.headers.host || ""));
-      return;
-    }
+    // --- Page routes (dashboard, docs, pairing pages, static files) ---
+    if (await handlePageRoutes(req, res, S)) return;
 
     // --- No-auth endpoints ---
 
@@ -1358,269 +1275,15 @@ async function handleRequest(
       return;
     }
 
-    // --- Browser Sessions ---
+    // --- Grouped route handlers (sessions, tasks, keys, billing) ---
+    const routeCtx = {
+      req, res, method: method!, url: url!, apiKey, requestId, S, sendJson, parseBody,
+      rejectPublishable, isSessionConnectedFn, taskAborts, taskWorkspaceMap, handleCreateTask, runInternalTask,
+    };
 
-    // Create pairing token
-    if (method === "POST" && url === "/v1/browser-sessions/pair") {
-      const body = await parseBody(req);
-      const label = typeof body.label === "string" ? body.label.slice(0, 200) : undefined;
-      const externalUserId = typeof body.external_user_id === "string" ? body.external_user_id.slice(0, 200) : undefined;
-      const token = await S.createPairingToken(apiKey.workspaceId, apiKey.id, { label, externalUserId });
-      trackManagedEvent("pairing_link_generated", apiKey.workspaceId);
-      sendJson(req, res, 201, {
-        pairing_token: token._plainToken,
-        expires_at: token.expiresAt,
-        expires_in_seconds: Math.round((token.expiresAt - Date.now()) / 1000),
-      });
-      return;
-    }
-
-    // List browser sessions
-    if (method === "GET" && url === "/v1/browser-sessions") {
-      const sessions = await S.listBrowserSessions(apiKey.workspaceId);
-      sendJson(req, res, 200, {
-        sessions: sessions.map((s) => ({
-          id: s.id,
-          status: isSessionConnectedFn ? (isSessionConnectedFn(s.id) ? "connected" : "disconnected") : s.status,
-          connected_at: s.connectedAt,
-          last_heartbeat: s.lastHeartbeat,
-          label: s.label || null,
-          external_user_id: s.externalUserId || null,
-        })),
-      });
-      return;
-    }
-
-    // Delete a browser session
-    const sessionMatch = url?.match(/^\/v1\/browser-sessions\/([^/]+)$/);
-    if (sessionMatch && method === "DELETE") {
-      const sessionId = sessionMatch[1];
-      const deleted = await S.deleteBrowserSession(sessionId, apiKey.workspaceId);
-      if (!deleted) {
-        sendJson(req, res, 404, { error: "Session not found" });
-        return;
-      }
-      sendJson(req, res, 200, { id: sessionId, deleted: true });
-      return;
-    }
-
-    // --- Tasks ---
-
-    if (method === "POST" && url === "/v1/tasks") {
-      if (isPublishableKey(apiKey)) {
-        sendJson(req, res, 403, { error: "Publishable keys cannot create tasks. Use a secret key (hic_live_...)." });
-        return;
-      }
-      const body = await parseBody(req);
-      const result = await handleCreateTask(body, apiKey, requestId);
-      sendJson(req, res, result.status, result.data);
-      return;
-    }
-
-    if (method === "GET" && url === "/v1/tasks") {
-      if (isPublishableKey(apiKey)) {
-        sendJson(req, res, 403, { error: "Publishable keys cannot access tasks. Use a secret key (hic_live_...)." });
-        return;
-      }
-      const tasks = await S.listTaskRuns(apiKey.workspaceId);
-      sendJson(req, res, 200, {
-        tasks: tasks.map((r) => ({
-          id: r.id,
-          status: r.status,
-          task: r.task,
-          answer: r.answer,
-          steps: r.steps,
-          usage: r.usage,
-          browser_session_id: r.browserSessionId,
-          created_at: r.createdAt,
-          completed_at: r.completedAt,
-        })),
-      });
-      return;
-    }
-
-    const taskMatch = url?.match(/^\/v1\/tasks\/([^/]+)(\/cancel|\/steps|\/screenshots\/(\d+))?$/);
-    if (taskMatch) {
-      if (isPublishableKey(apiKey)) {
-        sendJson(req, res, 403, { error: "Publishable keys cannot access tasks. Use a secret key (hic_live_...)." });
-        return;
-      }
-      const taskId = taskMatch[1];
-      const run = await S.getTaskRun(taskId);
-
-      if (!run) {
-        sendJson(req, res, 404, { error: "Task not found" });
-        return;
-      }
-
-      // Enforce workspace ownership
-      if (run.workspaceId !== apiKey.workspaceId) {
-        sendJson(req, res, 404, { error: "Task not found" }); // 404, not 403 — don't leak existence
-        return;
-      }
-
-      // GET /v1/tasks/:id/steps — execution timeline
-      if (method === "GET" && taskMatch[2] === "/steps") {
-        const steps = await S.getTaskSteps(taskId);
-        sendJson(req, res, 200, { steps });
-        return;
-      }
-
-      // GET /v1/tasks/:id/screenshots/:step — screenshot at a specific step
-      if (method === "GET" && taskMatch[3]) {
-        const stepNum = parseInt(taskMatch[3], 10);
-        const screenshot = await S.getTaskStepScreenshot(taskId, stepNum);
-        if (!screenshot) {
-          sendJson(req, res, 404, { error: "No screenshot at this step" });
-          return;
-        }
-        sendJson(req, res, 200, { screenshot });
-        return;
-      }
-
-      if (method === "GET" && !taskMatch[2]) {
-        sendJson(req, res, 200, {
-          id: run.id,
-          status: run.status,
-          task: run.task,
-          answer: run.answer,
-          steps: run.steps,
-          usage: run.usage,
-          browser_session_id: run.browserSessionId,
-          created_at: run.createdAt,
-          completed_at: run.completedAt,
-        });
-        return;
-      }
-
-      if (method === "POST" && taskMatch[2] === "/cancel") {
-        if (run.status !== "running") {
-          sendJson(req, res, 400, { error: "Task is not running" });
-          return;
-        }
-        const abort = taskAborts.get(taskId);
-        if (abort) abort.abort();
-        await S.updateTaskRun(taskId, { status: "cancelled", completedAt: Date.now() });
-        taskAborts.delete(taskId);
-        taskWorkspaceMap.delete(taskId);
-        sendJson(req, res, 200, { id: taskId, status: "cancelled" });
-        return;
-      }
-    }
-
-    // --- Usage ---
-
-    if (method === "GET" && url === "/v1/usage") {
-      if (isPublishableKey(apiKey)) {
-        sendJson(req, res, 403, { error: "Publishable keys cannot access usage data." });
-        return;
-      }
-      const summary = await S.getUsageSummary(apiKey.workspaceId);
-      sendJson(req, res, 200, summary);
-      return;
-    }
-
-    // --- API Keys (self-serve) ---
-
-    if (method === "POST" && url === "/v1/api-keys") {
-      if (isPublishableKey(apiKey)) {
-        sendJson(req, res, 403, { error: "Publishable keys cannot create API keys." });
-        return;
-      }
-      const body = await parseBody(req);
-      const name = body.name?.trim();
-      if (!name || typeof name !== "string" || name.length > 100) {
-        sendJson(req, res, 400, { error: "name is required (string, max 100 chars)" });
-        return;
-      }
-      const type = body.type === "publishable" ? "publishable" : "secret";
-      const newKey = await S.createApiKey(apiKey.workspaceId, name, type);
-      trackManagedEvent("api_key_created", apiKey.workspaceId);
-      sendJson(req, res, 201, {
-        id: newKey.id,
-        key: newKey.key, // plaintext — shown once
-        name: newKey.name,
-        type: newKey.type,
-        created_at: newKey.createdAt,
-        workspace_id: newKey.workspaceId,
-        _warning: "Save this key now. It will not be shown again.",
-      });
-      return;
-    }
-
-    if (method === "GET" && url === "/v1/api-keys") {
-      if (isPublishableKey(apiKey)) {
-        sendJson(req, res, 403, { error: "Publishable keys cannot list API keys." });
-        return;
-      }
-      const keys = await S.listApiKeys(apiKey.workspaceId);
-      sendJson(req, res, 200, {
-        keys: keys.map((k) => ({
-          id: k.id,
-          key_prefix: k.keyPrefix ? k.keyPrefix + "..." : k.key.slice(0, 12) + "...",
-          name: k.name,
-          created_at: k.createdAt,
-          last_used_at: k.lastUsedAt,
-        })),
-      });
-      return;
-    }
-
-    const apiKeyMatch = url?.match(/^\/v1\/api-keys\/([^/]+)$/);
-    if (apiKeyMatch && method === "DELETE") {
-      if (isPublishableKey(apiKey)) {
-        sendJson(req, res, 403, { error: "Publishable keys cannot delete API keys." });
-        return;
-      }
-      const keyId = apiKeyMatch[1];
-      const deleted = await S.deleteApiKey(keyId, apiKey.workspaceId);
-      if (!deleted) {
-        sendJson(req, res, 404, { error: "API key not found" });
-        return;
-      }
-      sendJson(req, res, 200, { id: keyId, deleted: true });
-      return;
-    }
-
-    // --- Billing ---
-
-    // GET /v1/billing/credits — check credit balance + free tier status
-    if (method === "GET" && url === "/v1/billing/credits") {
-      if (isPublishableKey(apiKey)) {
-        sendJson(req, res, 403, { error: "Publishable keys cannot access billing data." });
-        return;
-      }
-      const allowance = await S.checkTaskAllowance(apiKey.workspaceId);
-      sendJson(req, res, 200, {
-        free_remaining: allowance.freeRemaining,
-        credit_balance: allowance.creditBalance,
-        free_tasks_per_month: 20,
-      });
-      return;
-    }
-
-    // POST /v1/billing/checkout — buy credits
-    if (method === "POST" && url === "/v1/billing/checkout") {
-      if (isPublishableKey(apiKey)) {
-        sendJson(req, res, 403, { error: "Publishable keys cannot access billing." });
-        return;
-      }
-      if (!isBillingEnabled()) {
-        sendJson(req, res, 503, { error: "Billing not configured. Contact support." });
-        return;
-      }
-      const body = await parseBody(req);
-      const session = await createCheckoutSession({
-        workspaceId: apiKey.workspaceId,
-        userId: apiKey.id,
-        email: body.email,
-        credits: body.credits || 100,
-        successUrl: body.success_url || "https://api.hanzilla.co/dashboard?checkout=success",
-        cancelUrl: body.cancel_url || "https://api.hanzilla.co/dashboard?checkout=cancel",
-      });
-      sendJson(req, res, 200, session);
-      return;
-    }
+    if (await handleSessionRoutes(routeCtx)) return;
+    if (await handleTaskRoutes(routeCtx)) return;
+    if (await handleKeyAndBillingRoutes(routeCtx)) return;
 
     // ── Automations ───────────────────────────────────────────────────
 
@@ -1859,7 +1522,7 @@ export async function runInternalTask(params: {
       task,
       url,
       executeTool: async (toolName: string, toolInput: Record<string, any>) => {
-        const result = await executeToolViaRelay(toolName, toolInput, browserSessionId);
+        const result = await executeToolViaRelay(toolName, toolInput, browserSessionId, taskRun.id);
         for (const taskStep of buildToolResultTaskSteps({
           taskRunId: taskRun.id,
           step: currentStep,
@@ -1941,164 +1604,3 @@ export async function shutdownManagedAPI(): Promise<void> {
   log.info("Shutdown complete", undefined, { tasksAborted: runningCount });
 }
 
-// ─── Self-Service Pairing Page (for direct sidepanel users) ─────
-
-function getSelfPairPageHtml(token: string, host: string): string {
-  const apiUrl = host.includes("localhost") ? `http://${host}` : `https://${host}`;
-  const safeToken = token.replace(/[<>"'&]/g, "");
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Connecting — Hanzi</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f7f3ea; color: #1f1711; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; }
-    .card { max-width: 420px; width: 100%; background: #fffdf8; border: 1px solid #e5ddd0; border-radius: 16px; padding: 32px; text-align: center; }
-    h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-    p { font-size: 15px; color: #6d6256; line-height: 1.6; margin-bottom: 20px; }
-    .status { padding: 16px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; font-weight: 500; }
-    .status-connecting { background: #fceee4; color: #8d4524; }
-    .status-success { background: #e8f0ec; color: #2f4a3d; }
-    .status-error { background: #fce4e4; color: #c62828; }
-    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #e5ddd0; border-top-color: #ad5a34; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .small { font-size: 12px; color: #6d6256; margin-top: 12px; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Connecting your browser</h1>
-    <p>This will connect Hanzi to your account so you can browse with managed AI.</p>
-    <div id="status" class="status status-connecting">
-      <span class="spinner"></span> Connecting to extension...
-    </div>
-    <p class="small">You can close this tab after connecting.</p>
-  </div>
-  <script>
-    const TOKEN = "${safeToken}";
-    const API_URL = "${apiUrl}";
-    const statusEl = document.getElementById("status");
-    let paired = false;
-
-    window.addEventListener("message", (e) => {
-      if (e.data?.type === "HANZI_EXTENSION_READY" && !paired) {
-        pair();
-      }
-      if (e.data?.type === "HANZI_PAIR_RESULT") {
-        paired = true;
-        if (e.data.success) {
-          statusEl.className = "status status-success";
-          statusEl.innerHTML = "✓ Connected! You can close this tab and use the sidepanel.";
-        } else {
-          statusEl.className = "status status-error";
-          statusEl.innerHTML = "Failed: " + (e.data.error || "unknown error");
-        }
-      }
-    });
-
-    function pair() {
-      statusEl.innerHTML = '<span class="spinner"></span> Pairing...';
-      window.postMessage({ type: "HANZI_PAIR", token: TOKEN, apiUrl: API_URL }, "*");
-    }
-
-    window.postMessage({ type: "HANZI_PING" }, "*");
-    setTimeout(() => {
-      if (!paired) {
-        statusEl.className = "status status-error";
-        statusEl.innerHTML = 'Hanzi extension not detected. <a href="https://chromewebstore.google.com/detail/hanzi-browse/iklpkemlmbhemkiojndpbhoakgikpmcd" target="_blank" style="color:#ad5a34;font-weight:600">Install it</a>, then reload this page.';
-      }
-    }, 3000);
-  </script>
-</body>
-</html>`;
-}
-
-// ─── Hosted Pairing Page (for developer integration) ─────
-
-function getPairingPageHtml(token: string, host: string): string {
-  const apiUrl = host.includes("localhost") ? `http://${host}` : `https://${host}`;
-  const extensionUrl = "https://chromewebstore.google.com/detail/hanzi-browse/iklpkemlmbhemkiojndpbhoakgikpmcd";
-  // Escape token for safe embedding in HTML
-  const safeToken = token.replace(/[<>"'&]/g, "");
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Connect your browser — Hanzi</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f7f3ea; color: #1f1711; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; }
-    .card { max-width: 420px; width: 100%; background: #fffdf8; border: 1px solid #e5ddd0; border-radius: 16px; padding: 32px; text-align: center; }
-    h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-    p { font-size: 15px; color: #6d6256; line-height: 1.6; margin-bottom: 20px; }
-    .status { padding: 16px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; font-weight: 500; }
-    .status-connecting { background: #fceee4; color: #8d4524; }
-    .status-success { background: #e8f0ec; color: #2f4a3d; }
-    .status-error { background: #fce4e4; color: #c62828; }
-    .status-install { background: #f5f1e8; color: #6d6256; }
-    a { color: #ad5a34; font-weight: 600; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #e5ddd0; border-top-color: #ad5a34; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .small { font-size: 12px; color: #6d6256; margin-top: 12px; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Connect your browser</h1>
-    <p>This will connect your Chrome browser so the app can run tasks in it securely.</p>
-    <div id="status" class="status status-connecting">
-      <span class="spinner"></span> Detecting Hanzi extension...
-    </div>
-    <p class="small">Powered by <a href="https://browse.hanzilla.co">Hanzi</a></p>
-  </div>
-
-  <script>
-    const TOKEN = "${safeToken}";
-    const API_URL = "${apiUrl}";
-    const EXTENSION_URL = "${extensionUrl}";
-    const statusEl = document.getElementById("status");
-
-    let extensionReady = false;
-
-    window.addEventListener("message", (e) => {
-      if (e.data?.type === "HANZI_EXTENSION_READY") {
-        extensionReady = true;
-        pair();
-      }
-      if (e.data?.type === "HANZI_PAIR_RESULT") {
-        if (e.data.success) {
-          statusEl.className = "status status-success";
-          statusEl.innerHTML = "✓ Browser connected! You can close this tab.";
-        } else {
-          statusEl.className = "status status-error";
-          statusEl.innerHTML = "Pairing failed: " + (e.data.error || "unknown error") + ". The token may have expired.";
-        }
-      }
-    });
-
-    function pair() {
-      statusEl.className = "status status-connecting";
-      statusEl.innerHTML = '<span class="spinner"></span> Connecting...';
-      window.postMessage({ type: "HANZI_PAIR", token: TOKEN, apiUrl: API_URL }, "*");
-    }
-
-    // Ping extension
-    window.postMessage({ type: "HANZI_PING" }, "*");
-
-    // If extension not detected after 2s, show install prompt
-    setTimeout(() => {
-      if (!extensionReady) {
-        statusEl.className = "status status-install";
-        statusEl.innerHTML = 'Hanzi extension not found. <a href="' + EXTENSION_URL + '" target="_blank">Install it here</a>, then reload this page.';
-      }
-    }, 2000);
-  </script>
-</body>
-</html>`;
-}

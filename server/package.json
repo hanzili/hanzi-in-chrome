@@ -20,7 +20,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc && cd dashboard && npm run build",
+    "build": "tsc && rm -rf dist/managed/templates && cp -r src/managed/templates dist/managed/templates && cd dashboard && npm run build",
     "build:server": "tsc",
     "build:dashboard": "cd dashboard && npm run build",
     "dev": "tsc --watch",

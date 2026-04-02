@@ -97,8 +97,9 @@ export function updateWorkspaceBilling(id, fields) {
     return ws;
 }
 // --- API Keys ---
-export function createApiKey(workspaceId, name) {
-    const key = `hic_live_${randomBytes(24).toString("hex")}`;
+export function createApiKey(workspaceId, name, type = "secret") {
+    const prefix = type === "publishable" ? "hic_pub_" : "hic_live_";
+    const key = `${prefix}${randomBytes(24).toString("hex")}`;
     const keyHash = hashSecret(key);
     const keyPrefix = key.slice(0, 20);
     const apiKey = {
@@ -108,6 +109,7 @@ export function createApiKey(workspaceId, name) {
         name,
         workspaceId,
         createdAt: Date.now(),
+        type,
     };
     data.apiKeys[keyHash] = apiKey;
     save();

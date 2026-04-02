@@ -787,31 +787,44 @@ function handleFindAndScroll(payload, sendResponse) {
 // Allows the developer console (web page) to pair this browser with one click.
 // The page sends a postMessage, the content script relays it to the service worker.
 
-window.addEventListener('message', (event) => {
-  if (event.source !== window) return;
+// Guard: only the first content script instance handles pairing messages
+if (!window.__hanziPairListenerAttached) {
+  window.__hanziPairListenerAttached = true;
+  window.addEventListener('message', (event) => {
+    if (event.source !== window) return;
 
-  if (event.data?.type === 'HANZI_PAIR') {
-    const { token, apiUrl } = event.data;
-    if (!token) return;
+    // HANZI_SET_SESSION: page already called register, just pass credentials to service worker
+    if (event.data?.type === 'HANZI_SET_SESSION') {
+      const { sessionToken, browserSessionId, relayUrl } = event.data;
+      if (!sessionToken) return;
+      chrome.runtime.sendMessage({
+        type: 'MANAGED_SET_SESSION',
+        payload: { session_token: sessionToken, browser_session_id: browserSessionId, relay_url: relayUrl },
+      }, (response) => {
+        window.postMessage({ type: 'HANZI_SESSION_SET', success: response?.success || false }, '*');
+      });
+    }
 
-    chrome.runtime.sendMessage({
-      type: 'MANAGED_PAIR',
-      payload: {
-        pairing_token: token,
-        api_url: apiUrl || window.location.origin,
-      },
-    }, (response) => {
-      window.postMessage({
-        type: 'HANZI_PAIR_RESULT',
-        success: response?.success || false,
-        browserSessionId: response?.browserSessionId,
-        error: response?.error,
-      }, '*');
-    });
-  }
-});
+    // HANZI_PAIR: legacy path used by embed widget (3rd-party pages can't call API directly)
+    if (event.data?.type === 'HANZI_PAIR') {
+      const { token, apiUrl } = event.data;
+      if (!token) return;
+      chrome.runtime.sendMessage({
+        type: 'MANAGED_PAIR',
+        payload: { pairing_token: token, api_url: apiUrl || window.location.origin },
+      }, (response) => {
+        window.postMessage({
+          type: 'HANZI_PAIR_RESULT',
+          success: response?.success || false,
+          browserSessionId: response?.browserSessionId,
+          error: response?.error,
+        }, '*');
+      });
+    }
+  });
+}
 
-// Respond to extension detection pings from the dashboard
+// Respond to extension detection pings
 window.addEventListener('message', (event) => {
   if (event.source !== window) return;
   if (event.data?.type === 'HANZI_PING') {

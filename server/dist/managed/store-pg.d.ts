@@ -13,6 +13,7 @@ export interface ApiKey {
     workspaceId: string;
     createdAt: number;
     lastUsedAt?: number;
+    type?: "secret" | "publishable";
 }
 export interface Workspace {
     id: string;
@@ -66,6 +67,8 @@ export interface TaskRun {
     };
     createdAt: number;
     completedAt?: number;
+    webhookUrl?: string;
+    turns?: any[];
 }
 export interface UsageEvent {
     id: string;
@@ -109,7 +112,7 @@ export declare function deductTaskCredit(workspaceId: string): Promise<"free" | 
  * Add purchased credits to a workspace.
  */
 export declare function addCredits(workspaceId: string, amount: number): Promise<number>;
-export declare function createApiKey(workspaceId: string, name: string): Promise<ApiKey>;
+export declare function createApiKey(workspaceId: string, name: string, type?: "secret" | "publishable"): Promise<ApiKey>;
 export declare function validateApiKey(key: string): Promise<ApiKey | null>;
 export declare function listApiKeys(workspaceId: string): Promise<ApiKey[]>;
 export declare function deleteApiKey(id: string, workspaceId: string): Promise<boolean>;
@@ -139,6 +142,7 @@ export declare function createTaskRun(params: {
     url?: string;
     context?: string;
     browserSessionId?: string;
+    webhookUrl?: string;
 }): Promise<TaskRun>;
 export declare function updateTaskRun(id: string, updates: Partial<TaskRun>): Promise<TaskRun | null>;
 export declare function getTaskRun(id: string): Promise<TaskRun | null>;

@@ -12,6 +12,7 @@ export interface ApiKey {
     workspaceId: string;
     createdAt: number;
     lastUsedAt?: number;
+    type?: "secret" | "publishable";
 }
 export interface Workspace {
     id: string;
@@ -43,6 +44,9 @@ export interface TaskRun {
     };
     createdAt: number;
     completedAt?: number;
+    webhookUrl?: string;
+    /** Structured turn-by-turn agent log */
+    turns?: any[];
 }
 export interface PairingToken {
     token: string;
@@ -102,7 +106,7 @@ export declare function updateWorkspaceBilling(id: string, fields: {
     subscriptionId?: string;
     subscriptionStatus?: Workspace["subscriptionStatus"];
 }): Workspace | null;
-export declare function createApiKey(workspaceId: string, name: string): ApiKey;
+export declare function createApiKey(workspaceId: string, name: string, type?: "secret" | "publishable"): ApiKey;
 export declare function validateApiKey(key: string): ApiKey | null;
 export declare function listApiKeys(workspaceId: string): ApiKey[];
 export declare function deleteApiKey(id: string, workspaceId: string): boolean;
@@ -113,6 +117,7 @@ export declare function createTaskRun(params: {
     url?: string;
     context?: string;
     browserSessionId?: string;
+    webhookUrl?: string;
 }): TaskRun;
 export declare function updateTaskRun(id: string, updates: Partial<TaskRun>): TaskRun | null;
 export declare function getTaskRun(id: string): TaskRun | null;

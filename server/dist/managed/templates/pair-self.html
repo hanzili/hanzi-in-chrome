@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connecting — Hanzi</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f7f3ea; color: #1f1711; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; }
+    .card { max-width: 420px; width: 100%; background: #fffdf8; border: 1px solid #e5ddd0; border-radius: 16px; padding: 32px; text-align: center; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    p { font-size: 15px; color: #6d6256; line-height: 1.6; margin-bottom: 20px; }
+    .status { padding: 16px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; font-weight: 500; }
+    .status-connecting { background: #fceee4; color: #8d4524; }
+    .status-success { background: #e8f0ec; color: #2f4a3d; }
+    .status-error { background: #fce4e4; color: #c62828; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #e5ddd0; border-top-color: #ad5a34; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .small { font-size: 12px; color: #6d6256; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Connecting your browser</h1>
+    <p>This will connect Hanzi to your account so you can browse with managed AI.</p>
+    <div id="status" class="status status-connecting">
+      <span class="spinner"></span> Connecting to extension...
+    </div>
+    <p class="small">You can close this tab after connecting.</p>
+  </div>
+  <script>
+    const TOKEN = "{{TOKEN}}";
+    const API_URL = "{{API_URL}}";
+    const statusEl = document.getElementById("status");
+    let paired = false;
+
+    window.addEventListener("message", (e) => {
+      if (e.data?.type === "HANZI_EXTENSION_READY" && !paired) {
+        pair();
+      }
+      if (e.data?.type === "HANZI_PAIR_RESULT") {
+        paired = true;
+        if (e.data.success) {
+          statusEl.className = "status status-success";
+          statusEl.innerHTML = "✓ Connected! You can close this tab and use the sidepanel.";
+        } else {
+          statusEl.className = "status status-error";
+          statusEl.innerHTML = "Failed: " + (e.data.error || "unknown error");
+        }
+      }
+    });
+
+    function pair() {
+      statusEl.innerHTML = '<span class="spinner"></span> Pairing...';
+      window.postMessage({ type: "HANZI_PAIR", token: TOKEN, apiUrl: API_URL }, "*");
+    }
+
+    window.postMessage({ type: "HANZI_PING" }, "*");
+    setTimeout(() => {
+      if (!paired) {
+        statusEl.className = "status status-error";
+        statusEl.innerHTML = 'Hanzi extension not detected. <a href="https://chromewebstore.google.com/detail/hanzi-browse/iklpkemlmbhemkiojndpbhoakgikpmcd" target="_blank" style="color:#ad5a34;font-weight:600">Install it</a>, then reload this page.';
+      }
+    }, 3000);
+  </script>
+</body>
+</html>

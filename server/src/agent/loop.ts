@@ -65,6 +65,17 @@ export interface StepUpdate {
   text?: string;
 }
 
+export interface TurnLog {
+  step: number;
+  tools: Array<{
+    name: string;
+    input: Record<string, any>;
+    result: string;
+    durationMs: number;
+  }>;
+  ai_response: string | null;
+}
+
 export interface AgentLoopResult {
   status: "complete" | "error" | "max_steps";
   answer: string;
@@ -72,6 +83,8 @@ export interface AgentLoopResult {
   usage: { inputTokens: number; outputTokens: number; apiCalls: number };
   /** The model used for the last LLM call (for billing attribution) */
   model?: string;
+  /** Structured turn-by-turn log of the agent's actions */
+  turns?: TurnLog[];
 }
 
 // --- Agent Loop ---
@@ -90,9 +103,12 @@ export async function runAgentLoop(
     signal,
   } = params;
 
-  const system = buildSystemPrompt();
+  // Detect target URL for domain knowledge — from explicit url param or from task text
+  const targetUrl = url || task.match(/https?:\/\/[^\s"')]+/)?.[0];
+  const system = buildSystemPrompt(targetUrl);
   const tools = AGENT_TOOLS;
   const messages: Message[] = [];
+  const turns: TurnLog[] = [];
   let totalUsage = { inputTokens: 0, outputTokens: 0, apiCalls: 0 };
   let lastModel: string | undefined;
 
@@ -114,6 +130,7 @@ export async function runAgentLoop(
         steps: step - 1,
         usage: totalUsage,
         model: lastModel,
+        turns,
       };
     }
 
@@ -137,6 +154,7 @@ export async function runAgentLoop(
         steps: step,
         usage: totalUsage,
         model: lastModel,
+        turns,
       };
     }
 
@@ -160,9 +178,18 @@ export async function runAgentLoop(
       (b): b is ContentBlockToolUse => b.type === "tool_use"
     );
 
+    // Start building the turn log for this step
+    const currentTurn: TurnLog = {
+      step,
+      tools: [],
+      ai_response: textBlocks.map((b) => b.text).join("\n").trim() || null,
+    };
+
     // If no tool calls, we're done
     if (response.stop_reason === "end_turn" || toolUseBlocks.length === 0) {
       const answer = textBlocks.map((b) => b.text).join("\n").trim();
+      turns.push(currentTurn);
+      console.error(`[AgentLoop] Complete at step ${step} (${totalUsage.apiCalls} API calls, ${totalUsage.inputTokens} input tokens)`);
       onStep?.({ step, status: "complete", text: answer });
       return {
         status: "complete",
@@ -170,6 +197,7 @@ export async function runAgentLoop(
         steps: step,
         usage: totalUsage,
         model: lastModel,
+        turns,
       };
     }
 
@@ -188,6 +216,13 @@ export async function runAgentLoop(
         continue;
       }
 
+      // Log tool call
+      const inputSummary = toolUse.name === "navigate" ? toolUse.input.url
+        : toolUse.name === "computer" ? `${toolUse.input.action}${toolUse.input.ref ? ` ref=${toolUse.input.ref}` : ""}${toolUse.input.coordinate ? ` @${toolUse.input.coordinate}` : ""}`
+        : toolUse.name === "javascript_tool" ? toolUse.input.text?.slice(0, 80)
+        : JSON.stringify(toolUse.input).slice(0, 80);
+      console.error(`[AgentLoop] Step ${step}: ${toolUse.name}(${inputSummary})`);
+
       onStep?.({
         step,
         status: "tool_use",
@@ -196,6 +231,7 @@ export async function runAgentLoop(
       });
 
       let result: ToolResult;
+      const toolStartMs = Date.now();
       try {
         result = await executeTool(toolUse.name, toolUse.input);
       } catch (err: any) {
@@ -216,16 +252,35 @@ export async function runAgentLoop(
         }
       }
 
+      // Log result summary
+      const toolDurationMs = Date.now() - toolStartMs;
+      const resultText = result.error ? `Error: ${result.error}`
+        : typeof result.output === "string" ? result.output
+        : JSON.stringify(result.output);
+      const resultSummary = resultText.length > 120 ? resultText.slice(0, 120) + "..." : resultText;
+      console.error(`[AgentLoop] Step ${step}: ${toolUse.name} → ${resultSummary}`);
+
+      // Add to structured turn log (truncate large results to keep log manageable)
+      currentTurn.tools.push({
+        name: toolUse.name,
+        input: toolUse.input,
+        result: (resultText.length > 5000 ? resultText.slice(0, 5000) + "... [truncated]" : resultText)
+          + (result.screenshot ? " [+screenshot]" : ""),
+        durationMs: toolDurationMs,
+      });
+
       onStep?.({ step, status: "tool_result", toolName: toolUse.name });
 
       // Check abort after each tool — don't feed results back to LLM if cancelled
       if (signal?.aborted) {
+        turns.push(currentTurn);
         return {
           status: "error",
           answer: "Task was cancelled.",
           steps: step,
           usage: totalUsage,
           model: lastModel,
+          turns,
         };
       }
 
@@ -261,6 +316,7 @@ export async function runAgentLoop(
 
     // Add tool results as user message
     messages.push({ role: "user", content: toolResults });
+    turns.push(currentTurn);
   }
 
   // Exceeded max steps
@@ -279,5 +335,6 @@ export async function runAgentLoop(
     steps: maxSteps,
     usage: totalUsage,
     model: lastModel,
+    turns,
   };
 }
