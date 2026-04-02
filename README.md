@@ -215,7 +215,9 @@ Optional services:
 
 ### Load the extension
 
-Open `chrome://extensions`, enable Developer Mode, click "Load unpacked", select the `dist/` folder.
+Open `chrome://extensions`, enable Developer Mode, click "Load unpacked", and select the extension directory (the folder that contains `manifest.json`).
+
+Note: this may not be the `dist/` folder depending on your local build — ensure the selected folder includes `manifest.json`.
 
 ### Notes
 
