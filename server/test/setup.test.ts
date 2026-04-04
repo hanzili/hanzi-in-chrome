@@ -8,6 +8,7 @@ import {
   detectBrowsers,
   getAgentRegistry,
   mergeJsonConfig,
+  mergeJsonConfigAtKey,
   resolveInteractiveMode,
 } from '../src/cli/setup.js';
 
@@ -66,6 +67,60 @@ describe('getAgentRegistry', () => {
     expect(claudeDesktop?.detect()).toBe(true);
     expect(normalize(claudeDesktop?.configPath?.() ?? ''))
       .toBe('C:/Users/tester/AppData/Roaming/Claude/claude_desktop_config.json');
+  });
+
+  it('detects Zed and exposes the official settings path', () => {
+    const zedDir = join('/Users/tester', 'Library', 'Application Support', 'Zed');
+    const registry = getAgentRegistry({
+      home: '/Users/tester',
+      plat: 'darwin',
+      appData: '/Users/tester/AppData/Roaming',
+      pathExists: (path) => path === zedDir,
+      runCommand: () => { throw new Error('not installed'); },
+    });
+
+    const zed = registry.find(agent => agent.slug === 'zed');
+    expect(zed?.detect()).toBe(true);
+    expect(zed?.configPath?.())
+      .toBe(join('/Users/tester', 'Library', 'Application Support', 'Zed', 'settings.json'));
+    expect(zed?.configSection).toBe('context_servers');
+  });
+
+  it('detects Neovim via mcphub.nvim and exposes the default servers path', () => {
+    const mcphubDir = join('/home/tester', '.config', 'mcphub');
+    const registry = getAgentRegistry({
+      home: '/home/tester',
+      plat: 'linux',
+      xdgConfigHome: '/home/tester/.config',
+      pathExists: (path) => path === mcphubDir,
+      runCommand: () => { throw new Error('not installed'); },
+    });
+
+    const neovim = registry.find(agent => agent.slug === 'neovim');
+    expect(neovim?.detect()).toBe(true);
+    expect(neovim?.configPath?.())
+      .toBe(join('/home/tester', '.config', 'mcphub', 'servers.json'));
+    expect(neovim?.configSection).toBe('servers');
+  });
+
+  it('uses injected XDG_CONFIG_HOME for Linux editor paths', () => {
+    const zedDir = join('/tmp/custom-xdg', 'zed');
+    const mcphubDir = join('/tmp/custom-xdg', 'mcphub');
+    const registry = getAgentRegistry({
+      home: '/home/tester',
+      plat: 'linux',
+      xdgConfigHome: '/tmp/custom-xdg',
+      pathExists: (path) => path === zedDir || path === mcphubDir,
+      runCommand: () => { throw new Error('not installed'); },
+    });
+
+    const zed = registry.find(agent => agent.slug === 'zed');
+    const neovim = registry.find(agent => agent.slug === 'neovim');
+
+    expect(zed?.detect()).toBe(true);
+    expect(zed?.configPath?.()).toBe(join('/tmp/custom-xdg', 'zed', 'settings.json'));
+    expect(neovim?.detect()).toBe(true);
+    expect(neovim?.configPath?.()).toBe(join('/tmp/custom-xdg', 'mcphub', 'servers.json'));
   });
 });
 
@@ -145,6 +200,86 @@ describe('mergeJsonConfig', () => {
 
       expect(result.status).toBe('already-configured');
       expect(result.detail).toBe(configPath);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('writes to the requested config section for VS Code-style configs', () => {
+    const dir = makeTempDir();
+    try {
+      const configPath = join(dir, 'mcp.json');
+      writeFileSync(configPath, JSON.stringify({
+        servers: {
+          existing: { command: 'node', args: ['existing.js'] },
+        },
+      }, null, 2));
+
+      const result = mergeJsonConfigAtKey(configPath, 'servers');
+      const merged = JSON.parse(readFileSync(configPath, 'utf-8'));
+
+      expect(result.status).toBe('configured');
+      expect(merged.servers.existing).toEqual({ command: 'node', args: ['existing.js'] });
+      expect(merged.servers['hanzi-browser']).toEqual({
+        command: 'npx',
+        args: ['-y', 'hanzi-browse'],
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('migrates the Hanzi entry from mcpServers to servers for VS Code configs', () => {
+    const dir = makeTempDir();
+    try {
+      const configPath = join(dir, 'mcp.json');
+      writeFileSync(configPath, JSON.stringify({
+        mcpServers: {
+          'hanzi-browser': { command: 'npx', args: ['-y', 'hanzi-browse'] },
+          existingLegacy: { command: 'node', args: ['legacy.js'] },
+        },
+        servers: {
+          existing: { command: 'node', args: ['existing.js'] },
+        },
+      }, null, 2));
+
+      const result = mergeJsonConfigAtKey(configPath, 'servers', {}, ['mcpServers']);
+      const merged = JSON.parse(readFileSync(configPath, 'utf-8'));
+
+      expect(result.status).toBe('configured');
+      expect(merged.servers['hanzi-browser']).toEqual({
+        command: 'npx',
+        args: ['-y', 'hanzi-browse'],
+      });
+      expect(merged.servers.existing).toEqual({ command: 'node', args: ['existing.js'] });
+      expect(merged.mcpServers['hanzi-browser']).toBeUndefined();
+      expect(merged.mcpServers.existingLegacy).toEqual({ command: 'node', args: ['legacy.js'] });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('writes to context_servers without overwriting other Zed settings', () => {
+    const dir = makeTempDir();
+    try {
+      const configPath = join(dir, 'settings.json');
+      writeFileSync(configPath, JSON.stringify({
+        theme: 'One Light',
+        context_servers: {
+          existing: { command: 'node', args: ['existing.js'] },
+        },
+      }, null, 2));
+
+      const result = mergeJsonConfigAtKey(configPath, 'context_servers');
+      const merged = JSON.parse(readFileSync(configPath, 'utf-8'));
+
+      expect(result.status).toBe('configured');
+      expect(merged.theme).toBe('One Light');
+      expect(merged.context_servers.existing).toEqual({ command: 'node', args: ['existing.js'] });
+      expect(merged.context_servers['hanzi-browser']).toEqual({
+        command: 'npx',
+        args: ['-y', 'hanzi-browse'],
+      });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
