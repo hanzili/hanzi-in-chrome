@@ -207,6 +207,19 @@ export function getAgentRegistry(deps: AgentRegistryDeps = {}): AgentConfig[] {
       detect: () => pathExists(join(home, '.amp')),
     },
     {
+      name: 'Zed',
+      slug: 'zed',
+      method: 'json-merge',
+      configPath: () => {
+        if (plat === 'darwin') return join(home, 'Library', 'Application Support', 'Zed', 'settings.json');
+        return join(home, '.config', 'zed', 'settings.json');
+      },
+      detect: () => {
+        if (plat === 'darwin') return pathExists(join(home, 'Library', 'Application Support', 'Zed'));
+        return pathExists(join(home, '.config', 'zed'));
+      },
+    },
+    {
       name: 'Cline',
       slug: 'cline',
       method: 'json-merge',
