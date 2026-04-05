@@ -28,7 +28,7 @@ Call `browser_status` to verify the extension is reachable. If unavailable, tell
 
 Check what you can without a browser:
 
-- **Robots.txt**: Fetch `<domain>/robots.txt` — check for accidental `Disallow: /` or blocked important paths
+- **Robots.txt**: Fetch `<domain>/robots.txt` — check for accidental `Disallow: /` or blocked important paths. Note: some sites serve different robots.txt to different user agents (UA sniffing). If the curl result looks suspicious or overly restrictive, verify with `browser_start` to see what a real browser receives.
 - **Sitemap**: Fetch `<domain>/sitemap.xml` — verify it exists and includes the target URL
 - **HTML source**: If accessible, review raw `<head>` for meta tags, canonical, hreflang
 - **Codebase** (if source available): Scan for hardcoded noindex, missing meta tag templates, SEO component patterns
@@ -73,6 +73,18 @@ Render the page at a mobile viewport (375×812, iPhone-sized):
 - **Content parity**: Mobile version has the same key content as desktop (Google uses mobile-first indexing)
 - **Image optimization**: Check for oversized images (e.g., 2000px wide image in a 375px container), missing `loading="lazy"` on below-fold images
 - **CLS indicators**: Elements that visibly shift during load (ads, images without dimensions, dynamically injected content)
+- **Core Web Vitals**: Use `javascript_tool` to extract real navigation timing from the Performance API:
+
+```javascript
+const nav = performance.getEntriesByType('navigation')[0];
+const paint = performance.getEntriesByType('paint');
+({
+  ttfb: nav.responseStart - nav.requestStart,
+  domContentLoaded: nav.domContentLoadedEventEnd - nav.startTime,
+  load: nav.loadEventEnd - nav.startTime,
+  fcp: paint.find(e => e.name === 'first-contentful-paint')?.startTime,
+});
+```
 
 Screenshot at mobile viewport.
 
