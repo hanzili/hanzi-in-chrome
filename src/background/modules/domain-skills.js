@@ -273,6 +273,89 @@ export const DOMAIN_SKILLS = [
 - Check seller information and shipping times before purchasing`
   },
   {
+    domain: 'apartments.com',
+    skill: `Apartments.com UI patterns:
+- SPA — wait 3–4 seconds after navigation or filter changes before reading
+- Search URL: https://www.apartments.com/[city]-[state]/ (e.g. /boston-ma/)
+- Use get_page_text instead of read_page — more reliable for listing cards
+- Filters: Price, Beds, Move-in Date dropdowns below the search bar; URL encodes filter state
+- Scroll down to load more results (lazy loading)
+
+## Inquiry vs Application — CRITICAL distinction
+- "Contact" / "Check Availability" / "Send Message" = inquiry form (name, email, phone, move-in date, message) — SAFE
+- "Apply Now" = formal application with credit/background check and a non-refundable fee ($35–75) — REQUIRES explicit user approval before proceeding
+
+## Sending an inquiry
+1. Click "Contact" or "Send Message" on the listing page
+2. Show the draft to the user before submitting
+3. After approval, fill fields and click "Send Message"
+4. Screenshot the confirmation
+
+## Known traps
+- Never proceed past a fee or authorization screen without explicit user approval
+- Floor plan price may differ from headline price — verify the specific unit
+- Some cards are ads without a real address — skip them
+- Phone number may be hidden behind "Show phone number" — click it before recording`
+  },
+  {
+    domain: 'zillow.com',
+    skill: `Zillow UI patterns:
+- React SPA — wait 3–5 seconds after navigation or filter changes before reading
+- Rental search URL: https://www.zillow.com/[city]-[state]/rentals/ (e.g. /boston-ma/rentals/)
+- Use get_page_text instead of read_page — more reliable for listing content
+- List view is more reliable than map view — toggle near top right if needed
+- Scroll down once or twice to lazy-load more listings
+
+## Filters
+- Price, Beds & Baths, Home type dropdowns at top; each change triggers reload — wait 3s before reading
+- "Apartments" and "Condos/Co-ops" should be checked under Home type
+
+## Sending an inquiry
+1. Click "Contact" or "Request a tour" on listing detail page
+2. Show the draft to the user before submitting
+3. After approval, fill fields and click "Send message" / "Request tour"
+4. Wait 2s and screenshot the confirmation
+
+## Known traps
+- Contact info only shown when logged in — note if login is needed
+- Some listings redirect to third-party property sites — record the redirect URL
+- "Income-restricted" listings have separate application processes — flag for user
+- Zestimate shown on detail page — if listing price >20% below Zestimate, flag as potentially suspicious`
+  },
+  {
+    domain: 'craigslist.org',
+    skill: `Craigslist UI patterns:
+- City-specific subdomains: [city].craigslist.org (e.g. boston, seattle, newyork, sfbay, losangeles, chicago)
+- Static HTML — fast to load, both read_page and get_page_text work well
+- No login required to browse; contact is via anonymized email relay
+
+## Search URL pattern
+https://[city].craigslist.org/search/apa?minAsk=[min]&maxAsk=[max]&bedrooms=[n]
+Bedroom codes: 0=studio, 1=1BR, 2=2BR, 3=3BR. Append &sort=date for newest first.
+
+## Sending an inquiry via email relay
+1. On listing page, click "reply" → "email"
+2. Draft message and show to user before sending:
+   Subject: Inquiry — [listing title]
+   Body: interest, desired move-in date, name, optional phone
+3. After approval, send via user's email client
+4. The anonymized @reply.craigslist.org address is normal
+
+## Scam detection — flag immediately if any of these appear
+- Price >25% below comparable listings in the same neighborhood
+- Body says "owner is traveling", "overseas", or "missionary work"
+- Asks to communicate via WhatsApp/Telegram before viewing
+- No photos or photos look like professional stock images
+- Asks for deposit/first month via Zelle/Venmo/wire before viewing
+- Gmail/Yahoo only contact with no property management info
+When flagging: state the specific red flag and recommend verifying ownership before contacting.
+
+## Known traps
+- /apa = apartments; /roo = rooms & shares — search both if user is open to roommates
+- Sort by date and prioritize newest — popular cities fill fast
+- Phone numbers sometimes appear as images — screenshot if visible`
+  },
+  {
     domain: 'deckathon-concordia.com',
     skill: `Deckathon Hackathon Site:
 
