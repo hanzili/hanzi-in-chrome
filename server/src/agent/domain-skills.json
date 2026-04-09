@@ -61,6 +61,18 @@
   },
   {
     "domain": "amazon.com",
-    "skill": "Amazon best practices:\n- Use the search bar at the top for product search\n- Filter results using the left sidebar (price, ratings, Prime, etc.)\n- Click 'Add to Cart' or 'Buy Now' to purchase\n- Product details and reviews are on the product page\n- Check seller information and shipping times before purchasing"
+    "skill": "Amazon UI patterns:\n- Prefer the top search bar or a direct search URL for product discovery\n- The first fold may be dominated by sponsored modules or Amazon brand carousels before standard results\n- Result cards can show total price, unit price, ratings, delivery promises, variation links, and inline Add to Cart buttons all at once\n- Watch carefully for subtle labels such as 'Sponsored' or 'Featured from Amazon brands'\n- Location/shipping prompts can change delivery wording and result context, so verify destination-sensitive text before extracting prices"
+  },
+  {
+    "domain": "ebay.com",
+    "skill": "eBay UI patterns:\n- Search results usually show title, condition, price, shipping, and location directly on the card\n- Headline price is often incomplete until you also check shipping cost, coupon text, and 'Best Offer' language\n- Sponsored placements and featured carousels can interrupt the organic result list\n- Use condition and shipping origin early to filter out weak matches\n- Be cautious with range prices and urgency labels like 'Last one' or watcher counts; they do not guarantee a clean fixed-price purchase path"
+  },
+  {
+    "domain": "walmart.com",
+    "skill": "Walmart UI patterns:\n- Search results often expose enough information to compare products before opening a product page\n- Cards commonly include brand, title, stacked price, ratings, fulfillment messaging, and inline Add buttons\n- Sponsored hero modules can dominate the top of the results page, so do not assume the first visible item is the best organic result\n- Fulfillment context depends on pickup or delivery location banners, which can change what is shown\n- Treat Rollback, discount messaging, and unit pricing as separate signals and verify them individually"
+  },
+  {
+    "domain": "target.com",
+    "skill": "Target UI patterns:\n- Result cards usually include title, review count, price, promo messaging, and a persistent Add to Cart button\n- Price formatting can mix ranges, sale pricing, regular pricing, and per-unit math, so read the full price block carefully\n- Promo text such as Target gift card offers or 'Highly rated' badges appears frequently and can distract from the base price\n- Fulfillment filters are easy to see near the top, but card-level availability may still need a deeper click\n- Search results can include adjacent-category items, so confirm the exact product type from the title before acting"
   }
 ]
