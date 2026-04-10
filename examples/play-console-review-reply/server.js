@@ -145,6 +145,25 @@ app.post("/v1/browser-sessions/pair", async (req, res) => {
   }
 });
 
+// ── Mock Reviews (for UI testing without a real app) ─────────
+
+app.post("/api/mock-reviews", (req, res) => {
+  const reviews = [
+    { id: "mock-1", reviewer: "Alice K.", rating: 2, date: "April 8, 2026",
+      text: "App crashes every time I try to open the settings page. Pixel 7, Android 14. Please fix ASAP." },
+    { id: "mock-2", reviewer: "Bob M.", rating: 5, date: "April 7, 2026",
+      text: "Best app I've used in years. Clean UI and everything just works. Keep it up!" },
+    { id: "mock-3", reviewer: "Chen W.", rating: 3, date: "April 6, 2026",
+      text: "Good app overall but I really wish there was a dark mode. Also can you add export to CSV?" },
+    { id: "mock-4", reviewer: "Diana L.", rating: 1, date: "April 5, 2026",
+      text: "Paid for premium and it doesn't work. The sync feature is completely broken. Want a refund." },
+    { id: "mock-5", reviewer: "Ethan P.", rating: 4, date: "April 4, 2026",
+      text: "How do I transfer my data to a new phone? Can't find this in the settings anywhere." },
+  ];
+  console.log(`[Mock] Returning ${reviews.length} mock reviews`);
+  res.json({ reviews });
+});
+
 // ── Step 1: Fetch Reviews from Play Console ───────────────────
 
 app.post("/api/fetch-reviews", async (req, res) => {

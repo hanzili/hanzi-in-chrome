@@ -189,6 +189,9 @@
     <button class="btn btn-primary" id="btn-fetch" onclick="startFetch()">
       Fetch unanswered reviews →
     </button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:8px;font-size:13px" onclick="startMockFetch()">
+      Use mock data (test without a real app)
+    </button>
 
     <div class="footer">
       Powered by <a href="https://hanzilla.co" target="_blank">Hanzi Browse</a> — give your AI agent a real browser.
@@ -266,15 +269,16 @@
 
   // ── Hanzi widget init ────────────────────────────────────────
   window.addEventListener('load', () => {
-    if (window.HanziBrowse) {
-      window.HanziBrowse.mount('hanzi-widget', {
-        onConnect: (sessionId) => {
+    if (window.HanziConnect) {
+      window.HanziConnect.mount('#hanzi-widget', {
+        apiKey: 'hic_pub_dev',
+        apiUrl: location.origin,
+        purpose: 'fetch and reply to your Play Store reviews',
+        onConnected: (sessionId) => {
           browserSessionId = sessionId;
-          document.getElementById('btn-fetch').disabled = false;
         },
-        onDisconnect: () => {
+        onDisconnected: () => {
           browserSessionId = null;
-          document.getElementById('btn-fetch').disabled = true;
         }
       });
     }
@@ -320,6 +324,40 @@
 
   function avatarLetter(name) {
     return (name || '?')[0].toUpperCase();
+  }
+
+  let isMockMode = false;
+
+  // ── Mock fetch (UI testing) ──────────────────────────────────
+  async function startMockFetch() {
+    isMockMode = true;
+    state.appContext = {
+      name: document.getElementById('app-name').value.trim() || 'My App',
+      package_name: document.getElementById('package-name').value.trim(),
+      description: document.getElementById('app-description').value.trim() || 'A mobile app',
+      tone: document.getElementById('response-tone').value,
+      support_email: document.getElementById('support-email').value.trim(),
+    };
+    saveState();
+    show('screen-fetching');
+    setFetchStatus('Loading mock reviews...');
+
+    const res = await fetch('/api/mock-reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const data = await res.json();
+
+    setFetchStatus(`Found ${data.reviews.length} mock reviews. Drafting responses...`, 'success');
+    document.getElementById('step-2').className = 'step-item done';
+    document.getElementById('step-3').className = 'step-item active';
+
+    const draftRes = await fetch('/api/draft-responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reviews: data.reviews, app_context: state.appContext }),
+    });
+    const draftData = await draftRes.json();
+    state.drafts = draftData.drafts;
+    saveState();
+    showDrafts(draftData.drafts);
   }
 
   // ── Step 1: Fetch reviews ────────────────────────────────────
@@ -504,25 +542,26 @@
       if (card) card.className = 'review-card is-posting';
 
       try {
-        const res = await fetch('/api/post-response', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            browser_session_id: browserSessionId,
-            reviewer: draft.reviewer,
-            rating: draft.rating,
-            review_text: draft.review_text,
-            response_text: document.getElementById(`resp-${draft.id}`)?.value || draft.response_text,
-            app_name: state.appContext?.name,
-            package_name: state.appContext?.package_name,
-          }),
-        });
-        const data = await res.json();
-
-        if (data.result === 'complete') {
+        if (isMockMode) {
+          // Simulate posting in mock mode — no real browser call
+          await new Promise(r => setTimeout(r, 800));
           draft.status = 'posted';
         } else {
-          draft.status = 'failed';
+          const res = await fetch('/api/post-response', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              browser_session_id: browserSessionId,
+              reviewer: draft.reviewer,
+              rating: draft.rating,
+              review_text: draft.review_text,
+              response_text: document.getElementById(`resp-${draft.id}`)?.value || draft.response_text,
+              app_name: state.appContext?.name,
+              package_name: state.appContext?.package_name,
+            }),
+          });
+          const data = await res.json();
+          draft.status = data.result === 'complete' ? 'posted' : 'failed';
         }
       } catch {
         draft.status = 'failed';
@@ -548,6 +587,7 @@
   function startOver() {
     if (!confirm('Start over? This will clear all current drafts.')) return;
     state = {};
+    isMockMode = false;
     saveState();
     show('screen-setup');
   }

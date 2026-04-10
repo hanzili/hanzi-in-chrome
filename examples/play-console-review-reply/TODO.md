@@ -12,18 +12,21 @@ Powered by Hanzi Browse SDK — users see the SDK in action and become customers
 
 ## Current state
 
-### What exists (skeleton)
-- [x] `server.js` — Express server with 3 API endpoints (fetch-reviews, draft-responses, post-response)
-- [x] `index.html` — Basic 3-screen UI (setup → fetching → drafts)
+### What exists
+- [x] `server.js` — Express server with 3 API endpoints + `/api/mock-reviews`
+- [x] `index.html` — 3-screen UI (setup → fetching → drafts), mock mode, embed widget
 - [x] `package.json` — Minimal dependencies
+- [x] embed.js widget wired up correctly (`HanziConnect.mount` with `apiUrl: location.origin`)
+- [x] Mock flow tested end-to-end: fetch → draft (Claude) → approve → simulated post ✓
+- [x] Strategy AI (Claude) correctly categorizes reviews and drafts responses ✓
 
-### What's missing (compared to x-marketing quality bar)
+### What's next
 
 ---
 
-## Phase 1 — Core: make it actually work (P0)
+## Phase 1 — Real Play Console testing (P0)
 
-The skeleton exists but nothing has been tested. Priority is proving the browser task works.
+Mock flow works. Now need to verify the browser task against real Play Console.
 
 ### 1a. Test Play Console navigation
 - [ ] Manually verify: can browser agent navigate to Play Console, find an app, reach reviews?
@@ -38,7 +41,7 @@ The skeleton exists but nothing has been tested. Priority is proving the browser
 - [ ] Handle the case where Play Console has 2-step verification on first load
 
 ### 1c. End-to-end test
-- [ ] Full flow: connect browser → fetch reviews → draft → approve → post one response
+- [ ] Full flow: connect browser → fetch real reviews → draft → approve → post one response
 - [ ] Verify posted response appears in Play Console
 
 ---
