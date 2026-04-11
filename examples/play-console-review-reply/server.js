@@ -298,11 +298,24 @@ Return a structured list of all reviews found. If no unanswered reviews exist, s
       });
     }
 
-    // Detect account has no Play Console
+    // Detect account has Play Console but no apps published yet
+    const noAppsSignals = [
+      "no apps", "you don't have any apps", "create your first app",
+      "no app named", "app not found", "could not find", "couldn't find"
+    ];
+    if (result.answer && noAppsSignals.some(s => result.answer.toLowerCase().includes(s))) {
+      log('warn', 'Account has no apps', { answer: result.answer });
+      return res.status(422).json({
+        no_apps: true,
+        account: account_email || null,
+        last_action: result.answer,
+      });
+    }
+
+    // Detect account has no Play Console at all
     const noConsoleSignals = [
       "finish setting up", "complete your account", "verify your identity",
-      "no apps", "you don't have any apps", "create your first app",
-      "developer account", "not a developer"
+      "not a developer", "create a developer account"
     ];
     if (result.answer && noConsoleSignals.some(s => result.answer.toLowerCase().includes(s))) {
       log('warn', 'Account has no Play Console', { answer: result.answer });

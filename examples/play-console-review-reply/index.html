@@ -27,6 +27,7 @@
     .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 
     h1 { font-family: 'Instrument Serif', Georgia, serif; font-size: 32px; font-weight: 400; letter-spacing: -0.01em; line-height: 1.15; margin-bottom: 10px; }
+    #screen-fetching h1, #screen-drafts h1, #screen-setup h1 { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 600; font-size: 26px; letter-spacing: -0.01em; }
     .subtitle { color: var(--muted); font-size: 15px; line-height: 1.5; margin-bottom: 28px; }
 
     .field { margin-bottom: 16px; }
@@ -132,10 +133,33 @@
 
     .hidden { display: none !important; }
 
+    /* Hero / Landing */
+    .hero h1 { font-size: 38px; line-height: 1.15; margin-bottom: 14px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+    .hero-sub { font-size: 17px; color: var(--muted); line-height: 1.5; margin-bottom: 32px; max-width: 480px; }
+    .hero-cta { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
+    .hero-cta .btn-primary { width: auto; padding: 14px 32px; font-size: 16px; }
+    .hero-cta-note { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .hero-demo { margin: 0 0 32px; pointer-events: none; }
+    .hero-demo-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 10px; }
+    .hero-demo-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; box-shadow: 0 4px 24px rgba(31,23,17,0.08); }
+    .hero-features { display: flex; gap: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .hero-feature { flex: 1; }
+    .hero-feature-title { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
+    .hero-feature-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+    /* Elapsed timer */
+    .elapsed { font-size: 12px; color: var(--muted); margin-left: auto; flex-shrink: 0; }
+
+    /* Toast */
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+    .toast.show { opacity: 1; }
+
     @media (max-width: 600px) {
       .shell { padding: 16px 16px 80px; }
       .row { grid-template-columns: 1fr; }
       h1 { font-size: 26px; }
+      .hero h1 { font-size: 30px; }
+      .hero-features { flex-direction: column; gap: 16px; }
     }
   </style>
 </head>
@@ -147,8 +171,63 @@
     <span>Hanzi Browse</span>
   </div>
 
+  <!-- ── Landing Screen ──────────────────────────────────────── -->
+  <div id="screen-landing" class="hero">
+    <h1>Reply to your Play Store reviews — automatically</h1>
+    <p class="hero-sub">AI reads your unanswered reviews, drafts responses in your voice. You approve each one. Your Chrome posts them.</p>
+
+    <div class="hero-cta">
+      <button class="btn btn-primary" onclick="show('screen-setup')">Try it free →</button>
+      <span class="hero-cta-note">No account needed.<br>You approve every reply.</span>
+    </div>
+
+    <div class="hero-demo">
+      <div class="hero-demo-label">Example review + AI response</div>
+      <div class="hero-demo-card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div class="avatar">A</div>
+          <div>
+            <div class="reviewer-name">Alice K.</div>
+            <div class="reviewer-date">April 8, 2026</div>
+          </div>
+          <span class="stars" style="margin-left:auto">★★☆☆☆</span>
+          <span class="category-tag cat-bug">Bug report</span>
+        </div>
+        <div class="review-text">App crashes every time I open Settings. Pixel 7, Android 14. Please fix!</div>
+        <div style="font-size:11px;font-weight:600;color:var(--green);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">AI-drafted response</div>
+        <div style="background:var(--green-bg);border-left:3px solid var(--green);padding:10px 12px;border-radius:0 10px 10px 0;font-size:14px;line-height:1.6;color:var(--ink)">
+          Hi Alice — so sorry about the crash! We've flagged this for our next release. Could you share whether it happens on first open or after a specific action? That'll help us track it down faster. Thanks for reporting!
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <span class="btn btn-approve btn-sm" style="pointer-events:none">Approve</span>
+          <span class="btn btn-ghost btn-sm" style="pointer-events:none">Edit</span>
+          <span class="btn btn-ghost btn-sm" style="pointer-events:none">Skip</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-features">
+      <div class="hero-feature">
+        <div class="hero-feature-title">Real browser, real account</div>
+        <div class="hero-feature-desc">Posts from your signed-in Chrome. No API keys or fake accounts.</div>
+      </div>
+      <div class="hero-feature">
+        <div class="hero-feature-title">AI-drafted replies</div>
+        <div class="hero-feature-desc">Categorizes each review and writes a response that sounds like you.</div>
+      </div>
+      <div class="hero-feature">
+        <div class="hero-feature-title">You stay in control</div>
+        <div class="hero-feature-desc">Review, edit, or skip every response before it goes live.</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Powered by <a href="https://hanzilla.co" target="_blank">Hanzi Browse</a> — give your AI agent a real browser.
+    </div>
+  </div>
+
   <!-- ── Setup Screen ──────────────────────────────────────── -->
-  <div id="screen-setup">
+  <div id="screen-setup" class="hidden">
     <h1>Reply to your Play Store reviews</h1>
     <p class="subtitle">Connect your Chrome, enter your app details. AI drafts responses — you approve, then we post them in your Play Console.</p>
 
@@ -225,6 +304,7 @@
     <div class="status-banner working" id="fetch-status">
       <div class="spinner"></div>
       <span id="fetch-status-text">Opening Play Console in your browser...</span>
+      <span class="elapsed hidden" id="elapsed-timer">0s</span>
     </div>
 
     <div id="cancel-report" class="hidden" style="margin-top:16px">
@@ -264,13 +344,15 @@
 
 </div>
 
-<!-- Back to home — fixed top left, shown on non-setup screens -->
+<!-- Back to home — fixed top left, shown on fetching/drafts screens -->
 <div id="floating-back" class="hidden" style="position:fixed;top:16px;left:16px;z-index:1000">
-  <button onclick="cancelFetch();show('screen-setup');hideCancelButton();document.getElementById('floating-back').classList.add('hidden')"
+  <button onclick="cancelFetch();hideCancelButton();show('screen-landing')"
     style="background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
     ← Back to home
   </button>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <!-- Floating stop button — global, shown whenever agent is running -->
 <div id="floating-cancel" class="hidden" style="position:fixed;bottom:28px;right:28px;z-index:1000">
@@ -284,12 +366,31 @@
 <script src="/embed.js"></script>
 
 <script>
+  // ── Base path (works locally and behind Caddy sub-path) ──────
+  const BASE = location.pathname.replace(/\/[^/]*$/, '').replace(/\/$/, '');
+  const api = (path, opts) => fetch(BASE + path, opts);
+
   // ── State ────────────────────────────────────────────────────
   let state = JSON.parse(localStorage.getItem('play-review-state') || '{}');
   let browserSessionId = null;
 
   function saveState() {
     localStorage.setItem('play-review-state', JSON.stringify(state));
+  }
+
+  // ── Dedup log (persist replied review IDs across sessions) ───
+  const DEDUP_KEY = 'play-review-replied-ids';
+  function getRepliedIds() {
+    try { return new Set(JSON.parse(localStorage.getItem(DEDUP_KEY)) || []); } catch { return new Set(); }
+  }
+  function markReplied(reviewId) {
+    const ids = getRepliedIds();
+    ids.add(reviewId);
+    localStorage.setItem(DEDUP_KEY, JSON.stringify([...ids]));
+  }
+  function filterUnreplied(reviews) {
+    const replied = getRepliedIds();
+    return reviews.filter(r => !replied.has(r.id));
   }
 
   // ── Hanzi widget init ────────────────────────────────────────
@@ -316,12 +417,19 @@
 
   // ── Helpers ──────────────────────────────────────────────────
   function show(id) {
-    ['screen-setup', 'screen-fetching', 'screen-drafts'].forEach(s => {
+    ['screen-landing', 'screen-setup', 'screen-fetching', 'screen-drafts'].forEach(s => {
       document.getElementById(s).classList.toggle('hidden', s !== id);
     });
-    // Show back button on all screens except setup
+    // Show back button on non-landing, non-setup screens
     const back = document.getElementById('floating-back');
-    if (back) back.classList.toggle('hidden', id === 'screen-setup');
+    if (back) back.classList.toggle('hidden', id === 'screen-landing' || id === 'screen-setup');
+  }
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
   }
 
   function setFetchStatus(text, type = 'working') {
@@ -332,6 +440,10 @@
     if (type !== 'working') {
       el.querySelector('.spinner')?.remove();
     }
+  }
+
+  function esc(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
   function starsHTML(rating) {
@@ -370,14 +482,14 @@
     show('screen-fetching');
     setFetchStatus('Loading mock reviews...');
 
-    const res = await fetch('/api/mock-reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const res = await api('/api/mock-reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
     const data = await res.json();
 
     setFetchStatus(`Found ${data.reviews.length} mock reviews. Drafting responses...`, 'success');
     document.getElementById('step-2').className = 'step-item done';
     document.getElementById('step-3').className = 'step-item active';
 
-    const draftRes = await fetch('/api/draft-responses', {
+    const draftRes = await api('/api/draft-responses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reviews: data.reviews, app_context: state.appContext }),
@@ -394,7 +506,7 @@
     btn.disabled = true;
     btn.innerHTML = '<span style="font-size:16px">■</span> Stopping...';
     try {
-      await fetch('/api/cancel-fetch', {
+      await api('/api/cancel-fetch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ browser_session_id: browserSessionId }),
@@ -412,23 +524,24 @@
     setFetchStatus('Multiple Google accounts detected. Please choose one.', 'error');
     document.getElementById('btn-back-fetch').classList.add('hidden');
 
-    const accountListHtml = `
-      <div style="max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)">
-        ${(accounts.length > 0 ? accounts : ['(unknown)']).map((email, i, arr) => `
-          <button onclick="retryWithAccount('${email}')"
-            style="display:block;width:100%;text-align:left;padding:10px 14px;
-                   border:none;border-bottom:${i < arr.length - 1 ? '1px solid var(--line)' : 'none'};
-                   background:transparent;font-size:13px;cursor:pointer;font-family:inherit;color:var(--ink);line-height:1.4"
-            onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='transparent'">
-            ${email}
-          </button>
-        `).join('')}
-      </div>
-    `;
-
     document.getElementById('cancel-report-title').textContent = 'Which account has your Play Console?';
-    document.getElementById('cancel-report-text').style.cssText = 'padding:0;background:transparent;max-height:none';
-    document.getElementById('cancel-report-text').innerHTML = accountListHtml;
+    const reportText = document.getElementById('cancel-report-text');
+    reportText.style.cssText = 'padding:0;background:transparent;max-height:none';
+    reportText.innerHTML = '';
+
+    const list = document.createElement('div');
+    list.style.cssText = 'max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)';
+    const emails = accounts.length > 0 ? accounts : ['(unknown)'];
+    emails.forEach((email, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = email;
+      btn.style.cssText = `display:block;width:100%;text-align:left;padding:10px 14px;border:none;border-bottom:${i < emails.length - 1 ? '1px solid var(--line)' : 'none'};background:transparent;font-size:13px;cursor:pointer;font-family:inherit;color:var(--ink);line-height:1.4`;
+      btn.addEventListener('mouseover', () => btn.style.background = 'var(--bg)');
+      btn.addEventListener('mouseout', () => btn.style.background = 'transparent');
+      btn.addEventListener('click', () => retryWithAccount(email));
+      list.appendChild(btn);
+    });
+    reportText.appendChild(list);
     document.getElementById('cancel-report').classList.remove('hidden');
   }
 
@@ -443,7 +556,7 @@
 
     const appName = state.appContext?.name;
     try {
-      const res = await fetch('/api/fetch-reviews', {
+      const res = await api('/api/fetch-reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -462,30 +575,38 @@
       if (res.status === 422 && data.account_error) {
         showErrorReport(`Account problem`, data.last_action || `Could not use "${email}" — the agent stopped.`); return;
       }
+      if (res.status === 422 && data.no_apps) {
+        showErrorReport(
+          `No apps found in this account`,
+          `${email} has a Play Console but no published apps.\n\nThis tool can only reply to reviews for apps you've already published. Try a different account if your apps are there.`
+        ); return;
+      }
       if (res.status === 422 && data.no_play_console) {
         showErrorReport(
           `"${email}" has no Play Console`,
-          `This Google account isn't registered as a Play developer.\n\nGoogle Play developer accounts require a one-time $25 fee. If you have a different account with Play Console, go back and enter it manually.`
+          `This Google account isn't registered as a Play developer.\n\nGoogle Play developer accounts require a one-time $25 fee. Try a different account if you have one with Play Console.`
         ); return;
       }
       if (res.status === 499 || data.cancelled) { showCancelReport(data.steps || 0, data.last_action); return; }
       if (!res.ok) { showCancelReport(data.steps || 0, data.last_action || data.error, false); return; }
-      if (!data.reviews?.length) {
+      const newReviews = filterUnreplied(data.reviews || []);
+      if (!newReviews.length) {
         hideCancelButton();
-        setFetchStatus('No unanswered reviews found. Your inbox is clear!', 'success');
+        const allCount = data.reviews?.length || 0;
+        setFetchStatus(allCount > 0 ? `All ${allCount} review${allCount > 1 ? 's' : ''} already replied. Your inbox is clear!` : 'No unanswered reviews found. Your inbox is clear!', 'success');
         document.getElementById('btn-back-fetch').classList.add('hidden');
         setTimeout(() => show('screen-setup'), 3000);
         return;
       }
 
-      setFetchStatus(`Found ${data.reviews.length} review${data.reviews.length > 1 ? 's' : ''}. Drafting responses...`, 'success');
+      setFetchStatus(`Found ${newReviews.length} review${newReviews.length > 1 ? 's' : ''}. Drafting responses...`, 'success');
       document.getElementById('step-2').className = 'step-item done';
       document.getElementById('step-3').className = 'step-item active';
 
-      const draftRes = await fetch('/api/draft-responses', {
+      const draftRes = await api('/api/draft-responses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviews: data.reviews, app_context: state.appContext }),
+        body: JSON.stringify({ reviews: newReviews, app_context: state.appContext }),
       });
       const draftData = await draftRes.json();
       if (!draftRes.ok) throw new Error(draftData.error);
@@ -534,6 +655,25 @@
     const btn = document.getElementById('btn-cancel-fetch');
     if (btn) { btn.disabled = false; btn.innerHTML = '<span style="font-size:16px">■</span> Stop Agent'; }
     document.getElementById('floating-cancel').classList.add('hidden');
+    stopElapsedTimer();
+  }
+
+  // ── Elapsed timer ─────────────────────────────────────────────
+  let _elapsedInterval = null;
+  function startElapsedTimer() {
+    stopElapsedTimer();
+    const el = document.getElementById('elapsed-timer');
+    if (!el) return;
+    el.classList.remove('hidden');
+    const start = Date.now();
+    _elapsedInterval = setInterval(() => {
+      el.textContent = Math.floor((Date.now() - start) / 1000) + 's';
+    }, 1000);
+  }
+  function stopElapsedTimer() {
+    if (_elapsedInterval) { clearInterval(_elapsedInterval); _elapsedInterval = null; }
+    const el = document.getElementById('elapsed-timer');
+    if (el) el.classList.add('hidden');
   }
 
   // ── Step 1: Fetch reviews ────────────────────────────────────
@@ -554,9 +694,10 @@
     show('screen-fetching');
     document.getElementById('floating-cancel').classList.remove('hidden');
     setFetchStatus('Opening Play Console in your browser...');
+    startElapsedTimer();
 
     try {
-      const res = await fetch('/api/fetch-reviews', {
+      const res = await api('/api/fetch-reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -579,20 +720,21 @@
         return;
       }
 
-      // Account has no Play Console
+      // Account has Play Console but no apps
+      if (res.status === 422 && data.no_apps) {
+        showErrorReport(
+          `No apps found in this account`,
+          `${data.account || 'This account'} has a Play Console but no published apps.\n\nThis tool can only reply to reviews for apps you've already published. If you have apps under a different account, go back and try another one.`
+        );
+        return;
+      }
+
+      // Account has no Play Console at all
       if (res.status === 422 && data.no_play_console) {
-        hideCancelButton();
-        const spinner = document.querySelector('#fetch-status .spinner');
-        if (spinner) spinner.remove();
-        setFetchStatus(`This account doesn't have a Play Console.`, 'error');
-        document.getElementById('cancel-report-title').textContent =
-          `"${data.account || 'This account'}" is not registered as a Google Play developer.`;
-        document.getElementById('cancel-report-text').style.cssText = 'font-size:13px;color:var(--muted);background:var(--bg);padding:12px;border-radius:10px;line-height:1.6';
-        document.getElementById('cancel-report-text').textContent =
-          'To use this tool, you need a Google Play developer account ($25 one-time fee). ' +
-          'If you have another Google account with Play Console, go back and try a different account.';
-        document.getElementById('cancel-report').classList.remove('hidden');
-        document.getElementById('btn-back-fetch').classList.add('hidden');
+        showErrorReport(
+          `This account has no Play Console`,
+          `${data.account || 'This account'} is not registered as a Google Play developer.\n\nA Google Play developer account requires a one-time $25 fee. If you have another Google account with Play Console, go back and try a different account.`
+        );
         return;
       }
 
@@ -607,24 +749,26 @@
         return;
       }
 
-      if (!data.reviews?.length) {
+      const newReviews = filterUnreplied(data.reviews || []);
+      if (!newReviews.length) {
         hideCancelButton();
-        setFetchStatus('No unanswered reviews found. Your inbox is clear!', 'success');
+        const allCount = data.reviews?.length || 0;
+        setFetchStatus(allCount > 0 ? `All ${allCount} review${allCount > 1 ? 's' : ''} already replied. Your inbox is clear!` : 'No unanswered reviews found. Your inbox is clear!', 'success');
         document.getElementById('btn-back-fetch').classList.add('hidden');
         setTimeout(() => show('screen-setup'), 3000);
         return;
       }
 
-      setFetchStatus(`Found ${data.reviews.length} unanswered review${data.reviews.length > 1 ? 's' : ''}. Drafting responses...`, 'success');
+      setFetchStatus(`Found ${newReviews.length} unanswered review${newReviews.length > 1 ? 's' : ''}. Drafting responses...`, 'success');
 
       // Step 2: draft responses
       document.getElementById('step-2').className = 'step-item done';
       document.getElementById('step-3').className = 'step-item active';
 
-      const draftRes = await fetch('/api/draft-responses', {
+      const draftRes = await api('/api/draft-responses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviews: data.reviews, app_context: state.appContext }),
+        body: JSON.stringify({ reviews: newReviews, app_context: state.appContext }),
       });
       const draftData = await draftRes.json();
       if (!draftRes.ok) throw new Error(draftData.error);
@@ -662,13 +806,14 @@
     const charCount = (d.response_text || '').length;
     const overLimit = charCount > 350;
 
+    const did = esc(d.id);
     card.innerHTML = `
       <div class="review-header">
         <div class="review-meta">
-          <div class="avatar">${avatarLetter(d.reviewer)}</div>
+          <div class="avatar">${esc(avatarLetter(d.reviewer))}</div>
           <div>
-            <div class="reviewer-name">${d.reviewer}</div>
-            <div class="reviewer-date">${d.date || ''}</div>
+            <div class="reviewer-name">${esc(d.reviewer)}</div>
+            <div class="reviewer-date">${esc(d.date)}</div>
           </div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
@@ -676,24 +821,28 @@
           ${categoryLabel(d.category)}
         </div>
       </div>
-      <div class="review-text">${d.review_text}</div>
-      ${d.reasoning ? `<div class="reasoning">${d.reasoning}</div>` : ''}
+      <div class="review-text">${esc(d.review_text)}</div>
+      ${d.reasoning ? `<div class="reasoning">${esc(d.reasoning)}</div>` : ''}
       <div class="response-area">
         <label>AI draft response</label>
-        <textarea id="resp-${d.id}" oninput="onResponseInput('${d.id}')">${d.response_text || ''}</textarea>
+        <textarea id="resp-${did}" oninput="onResponseInput('${did}')"></textarea>
       </div>
       <div class="card-actions">
         ${d.status === 'posted'
           ? `<span style="color:var(--green);font-weight:600;font-size:13px">✓ Posted</span>`
           : d.status === 'approved'
-          ? `<button class="btn btn-sm btn-ghost" onclick="unapprove('${d.id}')">Undo approve</button>
+          ? `<button class="btn btn-sm btn-ghost" onclick="unapprove('${did}')">Undo approve</button>
              <span style="color:var(--accent);font-size:13px;font-weight:600">✓ Approved</span>`
-          : `<button class="btn btn-sm btn-approve" onclick="approve('${d.id}')">Approve</button>
-             <button class="btn btn-sm btn-ghost" onclick="skip('${d.id}')">Skip</button>`
+          : `<button class="btn btn-sm btn-approve" onclick="approve('${did}')">Approve</button>
+             <button class="btn btn-sm btn-ghost" onclick="skip('${did}')">Skip</button>`
         }
-        <span class="char-count ${overLimit ? 'over' : ''}" id="char-${d.id}">${charCount}/350</span>
+        <button class="btn btn-sm btn-ghost" onclick="copyResponse('${did}')" title="Copy response">Copy</button>
+        ${d.status !== 'posted' ? `<button class="btn btn-sm btn-ghost" onclick="regenerateOne('${did}')" title="Regenerate this response">↻</button>` : ''}
+        <span class="char-count ${overLimit ? 'over' : ''}" id="char-${did}">${charCount}/350</span>
       </div>
     `;
+    // Set textarea value via DOM to avoid HTML injection
+    card.querySelector(`#resp-${d.id}`).value = d.response_text || '';
     container.appendChild(card);
   }
 
@@ -705,6 +854,40 @@
     cc.className = `char-count ${count > 350 ? 'over' : ''}`;
     const d = state.drafts.find(d => d.id === id);
     if (d) { d.response_text = ta.value; saveState(); }
+  }
+
+  function copyResponse(id) {
+    const ta = document.getElementById(`resp-${id}`);
+    if (!ta) return;
+    navigator.clipboard.writeText(ta.value).then(() => toast('Copied to clipboard'));
+  }
+
+  async function regenerateOne(id) {
+    const d = state.drafts.find(d => d.id === id);
+    if (!d) return;
+    const btn = document.querySelector(`#card-${id} [onclick="regenerateOne('${id}')"]`);
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    try {
+      const res = await api('/api/draft-responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviews: [{ id: d.review_id, reviewer: d.reviewer, rating: d.rating, text: d.review_text, date: d.date }], app_context: state.appContext }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      const newDraft = data.drafts?.[0];
+      if (newDraft) {
+        d.response_text = newDraft.response_text;
+        d.category = newDraft.category;
+        d.reasoning = newDraft.reasoning;
+        saveState();
+        refreshCard(d);
+        toast('Response regenerated');
+      }
+    } catch (err) {
+      toast('Regenerate failed: ' + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = '↻'; }
+    }
   }
 
   function approve(id) {
@@ -767,7 +950,7 @@
           await new Promise(r => setTimeout(r, 800));
           draft.status = 'posted';
         } else {
-          const res = await fetch('/api/post-response', {
+          const res = await api('/api/post-response', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -782,6 +965,7 @@
           });
           const data = await res.json();
           draft.status = data.result === 'complete' ? 'posted' : 'failed';
+          if (draft.status === 'posted') markReplied(draft.review_id || draft.id);
         }
       } catch {
         draft.status = 'failed';
