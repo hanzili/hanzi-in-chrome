@@ -150,6 +150,24 @@
     /* Elapsed timer */
     .elapsed { font-size: 12px; color: var(--muted); margin-left: auto; flex-shrink: 0; }
 
+    /* Insights card */
+    .insights-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 20px; }
+    .insights-card h3 { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .insights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .insights-stat { background: var(--bg); border-radius: 10px; padding: 10px 14px; }
+    .insights-stat-val { font-size: 22px; font-weight: 700; color: var(--ink); line-height: 1; }
+    .insights-stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .insights-section { margin-bottom: 12px; }
+    .insights-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; }
+    .insights-item { font-size: 13px; color: var(--ink); padding: 5px 0; border-bottom: 1px solid var(--line); line-height: 1.4; display: flex; align-items: flex-start; gap: 6px; }
+    .insights-item:last-child { border-bottom: none; }
+    .insights-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+    .badge-high { background: var(--red-bg); color: var(--red); }
+    .badge-med { background: var(--yellow-bg); color: var(--yellow); }
+    .badge-req { background: var(--blue-bg); color: var(--blue); }
+    .action-item { font-size: 13px; color: var(--ink); padding: 4px 0 4px 16px; position: relative; line-height: 1.4; }
+    .action-item::before { content: '→'; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+
     /* Toast */
     .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
     .toast.show { opacity: 1; }
@@ -173,43 +191,73 @@
 
   <!-- ── Landing Screen ──────────────────────────────────────── -->
   <div id="screen-landing" class="hero">
-    <h1>Reply to your Play Store reviews — automatically</h1>
-    <p class="hero-sub">AI reads your unanswered reviews, drafts responses in your voice. You approve each one. Your Chrome posts them.</p>
+    <h1>Understand your reviews. Reply to them automatically.</h1>
+    <p class="hero-sub">AI reads your Play Store reviews, surfaces bugs and feature requests, drafts responses in your voice, and posts them from your Chrome.</p>
 
     <div class="hero-cta">
       <button class="btn btn-primary" onclick="show('screen-setup')">Try it free →</button>
       <span class="hero-cta-note">No account needed.<br>You approve every reply.</span>
     </div>
 
-    <div class="hero-demo">
-      <div class="hero-demo-label">Example review + AI response</div>
-      <div class="hero-demo-card">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-          <div class="avatar">A</div>
-          <div>
-            <div class="reviewer-name">Alice K.</div>
-            <div class="reviewer-date">April 8, 2026</div>
+    <div class="hero-demo" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <!-- Insights demo -->
+      <div>
+        <div class="hero-demo-label">Review insights</div>
+        <div class="hero-demo-card">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+            <div style="background:var(--bg);border-radius:8px;padding:8px 10px">
+              <div style="font-size:18px;font-weight:700;color:var(--ink)">2.8 ★</div>
+              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Avg rating</div>
+            </div>
+            <div style="background:var(--bg);border-radius:8px;padding:8px 10px">
+              <div style="font-size:18px;font-weight:700;color:var(--yellow)">Mixed</div>
+              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Sentiment</div>
+            </div>
           </div>
-          <span class="stars" style="margin-left:auto">★★☆☆☆</span>
-          <span class="category-tag cat-bug">Bug report</span>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:6px">🔴 Bugs to fix</div>
+          <div style="font-size:12px;color:var(--ink);padding:4px 0;border-bottom:1px solid var(--line);display:flex;gap:6px;align-items:center">
+            <span style="font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;background:var(--red-bg);color:var(--red)">HIGH</span>
+            Settings crash × 2
+          </div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin:10px 0 6px">✅ Action items</div>
+          <div style="font-size:12px;color:var(--ink);padding:3px 0 3px 14px;position:relative">
+            <span style="position:absolute;left:0;color:var(--accent);font-weight:700">→</span>Fix crash on Settings page
+          </div>
+          <div style="font-size:12px;color:var(--ink);padding:3px 0 3px 14px;position:relative">
+            <span style="position:absolute;left:0;color:var(--accent);font-weight:700">→</span>Consider adding dark mode
+          </div>
         </div>
-        <div class="review-text">App crashes every time I open Settings. Pixel 7, Android 14. Please fix!</div>
-        <div style="font-size:11px;font-weight:600;color:var(--green);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">AI-drafted response</div>
-        <div style="background:var(--green-bg);border-left:3px solid var(--green);padding:10px 12px;border-radius:0 10px 10px 0;font-size:14px;line-height:1.6;color:var(--ink)">
-          Hi Alice — so sorry about the crash! We've flagged this for our next release. Could you share whether it happens on first open or after a specific action? That'll help us track it down faster. Thanks for reporting!
-        </div>
-        <div style="display:flex;gap:8px;margin-top:12px">
-          <span class="btn btn-approve btn-sm" style="pointer-events:none">Approve</span>
-          <span class="btn btn-ghost btn-sm" style="pointer-events:none">Edit</span>
-          <span class="btn btn-ghost btn-sm" style="pointer-events:none">Skip</span>
+      </div>
+
+      <!-- Reply demo -->
+      <div>
+        <div class="hero-demo-label">AI-drafted reply</div>
+        <div class="hero-demo-card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <div class="avatar" style="width:28px;height:28px;font-size:12px">A</div>
+            <div>
+              <div style="font-weight:600;font-size:13px">Alice K.</div>
+              <div style="font-size:11px;color:var(--muted)">April 8, 2026</div>
+            </div>
+            <span class="stars" style="margin-left:auto;font-size:12px">★★☆☆☆</span>
+          </div>
+          <div style="font-size:13px;line-height:1.5;color:var(--ink);background:var(--bg);padding:8px 10px;border-radius:8px;margin-bottom:10px">App crashes every time I open Settings. Please fix!</div>
+          <div style="font-size:10px;font-weight:600;color:var(--green);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">AI-drafted response</div>
+          <div style="background:var(--green-bg);border-left:3px solid var(--green);padding:8px 10px;border-radius:0 8px 8px 0;font-size:12px;line-height:1.5;color:var(--ink);margin-bottom:10px">
+            Hi Alice — sorry about this! We've flagged the Settings crash and it's our top priority. Could you share your device model? Thanks for reporting!
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="btn btn-approve btn-sm" style="pointer-events:none;font-size:12px;padding:6px 12px">Approve</span>
+            <span class="btn btn-ghost btn-sm" style="pointer-events:none;font-size:12px;padding:6px 12px">Edit</span>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="hero-features">
       <div class="hero-feature">
-        <div class="hero-feature-title">Real browser, real account</div>
-        <div class="hero-feature-desc">Posts from your signed-in Chrome. No API keys or fake accounts.</div>
+        <div class="hero-feature-title">Surfaces what matters</div>
+        <div class="hero-feature-desc">Finds bugs, feature requests, and common complaints across all your reviews.</div>
       </div>
       <div class="hero-feature">
         <div class="hero-feature-title">AI-drafted replies</div>
@@ -217,7 +265,7 @@
       </div>
       <div class="hero-feature">
         <div class="hero-feature-title">You stay in control</div>
-        <div class="hero-feature-desc">Review, edit, or skip every response before it goes live.</div>
+        <div class="hero-feature-desc">Review, edit, or skip every response. Your Chrome posts the approved ones.</div>
       </div>
     </div>
 
@@ -321,6 +369,8 @@
   <div id="screen-drafts" class="hidden">
     <div class="section-title" id="drafts-title">Review AI responses</div>
     <p class="section-sub" id="drafts-sub">Edit any response before approving. Click "Post all approved" when ready.</p>
+
+    <div id="insights-card" class="hidden"></div>
 
     <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
       <button class="btn btn-primary btn-sm" style="width:auto" onclick="postAllApproved()" id="btn-post-all">
@@ -805,6 +855,78 @@
 
     drafts.forEach((d, i) => renderDraftCard(d, i, list));
     show('screen-drafts');
+    loadInsights(drafts);
+  }
+
+  async function loadInsights(drafts) {
+    const card = document.getElementById('insights-card');
+    card.classList.remove('hidden');
+    card.innerHTML = `<div class="insights-card"><h3>⏳ Analyzing reviews...</h3></div>`;
+
+    try {
+      const res = await api('/api/review-insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviews: drafts.map(d => ({ id: d.review_id || d.id, reviewer: d.reviewer, rating: d.rating, text: d.review_text, date: d.date, category: d.category })) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      renderInsights(data);
+    } catch (err) {
+      card.innerHTML = '';
+      card.classList.add('hidden');
+    }
+  }
+
+  function renderInsights(data) {
+    const card = document.getElementById('insights-card');
+    const sentimentColor = data.sentiment === 'positive' ? 'var(--green)' : data.sentiment === 'negative' ? 'var(--red)' : 'var(--yellow)';
+    const sentimentLabel = data.sentiment === 'positive' ? 'Positive' : data.sentiment === 'negative' ? 'Negative' : 'Mixed';
+
+    const bugsHtml = (data.urgent_bugs || []).map(b => `
+      <div class="insights-item">
+        <span class="insights-badge ${b.severity === 'high' ? 'badge-high' : 'badge-med'}">${b.severity?.toUpperCase() || 'BUG'}</span>
+        <span>${esc(b.issue)}${b.mentioned_by > 1 ? ` <span style="color:var(--muted);font-size:11px">× ${b.mentioned_by}</span>` : ''}</span>
+      </div>`).join('') || '<div class="insights-item" style="color:var(--muted)">No urgent bugs found</div>';
+
+    const featuresHtml = (data.top_feature_requests || []).map(f => `
+      <div class="insights-item">
+        <span class="insights-badge badge-req">REQ</span>
+        <span>${esc(f.feature)}${f.mentioned_by > 1 ? ` <span style="color:var(--muted);font-size:11px">× ${f.mentioned_by}</span>` : ''}</span>
+      </div>`).join('') || '<div class="insights-item" style="color:var(--muted)">None</div>';
+
+    const actionsHtml = (data.action_items || []).map(a => `<div class="action-item">${esc(a)}</div>`).join('');
+
+    card.innerHTML = `
+      <div class="insights-card">
+        <h3>📊 Review insights</h3>
+        <div class="insights-grid">
+          <div class="insights-stat">
+            <div class="insights-stat-val">${typeof data.avg_rating === 'number' ? data.avg_rating.toFixed(1) : '—'} ★</div>
+            <div class="insights-stat-label">Avg rating</div>
+          </div>
+          <div class="insights-stat">
+            <div class="insights-stat-val" style="color:${sentimentColor}">${sentimentLabel}</div>
+            <div class="insights-stat-label">Overall sentiment</div>
+          </div>
+        </div>
+        ${data.urgent_bugs?.length ? `
+        <div class="insights-section">
+          <div class="insights-section-title">🔴 Bugs to fix</div>
+          ${bugsHtml}
+        </div>` : ''}
+        ${data.top_feature_requests?.length ? `
+        <div class="insights-section">
+          <div class="insights-section-title">💡 Feature requests</div>
+          ${featuresHtml}
+        </div>` : ''}
+        ${data.action_items?.length ? `
+        <div class="insights-section">
+          <div class="insights-section-title">✅ Action items for you</div>
+          ${actionsHtml}
+        </div>` : ''}
+      </div>
+    `;
   }
 
   function renderDraftCard(d, i, container) {

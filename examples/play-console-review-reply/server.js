@@ -445,6 +445,53 @@ Return JSON:
   }
 });
 
+// ── Step 2b: Review Insights ──────────────────────────────────
+
+app.post("/api/review-insights", async (req, res) => {
+  try {
+    const { reviews } = req.body;
+    if (!reviews?.length) return res.status(400).json({ error: "reviews required" });
+
+    log('info', 'Generating review insights', { count: reviews.length });
+
+    const result = await llm(
+      `You are a product analyst summarizing app store reviews for a developer.
+Be concise and actionable. Focus on what the developer needs to know and act on.`,
+      `Analyze these ${reviews.length} Google Play Store reviews and produce a developer-facing summary.
+
+Reviews:
+${JSON.stringify(reviews, null, 2)}
+
+Return JSON:
+\`\`\`json
+{
+  "avg_rating": 3.4,
+  "sentiment": "mixed",
+  "urgent_bugs": [
+    {"issue": "App crashes on settings page", "mentioned_by": 2, "severity": "high"}
+  ],
+  "top_feature_requests": [
+    {"feature": "Dark mode", "mentioned_by": 1}
+  ],
+  "common_praise": ["Clean UI", "Easy to use"],
+  "action_items": [
+    "Fix crash on settings page (mentioned by 2 users)",
+    "Consider adding dark mode (requested)"
+  ]
+}
+\`\`\``
+    );
+
+    const data = extractJSON(result);
+    if (!data) return res.status(500).json({ error: "Failed to parse insights" });
+    log('info', 'Insights generated', { action_items: data.action_items?.length });
+    res.json(data);
+  } catch (err) {
+    log('error', 'Review insights error', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Step 3: Post One Response ─────────────────────────────────
 
 app.post("/api/post-response", async (req, res) => {
