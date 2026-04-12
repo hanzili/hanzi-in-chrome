@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Play Console Review Reply — Free Tool by Hanzi Browse</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6' fill='%231a1a1a'/><path d='M5 12l4 4L19 7' stroke='%23fafaf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f7f3ea; --surface: #fffdf8; --ink: #1f1711; --muted: #6d6256;
+      --line: #e5ddd0; --accent: #2a7d4f; --accent-hover: #1f6040;
+      --green: #2f4a3d; --green-bg: #eef5f0;
+      --blue: #1d6fa5; --blue-bg: #eef3f8;
+      --red: #9a2e2e; --red-bg: #fef0ef;
+      --yellow: #7a5c00; --yellow-bg: #fdf8e8;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { min-height: 100vh; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+
+    .shell { max-width: 720px; margin: 0 auto; padding: 24px 32px 100px; }
+
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+    .brand span { font-size: 15px; font-weight: 700; color: var(--ink); }
+    .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+    h1 { font-family: 'Instrument Serif', Georgia, serif; font-size: 32px; font-weight: 400; letter-spacing: -0.01em; line-height: 1.15; margin-bottom: 10px; }
+    #screen-fetching h1, #screen-drafts h1, #screen-setup h1 { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 600; font-size: 26px; letter-spacing: -0.01em; }
+    .subtitle { color: var(--muted); font-size: 15px; line-height: 1.5; margin-bottom: 28px; }
+
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+    .field .hint { color: var(--muted); font-weight: 400; font-size: 12px; margin-top: 4px; }
+    .field input, .field textarea, .field select {
+      width: 100%; border: 1px solid var(--line); border-radius: 10px;
+      padding: 12px 14px; font-size: 15px; color: var(--ink);
+      background: var(--surface); outline: none; font-family: inherit;
+      resize: none; transition: border-color 0.15s;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--accent); }
+    .field input::placeholder, .field textarea::placeholder { color: #bbb; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .btn { border: none; border-radius: 10px; padding: 12px 24px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .btn-primary { background: var(--accent); color: #fff; width: 100%; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-sm { padding: 9px 16px; font-size: 13px; border-radius: 8px; width: auto; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-approve { background: var(--green); color: #fff; }
+    .btn-approve:hover { opacity: 0.88; }
+    .btn-post { background: var(--accent); color: #fff; }
+    .btn-post:hover { background: var(--accent-hover); }
+    .btn-ghost { background: none; color: var(--muted); border: 1px solid var(--line); }
+    .btn-ghost:hover { border-color: var(--ink); color: var(--ink); }
+    .btn-danger { background: none; color: var(--red); border: 1px solid var(--line); }
+
+    /* Stepper */
+    .stepper { margin: 32px 0 8px; display: flex; gap: 0; }
+    .step-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; }
+    .step-item:not(:last-child)::after {
+      content: ''; position: absolute; top: 12px; left: 50%; width: 100%;
+      height: 2px; background: var(--line); z-index: 0;
+    }
+    .step-item.done:not(:last-child)::after { background: var(--accent); }
+    .step-num {
+      width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      background: var(--bg); z-index: 1; transition: all 0.3s;
+    }
+    .step-item.active .step-num { border-color: var(--accent); color: var(--accent); }
+    .step-item.done .step-num { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .step-label { font-size: 11px; color: var(--muted); text-align: center; }
+    .step-item.active .step-label { color: var(--ink); font-weight: 600; }
+    .step-item.done .step-label { color: var(--accent); }
+
+    /* Status banner */
+    .status-banner { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; font-size: 14px; }
+    .status-banner.working { border-color: var(--yellow); background: var(--yellow-bg); }
+    .status-banner.success { border-color: var(--accent); background: var(--green-bg); }
+    .status-banner.error { border-color: var(--red); background: var(--red-bg); }
+    .spinner { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Review cards */
+    .review-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 14px; transition: border-color 0.2s; }
+    .review-card.is-approved { border-color: var(--accent); }
+    .review-card.is-posted { background: var(--green-bg); border-color: var(--green); }
+    .review-card.is-skipped { opacity: 0.5; }
+    .review-card.is-posting { opacity: 0.6; pointer-events: none; }
+    .review-card.is-failed { border-color: var(--red); background: var(--red-bg); }
+
+    .review-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    .review-meta { display: flex; align-items: center; gap: 10px; }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--line); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: var(--muted); flex-shrink: 0; }
+    .reviewer-name { font-weight: 600; font-size: 14px; }
+    .reviewer-date { color: var(--muted); font-size: 12px; }
+    .stars { color: #f0a500; font-size: 14px; letter-spacing: 1px; }
+
+    .category-tag { padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+    .cat-bug { background: var(--red-bg); color: var(--red); }
+    .cat-feature { background: var(--blue-bg); color: var(--blue); }
+    .cat-praise { background: var(--green-bg); color: var(--green); }
+    .cat-complaint { background: var(--yellow-bg); color: var(--yellow); }
+    .cat-question { background: var(--line); color: var(--muted); }
+
+    .review-text { font-size: 14px; line-height: 1.6; color: var(--ink); background: var(--bg); padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; }
+    .response-area { margin-bottom: 12px; }
+    .response-area label { font-size: 12px; font-weight: 600; color: var(--green); margin-bottom: 6px; display: block; }
+    .response-area textarea { border-color: var(--green); border-radius: 10px; width: 100%; padding: 10px 12px; font-size: 14px; line-height: 1.6; font-family: inherit; background: var(--green-bg); color: var(--ink); border: 1px solid; outline: none; resize: vertical; min-height: 80px; }
+    .response-area textarea:focus { border-color: var(--accent); }
+    .reasoning { font-size: 12px; color: var(--muted); font-style: italic; margin-bottom: 10px; }
+    .card-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .char-count { font-size: 12px; color: var(--muted); margin-left: auto; }
+    .char-count.over { color: var(--red); }
+
+    /* Progress summary */
+    .progress-bar-wrap { background: var(--line); border-radius: 6px; height: 6px; margin: 8px 0 4px; overflow: hidden; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 6px; transition: width 0.4s; }
+    .progress-label { font-size: 12px; color: var(--muted); }
+
+    .section-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .section-sub { font-size: 14px; color: var(--muted); margin-bottom: 20px; }
+
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--muted); font-size: 15px; }
+
+    .footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); text-align: center; font-size: 13px; color: var(--muted); }
+    .footer a { color: var(--accent); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+
+    .hidden { display: none !important; }
+
+    /* Hero / Landing */
+    .hero h1 { font-size: 38px; line-height: 1.15; margin-bottom: 14px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+    .hero-sub { font-size: 17px; color: var(--muted); line-height: 1.5; margin-bottom: 32px; max-width: 480px; }
+    .hero-cta { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
+    .hero-cta .btn-primary { width: auto; padding: 14px 32px; font-size: 16px; }
+    .hero-cta-note { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .hero-demo { margin: 0 0 32px; pointer-events: none; }
+    .hero-demo-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 10px; }
+    .hero-demo-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; box-shadow: 0 4px 24px rgba(31,23,17,0.08); }
+    .hero-features { display: flex; gap: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .hero-feature { flex: 1; }
+    .hero-feature-title { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
+    .hero-feature-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+    /* Elapsed timer */
+    .elapsed { font-size: 12px; color: var(--muted); margin-left: auto; flex-shrink: 0; }
+
+    /* Insights card */
+    .insights-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 20px; }
+    .insights-card h3 { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .insights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .insights-stat { background: var(--bg); border-radius: 10px; padding: 10px 14px; }
+    .insights-stat-val { font-size: 22px; font-weight: 700; color: var(--ink); line-height: 1; }
+    .insights-stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .insights-section { margin-bottom: 12px; }
+    .insights-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; }
+    .insights-item { font-size: 13px; color: var(--ink); padding: 5px 0; border-bottom: 1px solid var(--line); line-height: 1.4; display: flex; align-items: flex-start; gap: 6px; }
+    .insights-item:last-child { border-bottom: none; }
+    .insights-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+    .badge-high { background: var(--red-bg); color: var(--red); }
+    .badge-med { background: var(--yellow-bg); color: var(--yellow); }
+    .badge-req { background: var(--blue-bg); color: var(--blue); }
+    .action-item { font-size: 13px; color: var(--ink); padding: 4px 0 4px 16px; position: relative; line-height: 1.4; }
+    .action-item::before { content: '→'; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+
+    /* Toast */
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+    .toast.show { opacity: 1; }
+
+    @media (max-width: 600px) {
+      .shell { padding: 16px 16px 80px; }
+      .row { grid-template-columns: 1fr; }
+      h1 { font-size: 26px; }
+      .hero h1 { font-size: 30px; }
+      .hero-features { flex-direction: column; gap: 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <span>Hanzi Browse</span>
+  </div>
+
+  <!-- ── Landing Screen ──────────────────────────────────────── -->
+  <div id="screen-landing" class="hero">
+    <h1>Understand your reviews. Reply to them automatically.</h1>
+    <p class="hero-sub">AI reads your Play Store reviews, surfaces bugs and feature requests, drafts responses in your voice, and posts them from your Chrome.</p>
+
+    <div class="hero-cta">
+      <button class="btn btn-primary" onclick="show('screen-setup')">Try it free →</button>
+      <span class="hero-cta-note">No account needed.<br>You approve every reply.</span>
+    </div>
+
+    <div class="hero-demo" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <!-- Insights demo -->
+      <div>
+        <div class="hero-demo-label">Review insights</div>
+        <div class="hero-demo-card">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+            <div style="background:var(--bg);border-radius:8px;padding:8px 10px">
+              <div style="font-size:18px;font-weight:700;color:var(--ink)">2.8 ★</div>
+              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Avg rating</div>
+            </div>
+            <div style="background:var(--bg);border-radius:8px;padding:8px 10px">
+              <div style="font-size:18px;font-weight:700;color:var(--yellow)">Mixed</div>
+              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Sentiment</div>
+            </div>
+          </div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:6px">🔴 Bugs to fix</div>
+          <div style="font-size:12px;color:var(--ink);padding:4px 0;border-bottom:1px solid var(--line);display:flex;gap:6px;align-items:center">
+            <span style="font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;background:var(--red-bg);color:var(--red)">HIGH</span>
+            Settings crash × 2
+          </div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin:10px 0 6px">✅ Action items</div>
+          <div style="font-size:12px;color:var(--ink);padding:3px 0 3px 14px;position:relative">
+            <span style="position:absolute;left:0;color:var(--accent);font-weight:700">→</span>Fix crash on Settings page
+          </div>
+          <div style="font-size:12px;color:var(--ink);padding:3px 0 3px 14px;position:relative">
+            <span style="position:absolute;left:0;color:var(--accent);font-weight:700">→</span>Consider adding dark mode
+          </div>
+        </div>
+      </div>
+
+      <!-- Reply demo -->
+      <div>
+        <div class="hero-demo-label">AI-drafted reply</div>
+        <div class="hero-demo-card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <div class="avatar" style="width:28px;height:28px;font-size:12px">A</div>
+            <div>
+              <div style="font-weight:600;font-size:13px">Alice K.</div>
+              <div style="font-size:11px;color:var(--muted)">April 8, 2026</div>
+            </div>
+            <span class="stars" style="margin-left:auto;font-size:12px">★★☆☆☆</span>
+          </div>
+          <div style="font-size:13px;line-height:1.5;color:var(--ink);background:var(--bg);padding:8px 10px;border-radius:8px;margin-bottom:10px">App crashes every time I open Settings. Please fix!</div>
+          <div style="font-size:10px;font-weight:600;color:var(--green);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">AI-drafted response</div>
+          <div style="background:var(--green-bg);border-left:3px solid var(--green);padding:8px 10px;border-radius:0 8px 8px 0;font-size:12px;line-height:1.5;color:var(--ink);margin-bottom:10px">
+            Hi Alice — sorry about this! We've flagged the Settings crash and it's our top priority. Could you share your device model? Thanks for reporting!
+          </div>
+          <div style="display:flex;gap:6px">
+            <span class="btn btn-approve btn-sm" style="pointer-events:none;font-size:12px;padding:6px 12px">Approve</span>
+            <span class="btn btn-ghost btn-sm" style="pointer-events:none;font-size:12px;padding:6px 12px">Edit</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-features">
+      <div class="hero-feature">
+        <div class="hero-feature-title">Surfaces what matters</div>
+        <div class="hero-feature-desc">Finds bugs, feature requests, and common complaints across all your reviews.</div>
+      </div>
+      <div class="hero-feature">
+        <div class="hero-feature-title">AI-drafted replies</div>
+        <div class="hero-feature-desc">Categorizes each review and writes a response that sounds like you.</div>
+      </div>
+      <div class="hero-feature">
+        <div class="hero-feature-title">You stay in control</div>
+        <div class="hero-feature-desc">Review, edit, or skip every response. Your Chrome posts the approved ones.</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Powered by <a href="https://hanzilla.co" target="_blank">Hanzi Browse</a> — give your AI agent a real browser.
+    </div>
+  </div>
+
+  <!-- ── Setup Screen ──────────────────────────────────────── -->
+  <div id="screen-setup" class="hidden">
+    <h1>Reply to your Play Store reviews</h1>
+    <p class="subtitle">Connect your Chrome, enter your app details. AI drafts responses — you approve, then we post them in your Play Console.</p>
+
+    <!-- Browser pairing widget -->
+    <div id="hanzi-widget" style="margin-bottom: 24px;"></div>
+
+    <div class="field">
+      <label>App name <span class="hint">— as it appears in Play Console</span></label>
+      <input type="text" id="app-name" placeholder="e.g. My Awesome App" />
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Package name <span class="hint">— optional</span></label>
+        <input type="text" id="package-name" placeholder="com.example.app" />
+      </div>
+      <div class="field">
+        <label>Support email <span class="hint">— optional</span></label>
+        <input type="email" id="support-email" placeholder="support@example.com" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label>What does your app do? <span class="hint">— helps AI write better responses</span></label>
+      <textarea id="app-description" rows="2" placeholder="e.g. A habit tracker that helps users build daily routines"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Response tone</label>
+      <select id="response-tone">
+        <option value="friendly and helpful">Friendly and helpful</option>
+        <option value="professional and concise">Professional and concise</option>
+        <option value="warm and personal">Warm and personal</option>
+        <option value="technical and detailed">Technical and detailed</option>
+      </select>
+    </div>
+
+    <button class="btn btn-primary" id="btn-fetch" onclick="startFetch()">
+      Fetch unanswered reviews →
+    </button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:8px;font-size:13px" onclick="startMockFetch()">
+      Use mock data (test without a real app)
+    </button>
+
+    <div class="footer">
+      Powered by <a href="https://hanzilla.co" target="_blank">Hanzi Browse</a> — give your AI agent a real browser.
+    </div>
+  </div>
+
+  <!-- ── Fetching Screen ───────────────────────────────────── -->
+  <div id="screen-fetching" class="hidden">
+    <h1>Fetching your reviews</h1>
+    <p class="subtitle">Hanzi Browse is navigating Play Console from your Chrome and extracting unanswered reviews.</p>
+
+    <div class="stepper">
+      <div class="step-item done" id="step-1">
+        <div class="step-num">✓</div>
+        <div class="step-label">Connected</div>
+      </div>
+      <div class="step-item active" id="step-2">
+        <div class="step-num">2</div>
+        <div class="step-label">Fetching reviews</div>
+      </div>
+      <div class="step-item" id="step-3">
+        <div class="step-num">3</div>
+        <div class="step-label">Drafting responses</div>
+      </div>
+      <div class="step-item" id="step-4">
+        <div class="step-num">4</div>
+        <div class="step-label">Posting</div>
+      </div>
+    </div>
+
+    <div class="status-banner working" id="fetch-status">
+      <div class="spinner"></div>
+      <span id="fetch-status-text">Opening Play Console in your browser...</span>
+      <span class="elapsed hidden" id="elapsed-timer">0s</span>
+    </div>
+
+    <div id="cancel-report" class="hidden" style="margin-top:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px" id="cancel-report-title">Agent's last report:</div>
+      <div id="cancel-report-text" style="font-size:13px;color:var(--muted);background:var(--bg);padding:12px;border-radius:10px;line-height:1.6;max-height:200px;overflow-y:auto;white-space:pre-wrap"></div>
+    </div>
+
+    <!-- Back button always visible on fetching screen -->
+    <button class="btn btn-ghost" style="width:100%;margin-top:16px" id="btn-back-fetch" onclick="cancelFetch()">← Cancel and go back</button>
+  </div>
+
+
+  <!-- ── Drafts Screen ─────────────────────────────────────── -->
+  <div id="screen-drafts" class="hidden">
+    <div class="section-title" id="drafts-title">Review AI responses</div>
+    <p class="section-sub" id="drafts-sub">Edit any response before approving. Click "Post all approved" when ready.</p>
+
+    <div id="insights-card" class="hidden"></div>
+
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+      <button class="btn btn-primary btn-sm" style="width:auto" onclick="postAllApproved()" id="btn-post-all">
+        Post all approved
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="approveAll()">Approve all</button>
+      <button class="btn btn-ghost btn-sm" onclick="startOver()">Start over</button>
+    </div>
+
+    <div id="progress-wrap" class="hidden">
+      <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
+      <div class="progress-label" id="progress-label">Posting responses...</div>
+    </div>
+
+    <div id="drafts-list"></div>
+
+    <div class="footer">
+      Powered by <a href="https://hanzilla.co" target="_blank">Hanzi Browse</a> — give your AI agent a real browser.
+    </div>
+  </div>
+
+</div>
+
+<!-- Back to home — fixed top left, shown on fetching/drafts screens -->
+<div id="floating-back" class="hidden" style="position:fixed;top:16px;left:16px;z-index:1000">
+  <button onclick="cancelFetch();hideCancelButton();show('screen-landing')"
+    style="background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+    ← Back to home
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Floating stop button — global, shown whenever agent is running -->
+<div id="floating-cancel" class="hidden" style="position:fixed;bottom:28px;right:28px;z-index:1000">
+  <button id="btn-cancel-fetch" onclick="cancelFetch()"
+    style="background:#fff;color:var(--red);border:2px solid var(--red);border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);font-weight:700;font-size:14px;padding:12px 22px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:8px">
+    <span style="font-size:16px">■</span> Stop Agent
+  </button>
+</div>
+
+<!-- Hanzi embed widget -->
+<script src="/embed.js"></script>
+
+<script>
+  // ── Base path (works locally and behind Caddy sub-path) ──────
+  const BASE = location.pathname.replace(/\/[^/]*$/, '').replace(/\/$/, '');
+  const api = (path, opts) => fetch(BASE + path, opts);
+
+  // ── State ────────────────────────────────────────────────────
+  let state = JSON.parse(localStorage.getItem('play-review-state') || '{}');
+  let browserSessionId = null;
+
+  // Reset any in-progress posting state from a previous session
+  if (state.drafts) {
+    let changed = false;
+    for (const d of state.drafts) {
+      if (d.status === 'posting') { d.status = 'approved'; changed = true; }
+    }
+    if (changed) localStorage.setItem('play-review-state', JSON.stringify(state));
+  }
+
+  function saveState() {
+    localStorage.setItem('play-review-state', JSON.stringify(state));
+  }
+
+  // ── Dedup log (persist replied review IDs across sessions) ───
+  const DEDUP_KEY = 'play-review-replied-ids';
+  function getRepliedIds() {
+    try { return new Set(JSON.parse(localStorage.getItem(DEDUP_KEY)) || []); } catch { return new Set(); }
+  }
+  function markReplied(reviewId) {
+    const ids = getRepliedIds();
+    ids.add(reviewId);
+    localStorage.setItem(DEDUP_KEY, JSON.stringify([...ids]));
+  }
+  function filterUnreplied(reviews) {
+    const replied = getRepliedIds();
+    return reviews.filter(r => !replied.has(r.id));
+  }
+
+  // ── Hanzi widget init ────────────────────────────────────────
+  window.addEventListener('load', () => {
+    if (window.HanziConnect) {
+      window.HanziConnect.mount('#hanzi-widget', {
+        apiKey: 'hic_pub_dev',
+        apiUrl: location.origin,
+        purpose: 'fetch and reply to your Play Store reviews',
+        onConnected: (sessionId) => {
+          browserSessionId = sessionId;
+        },
+        onDisconnected: () => {
+          browserSessionId = null;
+        }
+      });
+    }
+
+    // Restore state if any drafts exist
+    if (state.drafts?.length) {
+      showDrafts(state.drafts);
+    }
+  });
+
+  // ── Helpers ──────────────────────────────────────────────────
+  function show(id) {
+    ['screen-landing', 'screen-setup', 'screen-fetching', 'screen-drafts'].forEach(s => {
+      document.getElementById(s).classList.toggle('hidden', s !== id);
+    });
+    // Show back button on non-landing, non-setup screens
+    const back = document.getElementById('floating-back');
+    if (back) back.classList.toggle('hidden', id === 'screen-landing' || id === 'screen-setup');
+  }
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  function setFetchStatus(text, type = 'working') {
+    const el = document.getElementById('fetch-status');
+    const textEl = document.getElementById('fetch-status-text');
+    el.className = `status-banner ${type}`;
+    textEl.textContent = text;
+    if (type !== 'working') {
+      el.querySelector('.spinner')?.remove();
+    }
+  }
+
+  function esc(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  function starsHTML(rating) {
+    return '★'.repeat(rating) + '☆'.repeat(5 - rating);
+  }
+
+  function categoryLabel(cat) {
+    const map = {
+      bug_report: ['Bug report', 'cat-bug'],
+      feature_request: ['Feature request', 'cat-feature'],
+      praise: ['Praise', 'cat-praise'],
+      complaint: ['Complaint', 'cat-complaint'],
+      question: ['Question', 'cat-question'],
+    };
+    const [label, cls] = map[cat] || ['Other', 'cat-question'];
+    return `<span class="category-tag ${cls}">${label}</span>`;
+  }
+
+  function avatarLetter(name) {
+    return (name || '?')[0].toUpperCase();
+  }
+
+  let isMockMode = false;
+
+  // ── Mock fetch (UI testing) ──────────────────────────────────
+  async function startMockFetch() {
+    isMockMode = true;
+    state.appContext = {
+      name: document.getElementById('app-name').value.trim() || 'My App',
+      package_name: document.getElementById('package-name').value.trim(),
+      description: document.getElementById('app-description').value.trim() || 'A mobile app',
+      tone: document.getElementById('response-tone').value,
+      support_email: document.getElementById('support-email').value.trim(),
+    };
+    saveState();
+    show('screen-fetching');
+    setFetchStatus('Loading mock reviews...');
+
+    const res = await api('/api/mock-reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const data = await res.json();
+
+    setFetchStatus(`Found ${data.reviews.length} mock reviews. Drafting responses...`, 'success');
+    document.getElementById('step-2').className = 'step-item done';
+    document.getElementById('step-3').className = 'step-item active';
+
+    const draftRes = await api('/api/draft-responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reviews: data.reviews, app_context: state.appContext }),
+    });
+    const draftData = await draftRes.json();
+    state.drafts = draftData.drafts;
+    saveState();
+    showDrafts(draftData.drafts);
+  }
+
+  // ── Cancel fetch ─────────────────────────────────────────────
+  async function cancelFetch() {
+    const btn = document.getElementById('btn-cancel-fetch');
+    btn.disabled = true;
+    btn.innerHTML = '<span style="font-size:16px">■</span> Stopping...';
+    try {
+      await api('/api/cancel-fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ browser_session_id: browserSessionId }),
+      });
+    } catch {}
+    // Server will respond to /api/fetch-reviews with cancelled status
+    // showCancelReport() will be called from startFetch()'s catch block
+  }
+
+  // ── Account picker ────────────────────────────────────────────
+  function showAccountPicker(accounts) {
+    hideCancelButton();
+    const spinner = document.querySelector('#fetch-status .spinner');
+    if (spinner) spinner.remove();
+    setFetchStatus('Multiple Google accounts detected. Please choose one.', 'error');
+    document.getElementById('btn-back-fetch').classList.add('hidden');
+
+    document.getElementById('cancel-report-title').textContent = 'Which account has your Play Console?';
+    const reportText = document.getElementById('cancel-report-text');
+    reportText.style.cssText = 'padding:0;background:transparent;max-height:none';
+    reportText.innerHTML = '';
+
+    const list = document.createElement('div');
+    list.style.cssText = 'max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)';
+    const emails = accounts.length > 0 ? accounts : ['(unknown)'];
+    emails.forEach((email, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = email;
+      btn.style.cssText = `display:block;width:100%;text-align:left;padding:10px 14px;border:none;border-bottom:${i < emails.length - 1 ? '1px solid var(--line)' : 'none'};background:transparent;font-size:13px;cursor:pointer;font-family:inherit;color:var(--ink);line-height:1.4`;
+      btn.addEventListener('mouseover', () => btn.style.background = 'var(--bg)');
+      btn.addEventListener('mouseout', () => btn.style.background = 'transparent');
+      btn.addEventListener('click', () => retryWithAccount(email));
+      list.appendChild(btn);
+    });
+    reportText.appendChild(list);
+    document.getElementById('cancel-report').classList.remove('hidden');
+  }
+
+  async function retryWithAccount(email) {
+    document.getElementById('cancel-report').classList.add('hidden');
+    const spinner = document.createElement('div');
+    spinner.className = 'spinner';
+    document.getElementById('fetch-status').prepend(spinner);
+    setFetchStatus(`Retrying with ${email}...`);
+    document.getElementById('floating-cancel').classList.remove('hidden');
+    document.getElementById('btn-back-fetch').classList.remove('hidden');
+
+    const appName = state.appContext?.name;
+    try {
+      const res = await api('/api/fetch-reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          browser_session_id: browserSessionId,
+          app_name: appName,
+          package_name: state.appContext?.package_name || undefined,
+          account_email: email,
+        }),
+      });
+      const data = await res.json();
+
+      if (res.status === 409 && data.multiple_accounts) {
+        // Shouldn't happen after account was selected, but show picker again
+        showAccountPicker(data.accounts); return;
+      }
+      if (res.status === 422 && data.account_error) {
+        showErrorReport(`Account problem`, data.last_action || `Could not use "${email}" — the agent stopped.`); return;
+      }
+      if (res.status === 422 && data.no_apps) {
+        showErrorReport(
+          `No apps found in this account`,
+          `${email} has a Play Console but no published apps.\n\nThis tool can only reply to reviews for apps you've already published. Try a different account if your apps are there.`
+        ); return;
+      }
+      if (res.status === 422 && data.no_play_console) {
+        showErrorReport(
+          `"${email}" has no Play Console`,
+          `This Google account isn't registered as a Play developer.\n\nGoogle Play developer accounts require a one-time $25 fee. Try a different account if you have one with Play Console.`
+        ); return;
+      }
+      if (res.status === 499 || data.cancelled) { showCancelReport(data.steps || 0, data.last_action); return; }
+      if (!res.ok) { showCancelReport(data.steps || 0, data.last_action || data.error, false); return; }
+      const newReviews = filterUnreplied(data.reviews || []);
+      if (!newReviews.length) {
+        hideCancelButton();
+        const allCount = data.reviews?.length || 0;
+        setFetchStatus(allCount > 0 ? `All ${allCount} review${allCount > 1 ? 's' : ''} already replied. Your inbox is clear!` : 'No unanswered reviews found. Your inbox is clear!', 'success');
+        document.getElementById('btn-back-fetch').classList.add('hidden');
+        setTimeout(() => show('screen-setup'), 3000);
+        return;
+      }
+
+      setFetchStatus(`Found ${newReviews.length} review${newReviews.length > 1 ? 's' : ''}. Drafting responses...`, 'success');
+      document.getElementById('step-2').className = 'step-item done';
+      document.getElementById('step-3').className = 'step-item active';
+
+      const draftRes = await api('/api/draft-responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviews: newReviews, app_context: state.appContext }),
+      });
+      const draftData = await draftRes.json();
+      if (!draftRes.ok) throw new Error(draftData.error);
+      state.drafts = draftData.drafts;
+      saveState();
+      hideCancelButton();
+      showDrafts(draftData.drafts);
+    } catch (err) {
+      hideCancelButton();
+      setFetchStatus(`Error: ${err.message}`, 'error');
+    }
+  }
+
+  function showCancelReport(steps, lastAction, isUserCancelled = true) {
+    hideCancelButton();
+    document.getElementById('btn-back-fetch').classList.add('hidden');
+
+    const spinner = document.querySelector('#fetch-status .spinner');
+    if (spinner) spinner.remove();
+
+    if (isUserCancelled) {
+      setFetchStatus(`Stopped by you after ${steps} step${steps !== 1 ? 's' : ''}.`, 'error');
+      document.getElementById('cancel-report-title').textContent = 'What the agent was doing when you stopped it:';
+    } else {
+      setFetchStatus(`Agent encountered an error after ${steps} step${steps !== 1 ? 's' : ''}.`, 'error');
+      document.getElementById('cancel-report-title').textContent = 'What happened:';
+    }
+
+    document.getElementById('cancel-report-text').textContent = lastAction || 'No report available.';
+    document.getElementById('cancel-report').classList.remove('hidden');
+  }
+
+  function showErrorReport(title, message) {
+    hideCancelButton();
+    const spinner = document.querySelector('#fetch-status .spinner');
+    if (spinner) spinner.remove();
+    setFetchStatus(title, 'error');
+    document.getElementById('cancel-report-title').textContent = 'Details:';
+    document.getElementById('cancel-report-text').style.cssText = 'font-size:13px;color:var(--muted);background:var(--bg);padding:12px;border-radius:10px;line-height:1.6;white-space:pre-wrap';
+    document.getElementById('cancel-report-text').textContent = message;
+    document.getElementById('cancel-report').classList.remove('hidden');
+    document.getElementById('btn-back-fetch').classList.add('hidden');
+  }
+
+  function hideCancelButton() {
+    const btn = document.getElementById('btn-cancel-fetch');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span style="font-size:16px">■</span> Stop Agent'; }
+    document.getElementById('floating-cancel').classList.add('hidden');
+    stopElapsedTimer();
+  }
+
+  // ── Elapsed timer ─────────────────────────────────────────────
+  let _elapsedInterval = null;
+  function startElapsedTimer() {
+    stopElapsedTimer();
+    const el = document.getElementById('elapsed-timer');
+    if (!el) return;
+    el.classList.remove('hidden');
+    const start = Date.now();
+    _elapsedInterval = setInterval(() => {
+      el.textContent = Math.floor((Date.now() - start) / 1000) + 's';
+    }, 1000);
+  }
+  function stopElapsedTimer() {
+    if (_elapsedInterval) { clearInterval(_elapsedInterval); _elapsedInterval = null; }
+    const el = document.getElementById('elapsed-timer');
+    if (el) el.classList.add('hidden');
+  }
+
+  // ── Step 1: Fetch reviews ────────────────────────────────────
+  async function startFetch() {
+    const appName = document.getElementById('app-name').value.trim();
+    if (!appName) { alert('Please enter your app name.'); return; }
+    if (!browserSessionId) { alert('Please connect your browser first.'); return; }
+
+    state.appContext = {
+      name: appName,
+      package_name: document.getElementById('package-name').value.trim(),
+      description: document.getElementById('app-description').value.trim(),
+      tone: document.getElementById('response-tone').value,
+      support_email: document.getElementById('support-email').value.trim(),
+    };
+    saveState();
+
+    show('screen-fetching');
+    document.getElementById('floating-cancel').classList.remove('hidden');
+    setFetchStatus('Opening Play Console in your browser...');
+    startElapsedTimer();
+
+    try {
+      const res = await api('/api/fetch-reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          browser_session_id: browserSessionId,
+          app_name: appName,
+          package_name: state.appContext.package_name || undefined,
+        }),
+      });
+      const data = await res.json();
+
+      // Multiple accounts detected — ask user to choose
+      if (res.status === 409 && data.multiple_accounts) {
+        showAccountPicker(data.accounts);
+        return;
+      }
+
+      // Account problem (wrong account, not found, etc.)
+      if (res.status === 422 && data.account_error) {
+        showErrorReport(`Account problem`, data.last_action || 'The agent could not use the selected account.');
+        return;
+      }
+
+      // Account has Play Console but no apps
+      if (res.status === 422 && data.no_apps) {
+        showErrorReport(
+          `No apps found in this account`,
+          `${data.account || 'This account'} has a Play Console but no published apps.\n\nThis tool can only reply to reviews for apps you've already published. If you have apps under a different account, go back and try another one.`
+        );
+        return;
+      }
+
+      // Account has no Play Console at all
+      if (res.status === 422 && data.no_play_console) {
+        showErrorReport(
+          `This account has no Play Console`,
+          `${data.account || 'This account'} is not registered as a Google Play developer.\n\nA Google Play developer account requires a one-time $25 fee. If you have another Google account with Play Console, go back and try a different account.`
+        );
+        return;
+      }
+
+      // Cancelled by user
+      if (res.status === 499 || data.cancelled) {
+        showCancelReport(data.steps || 0, data.last_action);
+        return;
+      }
+
+      if (!res.ok) {
+        showCancelReport(data.steps || 0, data.last_action || data.error, false);
+        return;
+      }
+
+      const newReviews = filterUnreplied(data.reviews || []);
+      if (!newReviews.length) {
+        hideCancelButton();
+        const allCount = data.reviews?.length || 0;
+        setFetchStatus(allCount > 0 ? `All ${allCount} review${allCount > 1 ? 's' : ''} already replied. Your inbox is clear!` : 'No unanswered reviews found. Your inbox is clear!', 'success');
+        document.getElementById('btn-back-fetch').classList.add('hidden');
+        setTimeout(() => show('screen-setup'), 3000);
+        return;
+      }
+
+      setFetchStatus(`Found ${newReviews.length} unanswered review${newReviews.length > 1 ? 's' : ''}. Drafting responses...`, 'success');
+
+      // Step 2: draft responses
+      document.getElementById('step-2').className = 'step-item done';
+      document.getElementById('step-3').className = 'step-item active';
+
+      const draftRes = await api('/api/draft-responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviews: newReviews, app_context: state.appContext }),
+      });
+      const draftData = await draftRes.json();
+      if (!draftRes.ok) throw new Error(draftData.error);
+
+      state.drafts = draftData.drafts;
+      saveState();
+      hideCancelButton();
+      showDrafts(draftData.drafts);
+
+    } catch (err) {
+      hideCancelButton();
+      setFetchStatus(`Error: ${err.message}`, 'error');
+    }
+  }
+
+  // ── Show drafts screen ───────────────────────────────────────
+  function showDrafts(drafts) {
+    document.getElementById('drafts-title').textContent =
+      `${drafts.length} review${drafts.length > 1 ? 's' : ''} — review AI responses`;
+    document.getElementById('drafts-sub').textContent =
+      `Edit any response before approving. Approved responses will be posted to your Play Console.`;
+
+    const list = document.getElementById('drafts-list');
+    list.innerHTML = '';
+
+    drafts.forEach((d, i) => renderDraftCard(d, i, list));
+    show('screen-drafts');
+    loadInsights(drafts);
+  }
+
+  async function loadInsights(drafts) {
+    const card = document.getElementById('insights-card');
+    card.classList.remove('hidden');
+    card.innerHTML = `<div class="insights-card"><h3>⏳ Analyzing reviews...</h3></div>`;
+
+    try {
+      const res = await api('/api/review-insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviews: drafts.map(d => ({ id: d.review_id || d.id, reviewer: d.reviewer, rating: d.rating, text: d.review_text, date: d.date, category: d.category })) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      renderInsights(data);
+    } catch (err) {
+      card.innerHTML = '';
+      card.classList.add('hidden');
+    }
+  }
+
+  function renderInsights(data) {
+    const card = document.getElementById('insights-card');
+    const sentimentColor = data.sentiment === 'positive' ? 'var(--green)' : data.sentiment === 'negative' ? 'var(--red)' : 'var(--yellow)';
+    const sentimentLabel = data.sentiment === 'positive' ? 'Positive' : data.sentiment === 'negative' ? 'Negative' : 'Mixed';
+
+    const bugsHtml = (data.urgent_bugs || []).map(b => `
+      <div class="insights-item">
+        <span class="insights-badge ${b.severity === 'high' ? 'badge-high' : 'badge-med'}">${b.severity?.toUpperCase() || 'BUG'}</span>
+        <span>${esc(b.issue)}${b.mentioned_by > 1 ? ` <span style="color:var(--muted);font-size:11px">× ${b.mentioned_by}</span>` : ''}</span>
+      </div>`).join('') || '<div class="insights-item" style="color:var(--muted)">No urgent bugs found</div>';
+
+    const featuresHtml = (data.top_feature_requests || []).map(f => `
+      <div class="insights-item">
+        <span class="insights-badge badge-req">REQ</span>
+        <span>${esc(f.feature)}${f.mentioned_by > 1 ? ` <span style="color:var(--muted);font-size:11px">× ${f.mentioned_by}</span>` : ''}</span>
+      </div>`).join('') || '<div class="insights-item" style="color:var(--muted)">None</div>';
+
+    const actionsHtml = (data.action_items || []).map(a => `<div class="action-item">${esc(a)}</div>`).join('');
+
+    card.innerHTML = `
+      <div class="insights-card">
+        <h3>📊 Review insights</h3>
+        <div class="insights-grid">
+          <div class="insights-stat">
+            <div class="insights-stat-val">${typeof data.avg_rating === 'number' ? data.avg_rating.toFixed(1) : '—'} ★</div>
+            <div class="insights-stat-label">Avg rating</div>
+          </div>
+          <div class="insights-stat">
+            <div class="insights-stat-val" style="color:${sentimentColor}">${sentimentLabel}</div>
+            <div class="insights-stat-label">Overall sentiment</div>
+          </div>
+        </div>
+        ${data.urgent_bugs?.length ? `
+        <div class="insights-section">
+          <div class="insights-section-title">🔴 Bugs to fix</div>
+          ${bugsHtml}
+        </div>` : ''}
+        ${data.top_feature_requests?.length ? `
+        <div class="insights-section">
+          <div class="insights-section-title">💡 Feature requests</div>
+          ${featuresHtml}
+        </div>` : ''}
+        ${data.action_items?.length ? `
+        <div class="insights-section">
+          <div class="insights-section-title">✅ Action items for you</div>
+          ${actionsHtml}
+        </div>` : ''}
+      </div>
+    `;
+  }
+
+  function renderDraftCard(d, i, container) {
+    const card = document.createElement('div');
+    card.className = `review-card ${d.status === 'posted' ? 'is-posted' : d.status === 'approved' ? 'is-approved' : d.status === 'skipped' ? 'is-skipped' : d.status === 'failed' ? 'is-failed' : ''}`;
+    card.id = `card-${d.id}`;
+
+    const charCount = (d.response_text || '').length;
+    const overLimit = charCount > 350;
+
+    const did = esc(d.id);
+    card.innerHTML = `
+      <div class="review-header">
+        <div class="review-meta">
+          <div class="avatar">${esc(avatarLetter(d.reviewer))}</div>
+          <div>
+            <div class="reviewer-name">${esc(d.reviewer)}</div>
+            <div class="reviewer-date">${esc(d.date)}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="stars">${starsHTML(d.rating)}</span>
+          ${categoryLabel(d.category)}
+        </div>
+      </div>
+      <div class="review-text">${esc(d.review_text)}</div>
+      ${d.reasoning ? `<div class="reasoning">${esc(d.reasoning)}</div>` : ''}
+      <div class="response-area">
+        <label>AI draft response</label>
+        <textarea id="resp-${did}" oninput="onResponseInput('${did}')"></textarea>
+      </div>
+      <div class="card-actions">
+        ${d.status === 'posted'
+          ? `<span style="color:var(--green);font-weight:600;font-size:13px">✓ Posted</span>`
+          : d.status === 'failed'
+          ? `<span style="color:var(--red);font-weight:600;font-size:13px">✗ Failed</span>
+             <button class="btn btn-sm btn-ghost" onclick="retryOne('${did}')" style="color:var(--red);border-color:var(--red)">Retry</button>`
+          : d.status === 'approved'
+          ? `<button class="btn btn-sm btn-ghost" onclick="unapprove('${did}')">Undo approve</button>
+             <span style="color:var(--accent);font-size:13px;font-weight:600">✓ Approved</span>`
+          : `<button class="btn btn-sm btn-approve" onclick="approve('${did}')">Approve</button>
+             <button class="btn btn-sm btn-ghost" onclick="skip('${did}')">Skip</button>`
+        }
+        <button class="btn btn-sm btn-ghost" onclick="copyResponse('${did}')" title="Copy response">Copy</button>
+        ${d.status !== 'posted' ? `<button class="btn btn-sm btn-ghost" onclick="regenerateOne('${did}')" title="Regenerate this response">↻</button>` : ''}
+        <span class="char-count ${overLimit ? 'over' : ''}" id="char-${did}">${charCount}/350</span>
+      </div>
+    `;
+    // Set textarea value via DOM to avoid HTML injection
+    card.querySelector(`#resp-${d.id}`).value = d.response_text || '';
+    container.appendChild(card);
+  }
+
+  function onResponseInput(id) {
+    const ta = document.getElementById(`resp-${id}`);
+    const count = ta.value.length;
+    const cc = document.getElementById(`char-${id}`);
+    cc.textContent = `${count}/350`;
+    cc.className = `char-count ${count > 350 ? 'over' : ''}`;
+    const d = state.drafts.find(d => d.id === id);
+    if (d) { d.response_text = ta.value; saveState(); }
+  }
+
+  function copyResponse(id) {
+    const ta = document.getElementById(`resp-${id}`);
+    if (!ta) return;
+    navigator.clipboard.writeText(ta.value).then(() => toast('Copied to clipboard'));
+  }
+
+  async function regenerateOne(id) {
+    const d = state.drafts.find(d => d.id === id);
+    if (!d) return;
+    const btn = document.querySelector(`#card-${id} [onclick="regenerateOne('${id}')"]`);
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    try {
+      const res = await api('/api/draft-responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviews: [{ id: d.review_id, reviewer: d.reviewer, rating: d.rating, text: d.review_text, date: d.date }], app_context: state.appContext }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      const newDraft = data.drafts?.[0];
+      if (newDraft) {
+        d.response_text = newDraft.response_text;
+        d.category = newDraft.category;
+        d.reasoning = newDraft.reasoning;
+        saveState();
+        refreshCard(d);
+        toast('Response regenerated');
+      }
+    } catch (err) {
+      toast('Regenerate failed: ' + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = '↻'; }
+    }
+  }
+
+  function approve(id) {
+    const d = state.drafts.find(d => d.id === id);
+    if (!d) return;
+    d.status = 'approved';
+    saveState();
+    refreshCard(d);
+  }
+
+  function unapprove(id) {
+    const d = state.drafts.find(d => d.id === id);
+    if (!d) return;
+    d.status = 'pending';
+    saveState();
+    refreshCard(d);
+  }
+
+  function skip(id) {
+    const d = state.drafts.find(d => d.id === id);
+    if (!d) return;
+    d.status = 'skipped';
+    saveState();
+    refreshCard(d);
+  }
+
+  function approveAll() {
+    state.drafts.forEach(d => { if (d.status === 'pending') d.status = 'approved'; });
+    saveState();
+    showDrafts(state.drafts);
+  }
+
+  function refreshCard(draft) {
+    const old = document.getElementById(`card-${draft.id}`);
+    if (!old) return;
+    const i = state.drafts.findIndex(d => d.id === draft.id);
+    const tmp = document.createElement('div');
+    renderDraftCard(draft, i, tmp);
+    old.replaceWith(tmp.firstChild);
+  }
+
+  // ── Post all approved ────────────────────────────────────────
+  async function retryOne(id) {
+    const d = state.drafts.find(d => d.id === id);
+    if (!d) return;
+    if (!browserSessionId) { toast('Browser disconnected. Please reconnect.'); return; }
+    d.status = 'approved';
+    saveState();
+    refreshCard(d);
+
+    const card = document.getElementById(`card-${id}`);
+    if (card) card.className = 'review-card is-posting';
+
+    try {
+      if (isMockMode) {
+        await new Promise(r => setTimeout(r, 800));
+        d.status = 'posted';
+      } else {
+        const res = await api('/api/post-response', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            browser_session_id: browserSessionId,
+            reviewer: d.reviewer,
+            rating: d.rating,
+            review_text: d.review_text,
+            response_text: document.getElementById(`resp-${id}`)?.value || d.response_text,
+            app_name: state.appContext?.name,
+            package_name: state.appContext?.package_name,
+          }),
+        });
+        const data = await res.json();
+        d.status = data.result === 'complete' ? 'posted' : 'failed';
+        if (d.status === 'posted') markReplied(d.review_id || d.id);
+      }
+    } catch {
+      d.status = 'failed';
+    }
+    saveState();
+    refreshCard(d);
+    toast(d.status === 'posted' ? 'Response posted!' : 'Post failed — try again');
+  }
+
+  async function postAllApproved() {
+    if (!browserSessionId) { alert('Browser disconnected. Please reconnect.'); return; }
+
+    const approved = state.drafts.filter(d => d.status === 'approved');
+    if (!approved.length) { alert('No approved responses yet. Approve at least one first.'); return; }
+
+    document.getElementById('progress-wrap').classList.remove('hidden');
+    document.getElementById('btn-post-all').disabled = true;
+    let posted = 0;
+
+    for (const draft of approved) {
+      const card = document.getElementById(`card-${draft.id}`);
+      if (card) card.className = 'review-card is-posting';
+
+      try {
+        if (isMockMode) {
+          // Simulate posting in mock mode — no real browser call
+          await new Promise(r => setTimeout(r, 800));
+          draft.status = 'posted';
+        } else {
+          const res = await api('/api/post-response', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              browser_session_id: browserSessionId,
+              reviewer: draft.reviewer,
+              rating: draft.rating,
+              review_text: draft.review_text,
+              response_text: document.getElementById(`resp-${draft.id}`)?.value || draft.response_text,
+              app_name: state.appContext?.name,
+              package_name: state.appContext?.package_name,
+            }),
+          });
+          const data = await res.json();
+          draft.status = data.result === 'complete' ? 'posted' : 'failed';
+          if (draft.status === 'posted') markReplied(draft.review_id || draft.id);
+        }
+      } catch {
+        draft.status = 'failed';
+      }
+
+      posted++;
+      saveState();
+      refreshCard(draft);
+
+      const pct = Math.round((posted / approved.length) * 100);
+      document.getElementById('progress-bar').style.width = `${pct}%`;
+      document.getElementById('progress-label').textContent =
+        `Posted ${posted} of ${approved.length} responses...`;
+
+      if (posted < approved.length) await new Promise(r => setTimeout(r, 2000));
+    }
+
+    document.getElementById('progress-label').textContent =
+      `Done — ${approved.filter(d => d.status === 'posted').length} response${approved.length > 1 ? 's' : ''} posted.`;
+    document.getElementById('btn-post-all').disabled = false;
+  }
+
+  function startOver() {
+    if (!confirm('Start over? This will clear all current drafts.')) return;
+    state = {};
+    isMockMode = false;
+    saveState();
+    show('screen-setup');
+  }
+</script>
+</body>
+</html>
