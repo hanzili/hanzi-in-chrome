@@ -50,7 +50,7 @@ Partner app → REST API (api.hanzilla.co) → Agent loop on server → Extensio
 | `server/src/llm/` | LLM providers | `client.ts` (unified), `vertex.ts` (Vertex AI), `credentials.ts` (key detection) |
 | `server/src/managed/` | REST API backend | `api.ts` (73KB, main API), `store-pg.ts` (Postgres), `schema.sql`, `deploy.ts` |
 | `server/skills/` | Agent skills (markdown) | Each skill is a `SKILL.md` with instructions |
-| `server/site-patterns/` | Domain interaction patterns | `x.com.md` — verified patterns for complex sites |
+| `server/src/agent/domain-skills.json` | Domain interaction patterns | Single source of truth for per-domain tips (x.com, linkedin, zillow, amazon…) |
 | `sdk/src/` | TypeScript client | `index.ts` — HanziClient class |
 | `landing/` | Marketing site (static HTML) | `index.html`, `docs.html`, `embed.js` |
 | `examples/` | Demo apps | `x-marketing/` (free tool), `partner-quickstart/` (API demo) |
@@ -83,13 +83,13 @@ Skills are markdown files (`SKILL.md`) that teach AI agents when and how to use 
 
 Each skill can also be built as a free tool (web app). The skill provides instructions for local agents; the free tool provides a hosted UI for anyone.
 
-### Site patterns
+### Domain skills
 
-Domain-specific interaction patterns in `server/site-patterns/`. These document verified procedures for tricky sites (Draft.js text input, async page loading, anti-bot handling, etc.).
+Domain-specific interaction tips live in `server/src/agent/domain-skills.json` — a single JSON array shared between the server agent, the extension, and the SDK. Each entry has `domain`, `skill` (markdown body), and optional `antiBot: true`.
 
-Currently: `x.com.md` — detailed patterns for X/Twitter search, reply, and text input.
+They're loaded into the agent's system prompt when the task URL matches a known domain (x.com, linkedin.com, gmail, github, zillow, amazon, and ~20 more). They prevent the agent from making known mistakes — e.g., using `form_input` on Draft.js editors (X, LinkedIn), which silently fails.
 
-Site patterns are loaded into the agent's system prompt when tasks target that domain. They prevent the agent from making known mistakes (e.g., using `form_input` on Draft.js, which silently fails).
+To add a new domain: append an entry to `server/src/agent/domain-skills.json`. The old `server/site-patterns/` directory is removed — do not re-add it.
 
 ### Build
 

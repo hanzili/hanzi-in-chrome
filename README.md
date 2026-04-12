@@ -124,9 +124,9 @@ Try them at [tools.hanzilla.co](https://tools.hanzilla.co). No account needed �
 
 ### Site Domain Knowledge
 
-Both skills and free tools rely on **site patterns** — verified interaction playbooks for complex websites. These document how to handle async loading, Draft.js editors, anti-bot detection, and other site-specific quirks.
+Both skills and free tools rely on **domain knowledge** — verified interaction playbooks for complex websites. These document how to handle async loading, Draft.js editors, anti-bot detection, and other site-specific quirks.
 
-Currently available: [x.com](server/site-patterns/x.com.md). Contribute patterns for other sites.
+All patterns live in [`server/src/agent/domain-skills.json`](server/src/agent/domain-skills.json) as a single shared JSON array. To contribute, open a PR that appends a new `{ domain, skill }` entry.
 
 <br/>
 

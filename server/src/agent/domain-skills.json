@@ -69,10 +69,24 @@
   },
   {
     "domain": "walmart.ca",
-    "skill": "Walmart.ca UI patterns:\n- Search results often expose enough information to compare products before opening a product page\n- Cards commonly include brand, title, price, ratings, fulfillment messaging, and promo details such as Subscribe to Save or pickup thresholds\n- Walmart.com may first present a storefront or region-selection step and later a human-verification blocker; validation was more reliable on Walmart.ca\n- On Walmart.ca product pages, verify one-time price separately from Subscribe to Save pricing and check pickup, express delivery, and standard delivery messages individually\n- Treat promo labels, fulfillment thresholds, and returns messaging as separate signals and verify them individually"
+    "antiBot": true,
+    "skill": "Walmart.ca UI patterns:\n- Search results often expose enough information to compare products before opening a product page\n- Cards commonly include brand, title, price, ratings, fulfillment messaging, and promo details such as Subscribe to Save or pickup thresholds\n- Walmart.com may first present a storefront or region-selection step and later a human-verification blocker ('Press & Hold' challenge); validation was more reliable on Walmart.ca\n- On Walmart.ca product pages, verify one-time price separately from Subscribe to Save pricing and check pickup, express delivery, and standard delivery messages individually\n- Treat promo labels, fulfillment thresholds, and returns messaging as separate signals and verify them individually\n- If you hit a 'Press & Hold' or 'verify you are human' challenge, STOP and tell the user — never attempt to bypass"
   },
   {
     "domain": "target.com",
     "skill": "Target UI patterns:\n- Result cards usually include title, review count, price, promo messaging, and a persistent Add to Cart button\n- Price formatting can mix ranges, sale pricing, regular pricing, and per-unit math, so read the full price block carefully\n- Promo text such as Target gift card offers or 'Highly rated' badges appears frequently and can distract from the base price\n- Fulfillment filters are easy to see near the top, but card-level availability may still need a deeper click\n- Search results can include adjacent-category items, so confirm the exact product type from the title before acting"
+  },
+  {
+    "domain": "zillow.com",
+    "antiBot": true,
+    "skill": "Zillow UI patterns (rentals):\n- Sign in first for full contact info and saved searches; anonymous users see degraded data\n- Use 'For Rent' in the top nav, then refine by price, beds, and 'Move-in Date'\n- Results have a split map + list view — switch to list view for cleaner data extraction\n- Listing cards include price, beds/baths, address, and 'Apply' or 'Request a tour' buttons\n- 'Request a tour' and 'Contact' buttons submit forms — draft the message and wait for explicit user approval before clicking submit\n- Never enter SSN, payment info, or background check data without confirming the user is on an official Zillow Application flow\n- Zillow frequently serves a CAPTCHA / 'Press & Hold' challenge for automated traffic — if you hit one, STOP and tell the user, do not bypass"
+  },
+  {
+    "domain": "apartments.com",
+    "skill": "Apartments.com UI patterns:\n- Top filter bar: location, price, beds, move-in date, amenities — apply them before reading results\n- Listing cards include price range, beds/baths, address, and a 'Send Message' or 'Contact' button\n- Many listings have a built-in multi-step application flow — each step is clearly labeled; stop before 'Submit Application' and confirm with the user\n- 'Send Message' opens an inline form — draft the message, show it to the user, wait for approval before submitting\n- Pricing is often shown as a range ($X-$Y) because individual units vary; click into the listing for per-unit prices\n- Response times for large property managers are usually fast (hours); individual landlords slower\n- Do not enter SSN, credit-card, or bank info without explicit user confirmation that they want to proceed with a real application"
+  },
+  {
+    "domain": "craigslist.org",
+    "skill": "Craigslist UI patterns (apartments / housing):\n- URL pattern: https://[city].craigslist.org/search/apa?minAsk={min}&maxAsk={max}&bedrooms={n}\n- Sort by 'newest' to avoid stale listings — older listings are frequently scams or already rented\n- Listings may or may not have photos; listings without photos are higher risk, flag them\n- Contact is always via an anonymized email relay — no built-in application flow\n- Scam flags to warn the user about: price >25% below market, 'owner overseas', 'send deposit to hold', asks to text/WhatsApp before viewing, generic stock photos\n- Never follow links off craigslist for a 'verified listings site' — those are almost always phishing\n- Show the user any inquiry message before sending, and wait for explicit approval"
   }
 ]
