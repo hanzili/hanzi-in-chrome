@@ -1,10 +1,10 @@
 /**
- * @hanzi/browser-agent SDK
+ * @hanzi-browse/sdk
  *
  * Minimal client for the Hanzi browser automation platform.
  *
  * Usage:
- *   import { HanziClient } from '@hanzi/browser-agent';
+ *   import { HanziClient } from '@hanzi-browse/sdk';
  *
  *   const client = new HanziClient({
  *     apiKey: 'hic_live_xxx',

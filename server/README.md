@@ -19,11 +19,11 @@ This installs the Chrome extension and configures your AI agent. One command, do
 ## Quick Start (API)
 
 ```bash
-npm install @hanzi/browser-agent
+npm install @hanzi-browse/sdk
 ```
 
 ```typescript
-import { HanziClient } from '@hanzi/browser-agent';
+import { HanziClient } from '@hanzi-browse/sdk';
 
 const client = new HanziClient({ apiKey: 'hic_live_...' });
 

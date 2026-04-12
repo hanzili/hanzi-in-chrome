@@ -1,5 +1,5 @@
 {
-  "name": "@hanzi/browser-agent",
+  "name": "@hanzi-browse/sdk",
   "version": "0.1.0",
   "description": "SDK for the Hanzi browser automation platform. Control a real Chrome browser programmatically.",
   "type": "module",

@@ -140,7 +140,7 @@ Embed browser automation in your product. Your app calls the Hanzi API, a real b
 4. **Get the result** — poll `GET /v1/tasks/:id` until complete, or use `runTask()` which blocks
 
 ```typescript
-import { HanziClient } from '@hanzi/browser-agent';
+import { HanziClient } from '@hanzi-browse/sdk';
 
 const client = new HanziClient({ apiKey: process.env.HANZI_API_KEY });
 

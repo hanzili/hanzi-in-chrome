@@ -1,22 +1,17 @@
-# @hanzi/browser-agent
+# @hanzi-browse/sdk
 
 SDK for the Hanzi browser automation platform. Control a real Chrome browser programmatically — navigate, click, read pages, fill forms — powered by AI.
 
 ## Install
 
-The SDK is not yet published to npm. Install from the repo:
-
 ```bash
-# From the hanzi-browse repo root:
-cd sdk && npm install && npm run build
-# Then in your project:
-npm install /path/to/hanzi-browse/sdk
+npm install @hanzi-browse/sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { HanziClient } from '@hanzi/browser-agent';
+import { HanziClient } from '@hanzi-browse/sdk';
 
 const client = new HanziClient({
   apiKey: 'hic_live_xxx',

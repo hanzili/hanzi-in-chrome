@@ -120,7 +120,7 @@ npx hanzi-browse setup
 4. **获取结果**：轮询 `GET /v1/tasks/:id` 直到完成，或者直接使用会阻塞等待的 `runTask()`
 
 ```typescript
-import { HanziClient } from '@hanzi/browser-agent';
+import { HanziClient } from '@hanzi-browse/sdk';
 
 const client = new HanziClient({ apiKey: process.env.HANZI_API_KEY });
 
