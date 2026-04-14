@@ -18,7 +18,11 @@ const __dirname = dirname(__filename);
 const CONFIG_DIR = join(homedir(), ".hanzi-browse");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 const SENTRY_DSN = "https://2d5504c5db572b0b2709e64f03bdfcc6@o4511120870932480.ingest.us.sentry.io/4511120907698176";
-const POSTHOG_KEY = process.env.POSTHOG_API_KEY || "";
+// Public PostHog project API key for the hanzi org (project 318295). Safe to
+// ship in the npm package — it only permits event ingest, not reads/queries.
+// Override with POSTHOG_API_KEY when testing or routing to a different project.
+const DEFAULT_POSTHOG_KEY = "phc_T6BDBkhAIdOY7jESBnMHHQxJRj2MOwXfB40SUvW7MQO";
+const POSTHOG_KEY = process.env.POSTHOG_API_KEY || DEFAULT_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.POSTHOG_HOST || "https://us.i.posthog.com";
 let posthog = null;
 let anonymousId = null;

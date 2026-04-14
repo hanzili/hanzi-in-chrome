@@ -61,5 +61,7 @@ export declare function buildSystemOpenCommand(url: string, plat: NodeJS.Platfor
 export declare function runSetup(options?: {
     only?: string;
     yes?: boolean;
+    all?: boolean;
+    skills?: string[];
 }): Promise<void>;
 export {};
