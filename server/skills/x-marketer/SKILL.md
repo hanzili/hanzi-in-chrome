@@ -1,6 +1,7 @@
 ---
 name: x-marketer
 description: Professional X/Twitter growth skill. Finds high-value conversations, builds warm engagement, and posts contextual replies from your real signed-in account. Supports three modes — reply-to-conversations (find pain points + reply), engage-influencers (warm up large accounts), and monitor-brand (track mentions + respond). Thinks like a specialist X marketer, not a bot. Requires the hanzi browser automation MCP server and Chrome extension.
+category: marketing
 ---
 
 # X Marketer

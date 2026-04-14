@@ -1,6 +1,7 @@
 ---
 name: social-poster
 description: Post content across social platforms from your real signed-in browser. Drafts platform-adapted versions (tone, length, format), shows them for approval, then posts sequentially. Works with LinkedIn, Twitter/X, Reddit, Hacker News, and Product Hunt.
+category: marketing
 ---
 
 # Social Poster

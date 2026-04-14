@@ -860,6 +860,27 @@ function disconnectRelay(): void {
 
 // ── Skill installation ──────────────────────────────────────────────────
 
+type SkillCategory = 'core' | 'productivity' | 'marketing' | 'life';
+
+interface SkillMeta {
+  name: string;
+  description: string;
+  category: SkillCategory;
+  path: string;
+}
+
+const VALID_CATEGORIES: readonly SkillCategory[] = ['core', 'productivity', 'marketing', 'life'];
+
+const CATEGORY_BUNDLES: Array<{
+  cat: Exclude<SkillCategory, 'core'>;
+  label: string;
+  summary: string;
+}> = [
+  { cat: 'productivity', label: 'Productivity',       summary: 'testing, audits, data extraction, SEO' },
+  { cat: 'marketing',    label: 'Marketing & growth', summary: 'social posting, prospecting, competitor research' },
+  { cat: 'life',         label: 'Personal automation', summary: 'apartments, jobs' },
+];
+
 function getSkillsSource(): string {
   // Skills are bundled in the npm package at ../skills/ relative to dist/cli/
   const fromDist = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'skills');
@@ -869,36 +890,149 @@ function getSkillsSource(): string {
   return fromSrc;
 }
 
-const SKILL_NAMES = ['hanzi-browse', 'e2e-tester', 'social-poster', 'linkedin-prospector', 'a11y-auditor', 'data-extractor', 'x-marketer'];
+function parseSkillFrontmatter(content: string): { description?: string; category?: SkillCategory } | null {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) return null;
+  const result: { description?: string; category?: SkillCategory } = {};
+  for (const line of match[1].split(/\r?\n/)) {
+    const m = line.match(/^(\w+):\s*(.*)$/);
+    if (!m) continue;
+    const key = m[1];
+    const value = m[2].trim();
+    if (key === 'description') result.description = value;
+    else if (key === 'category' && (VALID_CATEGORIES as readonly string[]).includes(value)) {
+      result.category = value as SkillCategory;
+    }
+  }
+  return result;
+}
 
-async function installSkills(agents: AgentConfig[], isInteractive: boolean): Promise<void> {
+function discoverSkills(skillsSource: string): SkillMeta[] {
+  if (!existsSync(skillsSource)) return [];
+  const skills: SkillMeta[] = [];
+  for (const entry of readdirSync(skillsSource, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const skillPath = join(skillsSource, entry.name);
+    const skillMd = join(skillPath, 'SKILL.md');
+    if (!existsSync(skillMd)) continue;
+    const meta = parseSkillFrontmatter(readFileSync(skillMd, 'utf-8'));
+    if (!meta) continue;
+    skills.push({
+      name: entry.name,
+      description: meta.description || '',
+      // Skills without an explicit category default to productivity — a safe
+      // "opt-in bundle" rather than forcing everyone to get it by default.
+      category: meta.category ?? 'productivity',
+      path: skillPath,
+    });
+  }
+  return skills;
+}
+
+async function promptSkillCategories(skills: SkillMeta[]): Promise<Set<string>> {
+  const selected = new Set<string>();
+  const coreSkills = skills.filter(s => s.category === 'core');
+  for (const s of coreSkills) selected.add(s.name);
+
+  const byCategory = new Map<Exclude<SkillCategory, 'core'>, SkillMeta[]>();
+  for (const s of skills) {
+    if (s.category === 'core') continue;
+    const cat = s.category as Exclude<SkillCategory, 'core'>;
+    if (!byCategory.has(cat)) byCategory.set(cat, []);
+    byCategory.get(cat)!.push(s);
+  }
+
+  const bundles: Array<{ cat: Exclude<SkillCategory, 'core'>; label: string; summary: string; skills: SkillMeta[] }> = [];
+  for (const b of CATEGORY_BUNDLES) {
+    const catSkills = byCategory.get(b.cat);
+    if (catSkills && catSkills.length > 0) bundles.push({ ...b, skills: catSkills });
+  }
+
+  if (bundles.length === 0) return selected;
+
+  console.log('');
+  console.log(`  ${c.dim('step 2b')}  ${c.bold('Skills')}`);
+  console.log(`  ${c.dim('       Skills tell your AI agent when and how to use Hanzi for specific workflows.')}\n`);
+  if (coreSkills.length > 0) {
+    console.log(`     ${c.green('✓')}  ${c.bold('Core')} ${c.dim(`(always installed)`)}`);
+    for (const s of coreSkills) console.log(`        ${c.dim(s.name)}`);
+    console.log('');
+  }
+  console.log(`     ${c.dim('Optional bundles:')}`);
+  bundles.forEach((b, i) => {
+    console.log(`     ${c.bold(String(i + 1))}  ${b.label} ${c.dim(`(${b.skills.length} skills — ${b.summary})`)}`);
+    console.log(`        ${c.dim(b.skills.map(s => s.name).join(', '))}`);
+  });
+  console.log('');
+
+  const answer = await ask('Install bundles (e.g. "1 2", "all", or "none"): ');
+  const normalized = answer.trim().toLowerCase();
+
+  if (normalized === 'all') {
+    for (const b of bundles) for (const s of b.skills) selected.add(s.name);
+  } else if (normalized && normalized !== 'none') {
+    const picks = new Set(normalized.split(/[\s,]+/).map(n => parseInt(n, 10)).filter(n => !isNaN(n)));
+    for (const n of picks) {
+      const bundle = bundles[n - 1];
+      if (bundle) for (const s of bundle.skills) selected.add(s.name);
+    }
+  }
+
+  return selected;
+}
+
+async function installSkills(
+  agents: AgentConfig[],
+  isInteractive: boolean,
+  options: { all?: boolean; skills?: string[] } = {},
+): Promise<void> {
   const skillsSource = getSkillsSource();
-  if (!existsSync(skillsSource)) return; // No skills bundled
+  const discovered = discoverSkills(skillsSource);
+  if (discovered.length === 0) return;
 
   const agentsWithSkills = agents.filter(a => a.skillsDir);
   if (agentsWithSkills.length === 0) return;
 
-  const out = isInteractive ? console.log : log;
+  // Decide which skills to install
+  let selected: Set<string>;
+  if (options.all) {
+    selected = new Set(discovered.map(s => s.name));
+  } else if (options.skills && options.skills.length > 0) {
+    selected = new Set(options.skills);
+    for (const s of discovered) if (s.category === 'core') selected.add(s.name);
+  } else if (isInteractive) {
+    selected = await promptSkillCategories(discovered);
+  } else {
+    selected = new Set(discovered.filter(s => s.category === 'core').map(s => s.name));
+  }
+
+  if (selected.size === 0) return;
+
+  const skillsToInstall = discovered.filter(s => selected.has(s.name));
+
   if (isInteractive) {
     console.log('');
-    console.log(`  ${c.dim('       Installing browser automation skills...')}`);
+    console.log(`  ${c.dim('       Installing ' + skillsToInstall.length + ' skill' + (skillsToInstall.length === 1 ? '' : 's') + '...')}`);
   } else {
-    log('\n     Installing skills...');
+    log(`\n  Installing ${skillsToInstall.length} skill${skillsToInstall.length === 1 ? '' : 's'}...`);
   }
 
   let installed = 0;
   for (const agent of agentsWithSkills) {
     const targetDir = agent.skillsDir!();
     try {
-      for (const skillName of SKILL_NAMES) {
-        const src = join(skillsSource, skillName);
-        if (!existsSync(src)) continue;
-        const dest = join(targetDir, skillName);
+      for (const skill of skillsToInstall) {
+        const dest = join(targetDir, skill.name);
         mkdirSync(dest, { recursive: true });
-        // Copy SKILL.md and any supporting files
-        const files = readdirSync(src);
-        for (const file of files) {
-          copyFileSync(join(src, file), join(dest, file));
+        // Copy SKILL.md and any flat supporting files. Subdirectories (e.g. a
+        // references/ folder) are skipped — copyFileSync on a dir throws and
+        // the skills we ship today don't need nested assets.
+        for (const file of readdirSync(skill.path)) {
+          try {
+            copyFileSync(join(skill.path, file), join(dest, file));
+          } catch {
+            // Silently skip non-file entries (directories, symlinks, etc.)
+          }
         }
       }
       installed++;
@@ -917,7 +1051,7 @@ async function installSkills(agents: AgentConfig[], isInteractive: boolean): Pro
   }
 
   if (installed > 0) {
-    const msg = `${installed} agent${installed === 1 ? '' : 's'} got ${SKILL_NAMES.length} browser skills`;
+    const msg = `${installed} agent${installed === 1 ? '' : 's'} got ${skillsToInstall.length} skill${skillsToInstall.length === 1 ? '' : 's'}`;
     if (isInteractive) {
       console.log(`\n     ${c.green('✓')}  ${msg}`);
     } else {
@@ -928,7 +1062,7 @@ async function installSkills(agents: AgentConfig[], isInteractive: boolean): Pro
 
 // ── Main ───────────────────────────────────────────────────────────────
 
-export async function runSetup(options: { only?: string; yes?: boolean } = {}): Promise<void> {
+export async function runSetup(options: { only?: string; yes?: boolean; all?: boolean; skills?: string[] } = {}): Promise<void> {
   initTelemetry();
   trackEvent("setup_started");
 
@@ -1073,7 +1207,7 @@ export async function runSetup(options: { only?: string; yes?: boolean } = {}): 
   }
 
   // ── Step 2b: Install skills ──
-  await installSkills(detected, interactive);
+  await installSkills(detected, interactive, { all: options.all, skills: options.skills });
 
   // ── Step 3: Access mode ──
   let accessMode: AccessMode = 'byom';

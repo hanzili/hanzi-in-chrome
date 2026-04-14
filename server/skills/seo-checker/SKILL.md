@@ -1,6 +1,7 @@
 ---
 name: seo-checker
 description: Audit web pages for SEO issues in a real browser. Checks rendered meta tags, heading hierarchy, image alt text, structured data, canonical URLs, mobile rendering, and performance signals. Produces a scored report with specific findings and fixes. Read-only — inspects, doesn't modify. Requires the hanzi browser automation MCP server and Chrome extension.
+category: productivity
 ---
 
 # SEO Checker

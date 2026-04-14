@@ -453,11 +453,20 @@ async function cmdSetup(): Promise<void> {
   const { runSetup } = await import('./cli/setup.js');
   let only: string | undefined;
   let yes = false;
+  let all = false;
+  let skills: string[] | undefined;
   for (let i = 1; i < args.length; i++) {
-    if (args[i] === '--only' && args[i + 1]) only = args[++i];
-    if (args[i] === '--yes' || args[i] === '-y') yes = true;
+    const arg = args[i];
+    if (arg === '--only' && args[i + 1]) only = args[++i];
+    else if (arg === '--yes' || arg === '-y') yes = true;
+    else if (arg === '--all-skills' || arg === '--all') all = true;
+    else if (arg === '--skills' && args[i + 1]) {
+      skills = args[++i].split(',').map(s => s.trim()).filter(Boolean);
+    } else if (arg.startsWith('--skills=')) {
+      skills = arg.slice('--skills='.length).split(',').map(s => s.trim()).filter(Boolean);
+    }
   }
-  await runSetup({ only, yes });
+  await runSetup({ only, yes, all, skills });
 }
 
 function cmdHelp(): void {
@@ -498,6 +507,9 @@ Commands:
 
   setup                     Auto-detect AI agents and configure MCP
     --only <agent>          Only configure one agent (claude-code, cursor, windsurf, claude-desktop)
+    --yes, -y               Non-interactive mode (installs core skill only)
+    --all                   Install every bundled skill (skip the prompt)
+    --skills a,b,c          Install just these skills (core always included)
 
   skills                    List available agent skills
   skills install <name>     Download a skill into your project

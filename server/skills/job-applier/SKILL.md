@@ -1,6 +1,7 @@
 ---
 name: job-applier
 description: Apply to jobs from your real browser. Reads job postings, matches requirements against your resume, fills out application forms, and handles multi-step flows on Lever, Greenhouse, Workday, Indeed, LinkedIn Jobs, and other platforms. Reviews everything before submitting. Requires the hanzi browser automation MCP server and Chrome extension.
+category: life
 ---
 
 # Job Application Helper

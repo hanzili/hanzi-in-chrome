@@ -1,6 +1,7 @@
 ---
 name: competitor-monitor
 description: Monitor competitor websites for changes. Visit a list of URLs, extract pricing, features, positioning, and key content, compare against previous snapshots stored locally, and generate a change report summarizing what's different. Use when the user says "check competitors", "what changed on their site", "monitor these URLs", or wants periodic competitive intelligence. Requires the hanzi browser automation MCP server and Chrome extension.
+category: marketing
 ---
 
 # Competitor Monitor

@@ -1,6 +1,7 @@
 ---
 name: linkedin-prospector
 description: Find people on LinkedIn and send personalized connection requests. Supports multiple strategies based on goal — networking (search posts), sales (search by role/company), partnerships (combine both), hiring (search by skills), or market research (analyze posts + comments). Each connection note is unique and personalized. Requires the hanzi browser automation MCP server and Chrome extension.
+category: marketing
 ---
 
 # LinkedIn Prospector

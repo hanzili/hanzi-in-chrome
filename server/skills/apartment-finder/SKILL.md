@@ -1,6 +1,7 @@
 ---
 name: apartment-finder
 description: Search for apartments across multiple real estate platforms, compare listings side by side, and help submit inquiries or applications. Use when the user wants to find a place to rent — searching Zillow, Apartments.com, Craigslist, and similar sites with their real signed-in browser. Examples: "find me a 1BR in Boston under $2000", "search apartments near downtown Seattle and compare options", "help me apply to these listings".
+category: life
 ---
 
 # Apartment Finder

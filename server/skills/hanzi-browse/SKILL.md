@@ -1,6 +1,7 @@
 ---
 name: hanzi-browse
 description: Use when a task requires interacting with a real browser — clicking, typing, filling forms, reading authenticated pages, posting content, or testing web apps. Also use when the user says "open", "go to", "check this site", "log in to", "post on", or needs their real cookies and sessions.
+category: core
 ---
 
 # Hanzi Browse

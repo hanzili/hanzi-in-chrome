@@ -1,6 +1,7 @@
 ---
 name: competitor-researcher
 description: Research SaaS and AI-tool competitors in a real browser. Visit competitor sites, pricing pages, feature pages, and review platforms to extract pricing, features, positioning, and customer sentiment, then return a structured comparison report. Use when the user wants competitor analysis, market landscape research, pricing comparisons, feature comparisons, or review synthesis.
+category: marketing
 ---
 
 # Competitor Researcher

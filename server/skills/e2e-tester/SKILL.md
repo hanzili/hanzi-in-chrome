@@ -1,6 +1,7 @@
 ---
 name: e2e-tester
 description: Test a web app like a QA person — open it in a real browser, click through flows, and report what's broken with screenshots and code references. Works on localhost. Use when the user wants to test their app, verify a flow works, check for visual bugs, or validate changes before pushing.
+category: productivity
 ---
 
 # E2E Tester

@@ -1,6 +1,7 @@
 ---
 name: a11y-auditor
 description: Audit web pages for accessibility issues in a real browser. Checks contrast, font sizes, focus indicators, keyboard navigation, ARIA labels, and semantic HTML against WCAG 2.1 AA. Reports findings with screenshots and specific remediation steps. Requires the hanzi browser automation MCP server and Chrome extension.
+category: productivity
 ---
 
 # Accessibility Auditor

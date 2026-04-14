@@ -1,6 +1,7 @@
 ---
 name: data-extractor
 description: Extract structured data from websites into CSV or JSON. Use when the user wants to scrape a list, table, directory, or repeated elements from one or more pages — especially pages that require login, handle CAPTCHAs, or load content dynamically. Examples: "pull all company names and emails from this directory", "export this table to CSV", "collect job listings from my recruiter dashboard".
+category: productivity
 ---
 
 # Web Data Extractor
