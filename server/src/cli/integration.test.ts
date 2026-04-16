@@ -140,6 +140,18 @@ describe('Binary consolidation (hanzi-browse dispatches subcommands to CLI)', ()
     // CLI help banner starts with "Hanzi Browser CLI"; MCP mode should NOT emit that to stdout.
     expect(stdout).not.toContain('Hanzi Browser CLI');
   }, 10000);
+
+  // Regression guard: async CLI commands must finish before index.ts's process.exit.
+  // Previously `await import('./cli.js'); process.exit(0)` killed doctor mid-flight
+  // because the imported module's fire-and-forget main() wasn't awaited.
+  it('hanzi-browse doctor --json produces a parseable report (async command completes)', async () => {
+    const { stdout, code } = await runIndex(['doctor', '--json'], 8000);
+    expect([0, 2]).toContain(code); // doctor exits 2 if relay/creds missing; 0 otherwise
+    expect(stdout.trim().length).toBeGreaterThan(0);
+    const parsed = JSON.parse(stdout);
+    expect(typeof parsed.extensionConnected).toBe('boolean');
+    expect(Array.isArray(parsed.credentials)).toBe(true);
+  }, 15000);
 });
 
 describe('--version', () => {
