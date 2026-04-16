@@ -134,10 +134,12 @@ describe('Binary consolidation (hanzi-browse dispatches subcommands to CLI)', ()
   });
 
   it('hanzi-browse with no args enters MCP stdio mode (no CLI banner)', async () => {
-    const { stdout, stderr } = await runIndex([]);
+    // Use a shorter internal kill timeout (1.5s) so the process's close event
+    // fires well before vitest's 5s default test timeout.
+    const { stdout } = await runIndex([], 1500);
     // CLI help banner starts with "Hanzi Browser CLI"; MCP mode should NOT emit that to stdout.
     expect(stdout).not.toContain('Hanzi Browser CLI');
-  });
+  }, 10000);
 });
 
 describe('--version', () => {
