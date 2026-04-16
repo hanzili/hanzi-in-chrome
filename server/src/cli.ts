@@ -24,6 +24,7 @@ import { dirname } from 'path';
 import { discoverBundledSkills, type SkillMeta } from './cli/skills-discovery.js';
 import { WebSocketClient } from './ipc/websocket-client.js';
 import { EXIT_OK, EXIT_TASK_ERROR, EXIT_CLI_ERROR, EXIT_TIMEOUT } from './cli/exit-codes.js';
+import { IS_MANAGED_MODE, MANAGED_API_URL } from './cli/managed-client.js';
 import { parseDuration } from './cli/arg-parser.js';
 import {
   writeSessionStatus,
@@ -158,9 +159,9 @@ function outcomeToExitCode(outcome: TaskOutcome): number {
   }
 }
 
-function disconnectAndExit(code = EXIT_OK): void {
+function disconnectAndExit(code = EXIT_OK): never {
   connection?.disconnect();
-  setTimeout(() => process.exit(code), 100);
+  process.exit(code);
 }
 
 // --- Commands ---
@@ -220,6 +221,49 @@ async function cmdStart(): Promise<void> {
     context = context
       ? `${skillPrompt}\n\n---\n\nAdditional context: ${context}`
       : skillPrompt;
+  }
+
+  // Managed mode: route to api.hanzilla.co instead of local relay.
+  if (IS_MANAGED_MODE) {
+    if (detach && !quietMode) {
+      console.error('[CLI] --detach not yet supported in managed mode — running blocking');
+    }
+    if (!quietMode && !jsonOutput) {
+      console.error(`[CLI] Managed mode — dispatching to ${MANAGED_API_URL}`);
+    }
+    const { runManagedTask } = await import('./cli/managed-client.js');
+    let result;
+    try {
+      result = await runManagedTask(task, url, context, timeoutMs);
+    } catch (err: any) {
+      console.error(`[CLI] Managed API error: ${err.message}`);
+      process.exit(EXIT_CLI_ERROR);
+    }
+    const sid = `managed-${Date.now().toString(36).slice(-8)}`;
+    writeSessionStatus(sid, {
+      session_id: sid,
+      status: result.status === 'complete' ? 'complete' : result.status === 'timeout' ? 'running' : 'error',
+      task, url, context,
+      result: result.answer,
+      error: result.error,
+    });
+    if (jsonOutput) {
+      console.log(JSON.stringify({
+        type: 'task_complete',
+        session_id: sid,
+        status: result.status,
+        result: result.answer,
+        steps: result.steps,
+        error: result.error,
+      }));
+    } else {
+      if (!quietMode) console.error(`\n[CLI] Task ${result.status} after ${result.steps} steps`);
+      console.log(result.answer);
+    }
+    const code = result.status === 'complete' ? EXIT_OK
+      : result.status === 'timeout' ? EXIT_TIMEOUT
+      : EXIT_TASK_ERROR;
+    process.exit(code);
   }
 
   if (!jsonOutput && !quietMode) {

@@ -341,6 +341,8 @@ describe('--skill supports any bundled skill', () => {
   });
 });
 
+import { createServer as createHttpServer } from 'http';
+import type { Server as HttpServer } from 'http';
 import { mkdtempSync, existsSync as fsExists, rmSync } from 'fs';
 import { tmpdir } from 'os';
 
@@ -446,4 +448,94 @@ describe('end-to-end: parallel detached tasks + status --json', () => {
       expect(parsed.session_id).toBe(id);
     }
   });
+});
+
+describe('CLI managed mode (HANZI_API_KEY routes to api.hanzilla.co)', () => {
+  let server: HttpServer;
+  let port: number;
+  let nextResponses: Array<{ status: number; body: any }> = [];
+
+  beforeAll(async () => {
+    server = createHttpServer((req, res) => {
+      const next = nextResponses.shift() ?? { status: 200, body: {} };
+      res.writeHead(next.status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(next.body));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    port = (server.address() as any).port;
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  beforeEach(() => { nextResponses = []; });
+
+  it('routes to managed API when HANZI_API_KEY is set and returns result', async () => {
+    // GET /v1/browser-sessions → connected session
+    nextResponses.push({ status: 200, body: { sessions: [{ id: 'sess1', status: 'connected' }] } });
+    // POST /v1/tasks → task created (running)
+    nextResponses.push({ status: 200, body: { id: 'task1', status: 'running' } });
+    // GET /v1/tasks/task1 → complete
+    nextResponses.push({ status: 200, body: { id: 'task1', status: 'complete', answer: 'the page title', steps: 5 } });
+
+    const { code, stdout } = await runCli(
+      ['start', 'return the page title', '--url', 'https://example.com', '--timeout', '10s'],
+      { HANZI_API_KEY: 'test-key', HANZI_API_URL: `http://127.0.0.1:${port}` },
+    );
+    expect(code).toBe(0);
+    expect(stdout).toContain('the page title');
+  }, 15000);
+
+  it('exits 1 when managed API reports task error', async () => {
+    // GET /v1/browser-sessions → connected session
+    nextResponses.push({ status: 200, body: { sessions: [{ id: 'sess1', status: 'connected' }] } });
+    // POST /v1/tasks → task created (running)
+    nextResponses.push({ status: 200, body: { id: 'task1', status: 'running' } });
+    // GET /v1/tasks/task1 → error
+    nextResponses.push({ status: 200, body: { id: 'task1', status: 'error', answer: 'something broke', steps: 0 } });
+
+    const { code } = await runCli(
+      ['start', 'x', '--timeout', '10s'],
+      { HANZI_API_KEY: 'test-key', HANZI_API_URL: `http://127.0.0.1:${port}` },
+    );
+    expect(code).toBe(1);
+  }, 15000);
+});
+
+describe('CLI timeout exit code via hanzi-browse dispatch', () => {
+  const INDEX = join(__dirname, '..', '..', 'dist', 'index.js');
+  let relay: MockRelay;
+
+  beforeAll(async () => { relay = await MockRelay.start(); });
+  afterAll(async () => { await relay.stop(); });
+
+  async function runIndex(
+    args: string[],
+    env: Record<string, string> = {},
+    timeoutMs = 10000,
+  ): Promise<{ code: number; stdout: string; stderr: string }> {
+    return new Promise((resolve) => {
+      const p = spawn('node', [INDEX, ...args], { env: { ...process.env, ...env } });
+      p.stdin.end();
+      let stdout = '', stderr = '';
+      p.stdout.on('data', (d: Buffer) => stdout += d);
+      p.stderr.on('data', (d: Buffer) => stderr += d);
+      const t = setTimeout(() => p.kill(), timeoutMs);
+      p.on('close', (code: number | null) => { clearTimeout(t); resolve({ code: code ?? -1, stdout, stderr }); });
+    });
+  }
+
+  it('exits 3 when task times out via hanzi-browse binary dispatch', async () => {
+    // Relay is running but never sends task_complete — CLI times out, exit 3.
+    // The synchronous process.exit(3) in disconnectAndExit must win over the
+    // process.exit(0) that index.ts issues after `await main()`.
+    const { code, stderr } = await runIndex(
+      ['start', 'slow', '--timeout', '1s'],
+      { HANZI_RELAY_URL: `ws://127.0.0.1:${relay.port}` },
+      10000,
+    );
+    expect(code).toBe(3);
+    expect(stderr).toMatch(/timed out/i);
+  }, 15000);
 });
