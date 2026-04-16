@@ -40,11 +40,11 @@ if (process.argv[2] === 'telemetry') {
   ]);
   const firstArg = process.argv[2];
   if (firstArg && CLI_SUBCOMMANDS.has(firstArg)) {
-    // Importing cli.js triggers its main() as a side-effect.
-    // Commands that block (start, message, stop, screenshot) call process.exit() internally.
-    // Commands that return synchronously (help, status, skills) resolve the import promise.
-    await import('./cli.js');
-    // If cli.js main() returned without calling process.exit(), exit cleanly now.
+    // Import and explicitly await cli's main() so async commands (doctor,
+    // --detach's disconnect delay, network fetches) finish before we exit.
+    // Without the await, process.exit below would race and kill them mid-flight.
+    const { main } = await import('./cli.js');
+    await main();
     process.exit(0);
   }
 }

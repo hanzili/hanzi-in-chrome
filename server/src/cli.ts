@@ -632,7 +632,7 @@ Skills:
 
 // --- Main ---
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const invokedAs = process.argv[1] ? process.argv[1].split('/').pop() : '';
   if (invokedAs === 'hanzi-browser') {
     console.error('\x1b[33m[deprecation]\x1b[0m `hanzi-browser` is deprecated. Use `hanzi-browse` instead. Will be removed in v2.5.');
@@ -656,7 +656,16 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err) => {
-  console.error('[CLI] Error:', err);
-  process.exit(EXIT_CLI_ERROR);
-});
+// Auto-run only when executed directly — NOT when imported from index.ts.
+// When imported (via the hanzi-browse subcommand dispatch), index.ts calls main()
+// explicitly and awaits it, so premature process.exit doesn't kill async commands.
+const isEntryPoint =
+  process.argv[1] &&
+  (process.argv[1].endsWith('/cli.js') || process.argv[1].endsWith('hanzi-browser'));
+
+if (isEntryPoint) {
+  main().catch((err) => {
+    console.error('[CLI] Error:', err);
+    process.exit(EXIT_CLI_ERROR);
+  });
+}
