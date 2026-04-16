@@ -22,6 +22,8 @@ export interface WebSocketClientOptions extends ConnectionOptions {
   autoStartRelay?: boolean;
   /** Extra fields to include in the register message (e.g., relay_secret) */
   registerExtra?: Record<string, string>;
+  /** Suppress all [WSClient] log output (default: false) */
+  quiet?: boolean;
 }
 
 /**
@@ -47,6 +49,10 @@ export class WebSocketClient {
       autoStartRelay: true,
       ...options,
     };
+  }
+
+  private log(...args: any[]): void {
+    if (!this.options.quiet) console.error(...args);
   }
 
   /**
@@ -82,14 +88,14 @@ export class WebSocketClient {
       try {
         await ensureRelayRunning(relayUrl);
       } catch (err) {
-        console.error(`[WSClient] Failed to start relay: ${(err as Error).message}`);
+        this.log(`[WSClient] Failed to start relay: ${(err as Error).message}`);
         throw err;
       }
     }
 
     return new Promise((resolve, reject) => {
       try {
-        console.error(`[WSClient] Connecting to relay: ${relayUrl}`);
+        this.log(`[WSClient] Connecting to relay: ${relayUrl}`);
         this.ws = new WebSocket(relayUrl);
 
         const connectTimeout = setTimeout(() => {
@@ -111,7 +117,7 @@ export class WebSocketClient {
             ...this.options.registerExtra,
           }));
 
-          console.error(`[WSClient] Connected as ${this.options.role}`);
+          this.log(`[WSClient] Connected as ${this.options.role}`);
           resolve();
         });
 
@@ -122,18 +128,18 @@ export class WebSocketClient {
             // Skip relay protocol messages
             if (message.type === 'registered') return;
             if (message.type === 'error') {
-              console.error(`[WSClient] Relay error: ${message.error}`);
+              this.log(`[WSClient] Relay error: ${message.error}`);
               return;
             }
 
             this.dispatchMessage(message);
           } catch (e) {
-            console.error('[WSClient] Failed to parse message:', e);
+            this.log('[WSClient] Failed to parse message:', e);
           }
         });
 
         this.ws.on('close', () => {
-          console.error('[WSClient] Disconnected from relay');
+          this.log('[WSClient] Disconnected from relay');
           this.connected = false;
           this.ws = null;
 
@@ -147,7 +153,7 @@ export class WebSocketClient {
 
         this.ws.on('error', (err) => {
           clearTimeout(connectTimeout);
-          console.error(`[WSClient] WebSocket error: ${err.message}`);
+          this.log(`[WSClient] WebSocket error: ${err.message}`);
 
           if (!this.connected) {
             reject(err);
@@ -167,7 +173,7 @@ export class WebSocketClient {
       try {
         await handler(message);
       } catch (err) {
-        console.error('[WSClient] Handler error:', err);
+        this.log('[WSClient] Handler error:', err);
       }
     }
   }
@@ -222,15 +228,15 @@ export class WebSocketClient {
     );
     this.reconnectAttempts++;
 
-    console.error(`[WSClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    this.log(`[WSClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;
       try {
         await this.connect();
-        console.error('[WSClient] Reconnected successfully');
+        this.log('[WSClient] Reconnected successfully');
       } catch (err) {
-        console.error(`[WSClient] Reconnection failed: ${(err as Error).message}`);
+        this.log(`[WSClient] Reconnection failed: ${(err as Error).message}`);
         // onclose handler will schedule next attempt
       }
     }, delay);

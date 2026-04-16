@@ -266,3 +266,58 @@ describe('streaming NDJSON in --json mode', () => {
     expect(lines.at(-1).status).toBe('complete');
   });
 });
+
+describe('--quiet / --verbose', () => {
+  let relay: MockRelay;
+  beforeAll(async () => { relay = await MockRelay.start(); });
+  afterAll(async () => { await relay.stop(); });
+
+  it('--quiet suppresses banners and progress', async () => {
+    const startIdx = relay.received.length;
+    let emitted = false;
+    const sub = setInterval(() => {
+      for (let i = startIdx; i < relay.received.length; i++) {
+        const msg = relay.received[i];
+        if (msg.type === 'mcp_start_task' && !emitted) {
+          emitted = true;
+          relay.emit({ type: 'task_update', sessionId: msg.sessionId, step: 'visiting' });
+          relay.emit({ type: 'task_complete', sessionId: msg.sessionId, result: 'final' });
+          return;
+        }
+      }
+    }, 20);
+
+    const { stdout, stderr, code } = await runCli(
+      ['start', 'test', '--quiet'],
+      { HANZI_RELAY_URL: `ws://127.0.0.1:${relay.port}` },
+    );
+    clearInterval(sub);
+    expect(code).toBe(0);
+    expect(stdout.trim()).toBe('final');
+    expect(stderr).not.toContain('visiting');
+    expect(stderr).not.toContain('[CLI]');
+  });
+
+  it('--verbose includes [thinking] steps normally suppressed', async () => {
+    const startIdx = relay.received.length;
+    let emitted = false;
+    const sub = setInterval(() => {
+      for (let i = startIdx; i < relay.received.length; i++) {
+        const msg = relay.received[i];
+        if (msg.type === 'mcp_start_task' && !emitted) {
+          emitted = true;
+          relay.emit({ type: 'task_update', sessionId: msg.sessionId, step: '[thinking] pondering' });
+          relay.emit({ type: 'task_complete', sessionId: msg.sessionId, result: 'final' });
+          return;
+        }
+      }
+    }, 20);
+
+    const { stderr } = await runCli(
+      ['start', 'test', '--verbose'],
+      { HANZI_RELAY_URL: `ws://127.0.0.1:${relay.port}` },
+    );
+    clearInterval(sub);
+    expect(stderr).toContain('pondering');
+  });
+});

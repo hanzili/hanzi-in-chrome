@@ -46,6 +46,8 @@ import {
 const args = process.argv.slice(2);
 const command = args[0];
 const jsonOutput = args.includes('--json');
+const quietMode = args.includes('--quiet') || args.includes('-q');
+const verboseMode = args.includes('--verbose');
 
 let connection: WebSocketClient;
 
@@ -62,12 +64,13 @@ async function initConnection(): Promise<void> {
   connection = new WebSocketClient({
     role: 'cli',
     autoStartRelay: true,
-    onDisconnect: () => console.error('[CLI] Relay connection lost, will reconnect'),
+    onDisconnect: quietMode ? undefined : () => console.error('[CLI] Relay connection lost, will reconnect'),
+    quiet: quietMode,
   });
 
   connection.onMessage(handleMessage);
   await connection.connect();
-  console.error('[CLI] Connected to WebSocket relay');
+  if (!quietMode) console.error('[CLI] Connected to WebSocket relay');
 }
 
 function handleMessage(message: any): void {
@@ -83,13 +86,16 @@ function handleMessage(message: any): void {
 
   switch (type) {
     case 'task_update':
-      if (step && step !== 'thinking' && !step.startsWith('[thinking]')) {
-        appendSessionLog(sessionId, step);
-        writeSessionStatus(sessionId, { status: 'running' });
-        if (jsonOutput) {
-          console.log(JSON.stringify({ type: 'task_update', session_id: sessionId, step }));
-        } else {
-          console.error(`  ${step.slice(0, 100)}`);
+      if (step) {
+        const isThinking = step === 'thinking' || step.startsWith('[thinking]');
+        if (!isThinking || verboseMode) {
+          appendSessionLog(sessionId, step);
+          writeSessionStatus(sessionId, { status: 'running' });
+          if (jsonOutput) {
+            console.log(JSON.stringify({ type: 'task_update', session_id: sessionId, step }));
+          } else if (!quietMode) {
+            console.error(`  ${step.slice(0, 100)}`);
+          }
         }
       }
       break;
@@ -103,7 +109,7 @@ function handleMessage(message: any): void {
       if (jsonOutput) {
         console.log(JSON.stringify({ type: 'task_complete', ...buildTaskCompletePayload(sessionId, result) }));
       } else {
-        console.error(`\n[CLI] Task completed: ${sessionId}`);
+        if (!quietMode) console.error(`\n[CLI] Task completed: ${sessionId}`);
         console.log(answer);
       }
       pendingOutcome = 'complete';
@@ -215,7 +221,7 @@ async function cmdStart(): Promise<void> {
       : skillPrompt;
   }
 
-  if (!jsonOutput) {
+  if (!jsonOutput && !quietMode) {
     console.error('[CLI] Starting browser task...');
     console.error(`  Task: ${task}`);
     if (url) console.error(`  URL: ${url}`);
@@ -253,7 +259,7 @@ async function cmdStart(): Promise<void> {
     return;
   }
 
-  if (!jsonOutput) {
+  if (!jsonOutput && !quietMode) {
     console.error(`\n[CLI] Session: ${sessionId}`);
     console.error(`  Status: ~/.hanzi-browse/sessions/${sessionId}.json`);
     console.error(`  Logs:   ~/.hanzi-browse/sessions/${sessionId}.log`);
