@@ -230,3 +230,39 @@ describe('--detach', () => {
     runs.forEach(r => expect(r.code).toBe(0));
   });
 });
+
+describe('streaming NDJSON in --json mode', () => {
+  let relay: MockRelay;
+  beforeAll(async () => { relay = await MockRelay.start(); });
+  afterAll(async () => { await relay.stop(); });
+
+  it('emits one JSON object per line for task_update, task_complete', async () => {
+    const baseline = relay.received.length;
+    let emitted = false;
+    const sub = setInterval(() => {
+      for (let i = baseline; i < relay.received.length; i++) {
+        const msg = relay.received[i];
+        if (msg.type === 'mcp_start_task' && !emitted) {
+          emitted = true;
+          relay.emit({ type: 'task_update', sessionId: msg.sessionId, step: 'opening linkedin' });
+          relay.emit({ type: 'task_update', sessionId: msg.sessionId, step: 'searching' });
+          relay.emit({ type: 'task_complete', sessionId: msg.sessionId, result: 'the answer' });
+          clearInterval(sub);
+          return;
+        }
+      }
+    }, 20);
+
+    const { stdout, code } = await runCli(
+      ['start', 'test', '--json'],
+      { HANZI_RELAY_URL: `ws://127.0.0.1:${relay.port}` },
+    );
+    clearInterval(sub);
+    expect(code).toBe(0);
+    const lines = stdout.trim().split('\n').map(l => JSON.parse(l));
+    expect(lines.length).toBeGreaterThanOrEqual(3);
+    expect(lines[0].type).toBe('task_update');
+    expect(lines.at(-1).type).toBe('task_complete');
+    expect(lines.at(-1).status).toBe('complete');
+  });
+});

@@ -86,7 +86,11 @@ function handleMessage(message: any): void {
       if (step && step !== 'thinking' && !step.startsWith('[thinking]')) {
         appendSessionLog(sessionId, step);
         writeSessionStatus(sessionId, { status: 'running' });
-        if (!jsonOutput) console.error(`  ${step.slice(0, 100)}`);
+        if (jsonOutput) {
+          console.log(JSON.stringify({ type: 'task_update', session_id: sessionId, step }));
+        } else {
+          console.error(`  ${step.slice(0, 100)}`);
+        }
       }
       break;
 
@@ -97,7 +101,7 @@ function handleMessage(message: any): void {
       appendSessionLog(sessionId, `[COMPLETE] ${answer}`);
       writeSessionStatus(sessionId, { status: 'complete', result: answer });
       if (jsonOutput) {
-        console.log(JSON.stringify(buildTaskCompletePayload(sessionId, result)));
+        console.log(JSON.stringify({ type: 'task_complete', ...buildTaskCompletePayload(sessionId, result) }));
       } else {
         console.error(`\n[CLI] Task completed: ${sessionId}`);
         console.log(answer);
@@ -111,7 +115,7 @@ function handleMessage(message: any): void {
       appendSessionLog(sessionId, `[ERROR] ${data.error}`);
       writeSessionStatus(sessionId, { status: 'error', error: data.error });
       if (jsonOutput) {
-        console.log(JSON.stringify(buildTaskErrorPayload(sessionId, data.error)));
+        console.log(JSON.stringify({ type: 'task_error', ...buildTaskErrorPayload(sessionId, data.error) }));
       } else {
         console.error(`\n[CLI] Task error: ${data.error}`);
       }
