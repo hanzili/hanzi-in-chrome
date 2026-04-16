@@ -183,6 +183,7 @@ async function cmdStart(): Promise<void> {
   let context: string | undefined;
   let skill: string | undefined;
   let timeoutMs = 5 * 60 * 1000; // default 5 min
+  const detach = args.includes('--detach') || args.includes('-d');
 
   for (let i = 2; i < args.length; i++) {
     if (args[i] === '--url' || args[i] === '-u') url = args[++i];
@@ -237,6 +238,16 @@ async function cmdStart(): Promise<void> {
     url,
     context,
   });
+
+  if (detach) {
+    if (jsonOutput) {
+      console.log(JSON.stringify({ session_id: sessionId, status: 'detached' }));
+    } else {
+      console.log(sessionId);
+    }
+    disconnectAndExit(EXIT_OK);
+    return;
+  }
 
   if (!jsonOutput) {
     console.error(`\n[CLI] Session: ${sessionId}`);
@@ -533,8 +544,10 @@ Commands:
     --url, -u <url>         Starting URL
     --context, -c <text>    Context information for the task
     --skill, -s <name>      Use a bundled skill (e.g. linkedin-prospector)
-                            Blocks until complete or timeout.
-                            You can run multiple start commands in parallel.
+    --detach, -d            Return session_id immediately and exit 0 (non-blocking).
+                            Useful for running multiple tasks in parallel.
+                            Check progress with \`status\` or \`logs\`.
+                            Blocks until complete or timeout by default.
                             Each session gets its own browser window.
 
   status [session_id]       Show status of session(s)

@@ -201,3 +201,32 @@ describe('stdin task support', () => {
     expect(stderr).toContain('multi-line');
   }, 15000);
 });
+
+describe('--detach', () => {
+  let relay: MockRelay;
+  beforeAll(async () => { relay = await MockRelay.start(); });
+  afterAll(async () => { await relay.stop(); });
+
+  it('returns session_id on stdout and exits 0 without waiting', async () => {
+    const started = Date.now();
+    const { code, stdout } = await runCli(
+      ['start', 'task', '--detach'],
+      { HANZI_RELAY_URL: `ws://127.0.0.1:${relay.port}` },
+    );
+    const elapsed = Date.now() - started;
+    expect(code).toBe(0);
+    expect(stdout.trim()).toMatch(/^[a-f0-9]{8}$/);
+    expect(elapsed).toBeLessThan(4000);
+  });
+
+  it('three parallel --detach starts each return a distinct session_id', async () => {
+    const runs = await Promise.all([
+      runCli(['start', 'A', '--detach'], { HANZI_RELAY_URL: `ws://127.0.0.1:${relay.port}` }),
+      runCli(['start', 'B', '--detach'], { HANZI_RELAY_URL: `ws://127.0.0.1:${relay.port}` }),
+      runCli(['start', 'C', '--detach'], { HANZI_RELAY_URL: `ws://127.0.0.1:${relay.port}` }),
+    ]);
+    const ids = runs.map(r => r.stdout.trim());
+    expect(new Set(ids).size).toBe(3);
+    runs.forEach(r => expect(r.code).toBe(0));
+  });
+});
