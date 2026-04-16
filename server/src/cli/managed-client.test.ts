@@ -90,4 +90,19 @@ describe('managed-client', () => {
       managedApiCall('GET', '/v1/test', undefined, { apiUrl: `http://127.0.0.1:${port}`, apiKey: undefined })
     ).rejects.toThrow('HANZI_API_KEY not set');
   });
+
+  it('createPairingToken posts to /v1/browser-sessions/pair and returns the token', async () => {
+    nextResponses.push({ status: 201, body: { pairing_token: 'hic_pair_xyz', expires_at: Date.now() + 600000, expires_in_seconds: 600 } });
+    const { createPairingToken } = await import('./managed-client.js');
+    const r = await createPairingToken({ apiUrl: `http://127.0.0.1:${port}`, apiKey: 'test-key' });
+    expect(r.pairing_token).toBe('hic_pair_xyz');
+    expect(receivedRequests[0].method).toBe('POST');
+    expect(receivedRequests[0].url).toBe('/v1/browser-sessions/pair');
+  });
+
+  it('createPairingToken throws on non-ok response', async () => {
+    nextResponses.push({ status: 401, body: { error: 'Invalid API key' } });
+    const { createPairingToken } = await import('./managed-client.js');
+    await expect(createPairingToken({ apiUrl: `http://127.0.0.1:${port}`, apiKey: 'bad' })).rejects.toThrow(/Pairing failed/);
+  });
 });

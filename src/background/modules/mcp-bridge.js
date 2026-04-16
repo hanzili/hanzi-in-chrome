@@ -357,6 +357,7 @@ function normalizeIncomingMessage(message) {
     'mcp_save_config': 'save_config',
     'mcp_import_credentials': 'import_credentials',
     'mcp_execute_tool': 'execute_tool',
+    'mcp_managed_pair': 'managed_pair',
     'llm_request': 'llm_request',
   };
 
@@ -605,6 +606,46 @@ async function handleMcpCommand(command) {
           sendToMcpRelay({ type: 'credentials_imported', requestId: command.requestId, success: false, error: err.message });
         }
       }
+      break;
+    }
+
+    case 'managed_pair': {
+      // CLI setup wizard sends a pairing token to auto-pair with managed workspace.
+      const pairPayload = command.payload || {};
+      const { pairing_token, api_url, requestId: pairRequestId } = pairPayload;
+      if (!pairing_token) {
+        sendToMcpRelay({ type: 'mcp_managed_pair_response', requestId: pairRequestId || command.requestId, success: false, error: 'No pairing_token provided' });
+        break;
+      }
+      const baseUrl = api_url || 'https://api.hanzilla.co';
+      (async () => {
+        try {
+          const res = await fetch(`${baseUrl}/v1/browser-sessions/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pairing_token }),
+          });
+          const data = await res.json();
+          if (!data.session_token) {
+            sendToMcpRelay({ type: 'mcp_managed_pair_response', requestId: pairRequestId || command.requestId, success: false, error: data.error || 'Pairing failed' });
+            return;
+          }
+          const pairUrl = data.relay_port ? (() => {
+            const u = new URL(baseUrl);
+            u.port = String(data.relay_port);
+            return u.origin;
+          })() : baseUrl;
+          setManagedSession(data.session_token, data.browser_session_id, pairUrl);
+          sendToMcpRelay({
+            type: 'mcp_managed_pair_response',
+            requestId: pairRequestId || command.requestId,
+            success: true,
+            browser_session_id: data.browser_session_id,
+          });
+        } catch (err) {
+          sendToMcpRelay({ type: 'mcp_managed_pair_response', requestId: pairRequestId || command.requestId, success: false, error: err.message });
+        }
+      })();
       break;
     }
 

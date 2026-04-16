@@ -39,6 +39,28 @@ export async function managedApiCall(
   return res.json();
 }
 
+export interface PairingToken {
+  pairing_token: string;
+  expires_at: number;
+  expires_in_seconds: number;
+}
+
+export async function createPairingToken(opts: ManagedClientOpts = {}, label = 'CLI setup'): Promise<PairingToken> {
+  const url = opts.apiUrl ?? MANAGED_API_URL;
+  const key = opts.apiKey ?? MANAGED_API_KEY;
+  if (!key) throw new Error('HANZI_API_KEY not set');
+  const res = await fetch(`${url}/v1/browser-sessions/pair`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ label }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(`Pairing failed: HTTP ${res.status} — ${(errData as any).error || 'unknown error'}`);
+  }
+  return res.json() as Promise<PairingToken>;
+}
+
 export async function runManagedTask(
   task: string,
   url?: string,

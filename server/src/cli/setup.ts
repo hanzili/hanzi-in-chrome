@@ -133,8 +133,9 @@ export function getAgentRegistry(deps: AgentRegistryDeps = {}): AgentConfig[] {
   const pathExists = deps.pathExists ?? existsSync;
   const runCommand = deps.runCommand ?? execSync;
 
+  const lookupCmd = plat === 'win32' ? 'where' : 'which';
   const hasCli = (bin: string) => {
-    try { runCommand(`which ${bin}`, { stdio: 'ignore' }); return true; } catch { return false; }
+    try { runCommand(`${lookupCmd} ${bin}`, { stdio: 'ignore' }); return true; } catch { return false; }
   };
 
   return [
@@ -378,6 +379,11 @@ interface BrowserInfo {
   winPaths: string[];   // Windows executable paths
 }
 
+// Per-user Chromium installs land under %LOCALAPPDATA% — a user without admin
+// rights on Windows can only install browsers this way, so omitting these
+// paths makes setup report "No Chromium browser found" on locked-down laptops.
+const WIN_LOCAL_APP_DATA = process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local');
+
 const BROWSERS: BrowserInfo[] = [
   {
     name: 'Google Chrome',
@@ -387,6 +393,7 @@ const BROWSERS: BrowserInfo[] = [
     winPaths: [
       'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
       'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      join(WIN_LOCAL_APP_DATA, 'Google', 'Chrome', 'Application', 'chrome.exe'),
     ],
   },
   {
@@ -397,6 +404,7 @@ const BROWSERS: BrowserInfo[] = [
     winPaths: [
       'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
       'C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+      join(WIN_LOCAL_APP_DATA, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
     ],
   },
   {
@@ -424,6 +432,7 @@ const BROWSERS: BrowserInfo[] = [
     winPaths: [
       'C:\\Program Files\\Chromium\\Application\\chrome.exe',
       'C:\\Program Files (x86)\\Chromium\\Application\\chrome.exe',
+      join(WIN_LOCAL_APP_DATA, 'Chromium', 'Application', 'chrome.exe'),
     ],
   },
 ];
@@ -678,6 +687,7 @@ async function handleManagedAccess(): Promise<void> {
     if (res.ok && data.free_remaining !== undefined) {
       managedApiKey = trimmed;
       console.log(`\n  ${c.green('✓')}  Key validated! ${data.free_remaining} free tasks + ${data.credit_balance || 0} credits available.`);
+      await attemptManagedPair(trimmed);
     } else {
       console.log(`\n  ${c.red('✗')}  Invalid key: ${data.error || 'authentication failed'}`);
       console.log(`     Check the key in your dashboard at ${c.cyan(MANAGED_DASHBOARD_URL)}`);
@@ -685,15 +695,48 @@ async function handleManagedAccess(): Promise<void> {
   } catch (err: any) {
     console.log(`\n  ${c.yellow('●')}  Could not validate key (network error). Saving anyway.`);
     managedApiKey = trimmed;
+    await attemptManagedPair(trimmed);
+  }
+}
+
+async function attemptManagedPair(apiKey: string): Promise<void> {
+  console.log('');
+  const sp = spinner('Pairing extension with your managed workspace...');
+  try {
+    const { createPairingToken } = await import('./managed-client.js');
+    const pairing = await createPairingToken({ apiKey, apiUrl: process.env.HANZI_API_URL });
+
+    const connected = await connectRelay();
+    if (!connected) {
+      sp.stop(`${c.yellow('●')}  Extension not reachable via local relay. Open Chrome with the extension, then re-run setup.`);
+      return;
+    }
+
+    const requestId = randomUUID().slice(0, 8);
+    const done = waitForRelayResponse('mcp_managed_pair_response', requestId, 10000);
+    await relay!.send({
+      type: 'mcp_managed_pair',
+      requestId,
+      payload: {
+        pairing_token: pairing.pairing_token,
+        api_url: process.env.HANZI_API_URL || 'https://api.hanzilla.co',
+        requestId,
+      },
+    });
+    const response = await done;
+    if (response?.success) {
+      sp.stop(`${c.green('✓')}  Extension paired with managed workspace (browser_session_id: ${String(response.browser_session_id).slice(0, 12)}…)`);
+    } else {
+      sp.stop(`${c.yellow('●')}  Pairing failed: ${response?.error || 'no response from extension'}`);
+    }
+  } catch (err: any) {
+    sp.stop(`${c.yellow('●')}  Could not pair extension: ${err.message}`);
   }
 }
 
 function openUrl(url: string): void {
   try {
-    const cmd = platform() === 'darwin' ? `open "${url}"`
-      : platform() === 'win32' ? `start "${url}"`
-      : `xdg-open "${url}"`;
-    execSync(cmd, { stdio: 'ignore' });
+    execSync(buildSystemOpenCommand(url, platform()), { stdio: 'ignore' });
   } catch {}
 }
 
@@ -857,6 +900,24 @@ function disconnectRelay(): void {
     relay = null;
     setTimeout(() => { console.error = origError; }, 500);
   }
+}
+
+function waitForRelayResponse(expectedType: string, requestId: string, timeoutMs: number): Promise<any | null> {
+  return new Promise((resolve) => {
+    if (!relay) return resolve(null);
+    const timer = setTimeout(() => {
+      relay?.offMessage(onMsg);
+      resolve(null);
+    }, timeoutMs);
+    const onMsg = (msg: any) => {
+      if (msg.type === expectedType && msg.requestId === requestId) {
+        clearTimeout(timer);
+        relay?.offMessage(onMsg);
+        resolve(msg);
+      }
+    };
+    relay.onMessage(onMsg);
+  });
 }
 
 // ── Skill installation ──────────────────────────────────────────────────
