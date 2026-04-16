@@ -68,6 +68,35 @@ Skill description for browser_start (hanzi-browse):
 ${skillMd}`;
 }
 
+/** Canonical tool names. LLM responses are normalized to these. */
+const CANONICAL_TOOLS = ["browser_start", "WebFetch", "web_search", "Read", "Bash", "none"] as const;
+type CanonicalTool = typeof CANONICAL_TOOLS[number];
+
+/** Normalize any LLM-supplied tool name to our canonical form. Case- and underscore-insensitive. */
+function normalizeTool(raw: string): string {
+  const lower = raw.trim().toLowerCase().replace(/[\s_-]+/g, "_");
+  // Map common variants back to canonical casing
+  const byKey: Record<string, CanonicalTool> = {
+    browser_start: "browser_start",
+    hanzi: "browser_start",
+    hanzi_browse: "browser_start",
+    webfetch: "WebFetch",
+    web_fetch: "WebFetch",
+    fetch: "WebFetch",
+    web_search: "web_search",
+    websearch: "web_search",
+    search: "web_search",
+    tavily: "web_search",
+    exa: "web_search",
+    read: "Read",
+    bash: "Bash",
+    shell: "Bash",
+    none: "none",
+    no_tool: "none",
+  };
+  return byKey[lower] ?? raw.trim();
+}
+
 async function runCase(skillMd: string, c: TestCase, model?: string): Promise<Result> {
   const systemText = buildSystemPrompt(skillMd);
   try {
@@ -79,27 +108,52 @@ async function runCase(skillMd: string, c: TestCase, model?: string): Promise<Re
       maxTokens: 200,
     });
     const text = (resp.content.find(b => b.type === "text") as any)?.text ?? "";
-    // Robust JSON extraction — tolerate surrounding text or code fences
-    const match = text.match(/\{[^}]+\}/s);
-    const raw = match ? match[0] : text;
+    // Robust JSON extraction — tolerate surrounding text or code fences.
+    // Use a balanced-brace scan so nested objects in "reason" don't truncate.
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    const raw = start >= 0 && end > start ? text.slice(start, end + 1) : null;
+
     let picked = "unknown";
     let reason = "";
-    try {
-      const parsed = JSON.parse(raw);
-      picked = String(parsed.tool || "").trim();
-      reason = String(parsed.reason || "").trim();
-    } catch {
-      return {
-        id: c.id,
-        task: c.task,
-        expected: c.expected,
-        picked: "parse_error",
-        reason: text.slice(0, 200),
-        pass: false,
-        error: "JSON parse failed",
-      };
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        picked = normalizeTool(String(parsed.tool ?? ""));
+        reason = String(parsed.reason ?? "").trim();
+      } catch {
+        // Fall through to the "no JSON / bad JSON" handler below
+      }
     }
-    const acceptable = new Set([c.expected, ...(c.allowed_alternatives ?? [])]);
+    // If no parseable JSON but the model clearly gave a conversational answer,
+    // treat that as "none" (the model chose not to use any tool). This matches
+    // the intent of cases like a plain "hi" greeting.
+    if (picked === "unknown") {
+      const lower = text.toLowerCase();
+      // Word-boundary check so substrings like "reading" don't count as "read".
+      const mentionsTool = CANONICAL_TOOLS.some(t => {
+        const re = new RegExp(`\\b${t.toLowerCase().replace(/_/g, "[_ ]")}\\b`);
+        return re.test(lower);
+      });
+      if (!mentionsTool && text.trim().length > 0) {
+        picked = "none";
+        reason = `(no JSON — model replied conversationally: "${text.slice(0, 120).trim()}${text.length > 120 ? "…" : ""}")`;
+      } else {
+        return {
+          id: c.id,
+          task: c.task,
+          expected: c.expected,
+          picked: "parse_error",
+          reason: text.slice(0, 200),
+          pass: false,
+          error: "JSON parse failed",
+        };
+      }
+    }
+
+    const expected = normalizeTool(c.expected);
+    const alternatives = (c.allowed_alternatives ?? []).map(normalizeTool);
+    const acceptable = new Set([expected, ...alternatives]);
     const pass = acceptable.has(picked);
     return { id: c.id, task: c.task, expected: c.expected, picked, reason, pass };
   } catch (err: any) {

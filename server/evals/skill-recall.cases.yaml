@@ -97,7 +97,8 @@
 - id: config-env
   task: "What does the ANTHROPIC_API_KEY environment variable contain"
   expected: Bash
-  rationale: "Local env, shell command"
+  allowed_alternatives: [none]
+  rationale: "Literal read uses Bash (echo $VAR); conceptual read needs no tool. Either is fine — the point is NOT reaching for browser_start."
 
 - id: greeting
   task: "Say hi"
