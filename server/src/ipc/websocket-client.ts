@@ -75,7 +75,7 @@ export class WebSocketClient {
       return; // Already connected
     }
 
-    const relayUrl = this.options.relayUrl || getRelayUrl();
+    const relayUrl = process.env.HANZI_RELAY_URL || this.options.relayUrl || getRelayUrl();
 
     // Auto-start relay if configured
     if (this.options.autoStartRelay) {

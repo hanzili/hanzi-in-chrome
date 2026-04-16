@@ -22,6 +22,7 @@ import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { WebSocketClient } from './ipc/websocket-client.js';
+import { EXIT_OK, EXIT_TASK_ERROR, EXIT_CLI_ERROR, EXIT_TIMEOUT } from './cli/exit-codes.js';
 import {
   writeSessionStatus,
   readSessionStatus,
@@ -48,6 +49,8 @@ const jsonOutput = args.includes('--json');
 let connection: WebSocketClient;
 
 // Track completion for blocking start
+type TaskOutcome = 'complete' | 'error' | 'timeout';
+let pendingOutcome: TaskOutcome | null = null;
 let pendingResolve: (() => void) | null = null;
 let activeSessionId: string | null = null;
 let pendingScreenshotResolve: ((data: string) => void) | null = null;
@@ -98,6 +101,7 @@ function handleMessage(message: any): void {
         console.log(`\n[CLI] Task completed: ${sessionId}`);
         console.log(answer);
       }
+      pendingOutcome = 'complete';
       pendingResolve?.();
       break;
     }
@@ -110,6 +114,7 @@ function handleMessage(message: any): void {
       } else {
         console.error(`\n[CLI] Task error: ${data.error}`);
       }
+      pendingOutcome = 'error';
       pendingResolve?.();
       break;
 
@@ -122,17 +127,25 @@ function handleMessage(message: any): void {
   }
 }
 
-async function waitForTaskCompletion(timeoutMs = 5 * 60 * 1000): Promise<void> {
-  await new Promise<void>((resolve) => {
-    pendingResolve = resolve;
+async function waitForTaskCompletion(timeoutMs = 5 * 60 * 1000): Promise<TaskOutcome> {
+  return new Promise<TaskOutcome>((resolve) => {
+    pendingResolve = () => resolve(pendingOutcome ?? 'complete');
     setTimeout(() => {
       console.error(`\n[CLI] Task timed out after ${Math.round(timeoutMs / 60000)} minutes`);
-      resolve();
+      resolve('timeout');
     }, timeoutMs);
   });
 }
 
-function disconnectAndExit(code = 0): void {
+function outcomeToExitCode(outcome: TaskOutcome): number {
+  switch (outcome) {
+    case 'complete': return EXIT_OK;
+    case 'error':    return EXIT_TASK_ERROR;
+    case 'timeout':  return EXIT_TIMEOUT;
+  }
+}
+
+function disconnectAndExit(code = EXIT_OK): void {
   connection?.disconnect();
   setTimeout(() => process.exit(code), 100);
 }
@@ -154,7 +167,7 @@ async function cmdStart(): Promise<void> {
   const task = args[1];
   if (!task) {
     console.error('Usage: hanzi-browser start "task description" [--url URL] [--context TEXT] [--skill NAME]');
-    process.exit(1);
+    process.exit(EXIT_CLI_ERROR);
   }
 
   let url: string | undefined;
@@ -173,7 +186,7 @@ async function cmdStart(): Promise<void> {
     if (!skillPrompt) {
       console.error(`Unknown skill: ${skill}`);
       console.error(`Available: ${SKILL_REGISTRY.map(s => s.name).join(', ')}`);
-      process.exit(1);
+      process.exit(EXIT_CLI_ERROR);
     }
     context = context
       ? `${skillPrompt}\n\n---\n\nAdditional context: ${context}`
@@ -217,8 +230,8 @@ async function cmdStart(): Promise<void> {
   }
 
   // Block until task completes
-  await waitForTaskCompletion();
-  disconnectAndExit(0);
+  const outcome = await waitForTaskCompletion();
+  disconnectAndExit(outcomeToExitCode(outcome));
 }
 
 function cmdStatus(): void {
@@ -228,7 +241,7 @@ function cmdStatus(): void {
     const status = readSessionStatus(sessionId);
     if (!status) {
       console.error(`Session not found: ${sessionId}`);
-      process.exit(1);
+      process.exit(EXIT_CLI_ERROR);
     }
     console.log(JSON.stringify(buildStatusPayload(status), jsonOutput ? undefined : null, jsonOutput ? undefined : 2));
   } else {
@@ -253,7 +266,7 @@ async function cmdMessage(): Promise<void> {
 
   if (!sessionId || !message) {
     console.error('Usage: hanzi-browser message <session_id> "message"');
-    process.exit(1);
+    process.exit(EXIT_CLI_ERROR);
   }
 
   activeSessionId = sessionId;
@@ -262,8 +275,8 @@ async function cmdMessage(): Promise<void> {
   appendSessionLog(sessionId, `[USER] ${message}`);
   console.log(`Message sent to session ${sessionId}`);
   console.log('Waiting for completion...\n');
-  await waitForTaskCompletion();
-  disconnectAndExit(0);
+  const outcome = await waitForTaskCompletion();
+  disconnectAndExit(outcomeToExitCode(outcome));
 }
 
 function cmdLogs(): void {
@@ -272,13 +285,13 @@ function cmdLogs(): void {
 
   if (!sessionId) {
     console.error('Usage: hanzi-browser logs <session_id> [--follow]');
-    process.exit(1);
+    process.exit(EXIT_CLI_ERROR);
   }
 
   const logPath = getSessionLogPath(sessionId);
   if (!existsSync(logPath)) {
     console.error(`Log file not found: ${logPath}`);
-    process.exit(1);
+    process.exit(EXIT_CLI_ERROR);
   }
 
   const content = readFileSync(logPath, 'utf-8');
@@ -304,7 +317,7 @@ async function cmdStop(): Promise<void> {
 
   if (!sessionId) {
     console.error('Usage: hanzi-browser stop <session_id> [--remove]');
-    process.exit(1);
+    process.exit(EXIT_CLI_ERROR);
   }
 
   activeSessionId = sessionId;
@@ -349,7 +362,7 @@ async function cmdScreenshot(): Promise<void> {
 
   if (!data) {
     console.error('[CLI] Screenshot timed out');
-    disconnectAndExit(1);
+    disconnectAndExit(EXIT_CLI_ERROR);
     return;
   }
 
@@ -392,14 +405,14 @@ async function cmdSkills(): Promise<void> {
     const skillName = args[2];
     if (!skillName) {
       console.error('Usage: hanzi-browser skills install <name>');
-      process.exit(1);
+      process.exit(EXIT_CLI_ERROR);
     }
 
     const skill = SKILL_REGISTRY.find(s => s.name === skillName);
     if (!skill) {
       console.error(`Unknown skill: ${skillName}`);
       console.error(`Available: ${SKILL_REGISTRY.map(s => s.name).join(', ')}`);
-      process.exit(1);
+      process.exit(EXIT_CLI_ERROR);
     }
 
     // Detect the right directory
@@ -419,7 +432,7 @@ async function cmdSkills(): Promise<void> {
         console.log(`  → ${filePath}`);
       } catch (err: any) {
         console.error(`  Failed to download ${file}: ${err.message}`);
-        process.exit(1);
+        process.exit(EXIT_CLI_ERROR);
       }
     }
 
@@ -566,11 +579,11 @@ async function main(): Promise<void> {
     default:
       console.error(`Unknown command: ${command}`);
       cmdHelp();
-      process.exit(1);
+      process.exit(EXIT_CLI_ERROR);
   }
 }
 
 main().catch((err) => {
   console.error('[CLI] Error:', err);
-  process.exit(1);
+  process.exit(EXIT_CLI_ERROR);
 });
