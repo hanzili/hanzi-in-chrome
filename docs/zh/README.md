@@ -6,10 +6,11 @@
 
 # Hanzi Browse
 
-**给你的 AI agent 一个真实浏览器。**
+**浏览 agent 的上下文层。**
 
-一次工具调用，就能把整段任务交给 agent 去完成。它会在你已经登录过的真实浏览器里点击、输入、填写表单，<br/>
-读取需要登录才能访问的页面，而不是在一个和你账号状态脱节的沙盒里“脑补”。
+你的浏览 agent 总是在真实网站上翻车 —— X 用的是 Draft.js、LinkedIn 的 connect 按钮藏起来、<br/>
+Gmail 要用键盘快捷键。Hanzi Browse 自带 24 份站点 playbook ——<br/>
+**给 LLM 的提示，不是脆弱的脚本** —— 让 agent 真正能把任务跑完。
 
 [![npm](https://img.shields.io/npm/v/hanzi-browse?color=%23cb3837&label=npm)](https://www.npmjs.com/package/hanzi-browse)
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/iklpkemlmbhemkiojndpbhoakgikpmcd?label=chrome%20web%20store&color=%234285F4)](https://chrome.google.com/webstore/detail/iklpkemlmbhemkiojndpbhoakgikpmcd)
@@ -37,11 +38,17 @@
 
 ## 使用 Hanzi 的两种方式
 
-### 现在就用：给你的 agent 一个浏览器
+底层是同一套 24 份站点 playbook，区别只是谁在驱动它。
+
+### 给你的 agent —— 给你的编程 agent 配一个浏览器子 agent
+
+一个命令。`npx hanzi-browse setup` 会检测你机器上所有 AI agent（Claude Code、Cursor、Codex 等共 12 个），自动把 Hanzi Browse 配成它们的 MCP 工具。主 agent 把浏览器工作委托出去；子 agent 自己跑循环 —— *读页面 → 规划下一步 → 点击/输入/滚动 → 观察结果 → 重复直到完成* —— 然后返回一个干净的答案。站点 playbook 按 URL 自动加载，模型不用再摸索网站的坑。
 
 ![Use it now](../diagrams/use-it.svg)
 
-### 集成到产品里：把浏览器自动化嵌进你的应用
+### 集成到产品里 —— 用自然语言描述的浏览器自动化
+
+你的后端调用 `runTask({ task: "…" })`。真正执行的是你用户自己的 Chrome（已登录成他们自己）。底层 playbook 和 CLI 完全一样，对外包装成 REST API 和 `@hanzi-browse/sdk`。[tools.hanzilla.co](https://tools.hanzilla.co) 上的免费工具都是用这套 SDK 做的。
 
 ![Build with it](../diagrams/build-with-it.svg)
 
@@ -107,6 +114,18 @@ npx hanzi-browse setup
 | `x-marketer` | 面向 Twitter / X 的营销工作流 |
 
 开源可扩展，你也可以[自己写技能](https://github.com/hanzili/hanzi-browse/tree/main/server/skills)。
+
+<br/>
+
+## 站点 playbook —— 上下文层
+
+CLI 和 SDK 共享同一套 **站点 playbook** —— 针对复杂网站验证过的交互手册。它们告诉 LLM：X 页面怎么处理异步加载、LinkedIn 的 connect 按钮该用哪个选择器、Gmail 怎么用键盘快捷键操作，以及另外 ~20 个站点各自的坑怎么绕。
+
+**给 LLM 的提示，不是脆弱的脚本。** 模型始终在掌舵，我们只是把小抄塞给它。DOM 改了，agent 会自己适应 —— 没有 adapter 要重写。
+
+**当前覆盖 24 个站点：** X、LinkedIn、Gmail、GitHub、Notion、Figma、Slack、Reddit、Amazon、eBay、Walmart、Target、Zillow、Apartments.com、Craigslist、Indeed、Google Docs、Sheets、Calendar、Drive、ChatGPT、Claude.ai、Stack Overflow。
+
+所有 playbook 都在 [`server/src/agent/domain-skills.json`](../../server/src/agent/domain-skills.json) 里，就是一个 JSON 数组。要加新站点，提个 PR 追加一条 `{ domain, skill }` 就行。
 
 <br/>
 

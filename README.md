@@ -6,10 +6,11 @@
 
 # Hanzi Browse
 
-**Give your AI agent a real browser.**
+**The context layer for browsing agents.**
 
-One tool call. Entire task delegated. Your agent clicks, types, fills forms,<br/>
-reads authenticated pages — in your real signed-in browser.
+Your browsing agent keeps failing on real sites — X uses Draft.js, LinkedIn hides the<br/>
+connect button, Gmail needs keyboard shortcuts. Hanzi Browse ships 24 site playbooks —<br/>
+**hints for the LLM, not brittle scripts** — so it actually finishes the task.
 
 [![npm](https://img.shields.io/npm/v/hanzi-browse?color=%23cb3837&label=npm)](https://www.npmjs.com/package/hanzi-browse)
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/iklpkemlmbhemkiojndpbhoakgikpmcd?label=chrome%20web%20store&color=%234285F4)](https://chrome.google.com/webstore/detail/iklpkemlmbhemkiojndpbhoakgikpmcd)
@@ -38,17 +39,17 @@ reads authenticated pages — in your real signed-in browser.
 
 ## Two ways to use Hanzi Browse
 
-Same engine underneath. Different audience, different install path.
+Same 24 site playbooks underneath. Two install paths depending on who's driving.
 
-### Use it — a browser sub-agent for your coding agent
+### For your agent — a browser sub-agent for your coding agent
 
-One command. `npx hanzi-browse setup` detects every AI agent on your machine (Claude Code, Cursor, Codex, and 9 more) and wires Hanzi Browse in as an MCP tool. Your main agent stays focused on code; Hanzi Browse handles the browser loop — with verified playbooks for 20+ sites so tasks actually succeed.
+One command. `npx hanzi-browse setup` detects every AI agent on your machine (Claude Code, Cursor, Codex, and 9 more) and wires Hanzi Browse in as an MCP tool. Your main agent delegates browser work; a sub-agent runs the loop — *read page → plan next action → click/type/scroll → observe → repeat until done* — and returns a clean answer. Site playbooks auto-load by URL so the model already knows the quirks.
 
 ![Use it now](docs/diagrams/use-it.svg)
 
-### Build with it — browser automation for your users, described in English
+### For your product — browser automation for your users, described in English
 
-Your backend calls `runTask({ task: "…" })`. Your users' own Chrome executes it, signed in as themselves. Same site knowledge as the CLI, exposed as a REST API and `@hanzi-browse/sdk`. Free tools on [tools.hanzilla.co](https://tools.hanzilla.co) are built on this SDK.
+Your backend calls `runTask({ task: "…" })`. Your users' own Chrome executes it, signed in as themselves. Same 24 playbooks as the CLI, exposed as a REST API and `@hanzi-browse/sdk`. Free tools on [tools.hanzilla.co](https://tools.hanzilla.co) are built on this SDK.
 
 ![Build with it](docs/diagrams/build-with-it.svg)
 
@@ -128,11 +129,15 @@ Try them at [tools.hanzilla.co](https://tools.hanzilla.co). No account needed �
 |------|-------------|--------|
 | X Marketing | AI finds relevant conversations on X, drafts personalized replies, posts from your Chrome | [tools.hanzilla.co/x-marketing](https://tools.hanzilla.co/x-marketing) |
 
-### Site Domain Knowledge
+### Site Playbooks — the context layer
 
-Both skills and free tools rely on **domain knowledge** — verified interaction playbooks for complex websites. These document how to handle async loading, Draft.js editors, anti-bot detection, and other site-specific quirks.
+Both CLI and SDK rely on a shared set of **site playbooks** — verified interaction recipes for complex websites. They teach the LLM how async loading works on X, which selector hides LinkedIn's connect button, that Gmail responds to keyboard shortcuts, and how to sidestep anti-bot detection on ~20 other sites.
 
-All patterns live in [`server/src/agent/domain-skills.json`](server/src/agent/domain-skills.json) as a single shared JSON array. To contribute, open a PR that appends a new `{ domain, skill }` entry.
+**Hints for the LLM, not brittle scripts.** The model stays in control; we just hand it the cheat sheet. When the DOM shifts, the agent adapts — no adapter to rebuild.
+
+**Currently supports 24 sites:** X, LinkedIn, Gmail, GitHub, Notion, Figma, Slack, Reddit, Amazon, eBay, Walmart, Target, Zillow, Apartments.com, Craigslist, Indeed, Google Docs, Sheets, Calendar, Drive, ChatGPT, Claude.ai, Stack Overflow.
+
+All playbooks live in [`server/src/agent/domain-skills.json`](server/src/agent/domain-skills.json) as a single shared JSON array. To add a site, open a PR appending a `{ domain, skill }` entry.
 
 <br/>
 

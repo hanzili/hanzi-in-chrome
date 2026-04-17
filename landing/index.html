@@ -252,12 +252,22 @@
             background: linear-gradient(135deg, var(--purple), #362b52);
         }
 
+        .btn-purple-outline {
+            color: var(--purple);
+            border: 1.5px solid var(--purple);
+            background: transparent;
+        }
+        .btn-purple-outline:hover {
+            background: var(--purple);
+            color: #fff;
+        }
+
         .hero {
             display: grid;
             grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
             gap: 42px;
             align-items: center;
-            padding: 34px 0 44px;
+            padding: 64px 0 56px;
         }
 
         h1,
@@ -267,22 +277,35 @@
         }
 
         h1 {
-            max-width: 10ch;
-            margin-top: 20px;
-            font-size: clamp(3rem, 7vw, 5.2rem);
-            line-height: 1.0;
+            max-width: 18ch;
+            margin-top: 12px;
+            font-size: clamp(2.25rem, 4.8vw, 3.75rem);
+            line-height: 1.05;
+            letter-spacing: -0.035em;
         }
 
         .hero-copy p {
             max-width: 560px;
-            margin-top: 20px;
-            font-size: 18px;
-            line-height: 1.65;
+            margin-top: 22px;
+            font-size: 17px;
+            line-height: 1.6;
             color: var(--muted);
         }
 
         .hero-copy strong {
             color: var(--ink);
+        }
+
+        .site-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--ink);
+            letter-spacing: 0.01em;
         }
 
         .hero-actions {
@@ -816,8 +839,8 @@
         .two-tracks {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 18px;
-            padding: 28px 0 4px;
+            gap: 22px;
+            padding: 48px 0 24px;
         }
         .track-card {
             padding: 28px 24px;
@@ -1055,11 +1078,11 @@
             <!-- Hero -->
             <section class="hero">
                 <div class="hero-copy">
-                    <h1>Give your AI agent a real browser.</h1>
-                    <p>Your agent stops when it needs a browser. <strong>Hanzi Browse gives it a browser sub-agent</strong> — one command to install, pre-loaded site knowledge, your context stays free for code.</p>
+                    <h1>The context layer for browsing agents.</h1>
+                    <p>Your browsing agent keeps failing on real sites. Hanzi Browse ships 24 site playbooks — <strong>hints for the LLM, not brittle scripts</strong> — so it actually finishes the task.</p>
                     <div class="hero-actions">
-                        <a class="btn btn-green" href="#use-hanzi">Get started — it's free</a>
-                        <button class="btn btn-signin-hero" onclick="hanziSignIn()">Sign in &rarr;</button>
+                        <a class="btn btn-green" href="#use-hanzi">Install for your agent</a>
+                        <a class="btn btn-purple-outline" href="#build-with-hanzi">Build with the SDK &rarr;</a>
                     </div>
                 </div>
 
@@ -1073,8 +1096,8 @@
                 </div>
             </section>
 
-            <div style="display: flex; align-items: center; justify-content: center; gap: 22px; padding: 16px 0 10px; flex-wrap: wrap;">
-                <span style="font-size: 14px; color: var(--muted); font-style: italic;">Works with</span>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 22px; padding: 24px 0 8px; flex-wrap: wrap;">
+                <span style="font-size: 14px; color: var(--muted); font-style: italic;">For your agent — works with</span>
                 <img src="logos/cursor-logo-5jxhjn17.png" width="28" height="28" alt="Cursor" title="Cursor" style="opacity: 0.7;">
                 <img src="logos/claude-logo-0p9b6824.png" width="28" height="28" alt="Claude Code" title="Claude Code" style="opacity: 0.7;">
                 <img src="logos/gemini-logo-1f6kvbwc.png" width="24" height="24" alt="Gemini CLI" title="Gemini CLI" style="opacity: 0.7;">
@@ -1086,6 +1109,23 @@
                 <img src="logos/pi-logo-g08abpj5.svg" width="24" height="24" alt="Pi" title="Pi" style="opacity: 0.7; background: #1a1a1a; border-radius: 50%; padding: 3px;">
             </div>
 
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 22px 0 48px; flex-wrap: wrap; max-width: 880px; margin: 0 auto;">
+                <span style="font-size: 14px; color: var(--muted); font-style: italic; margin-right: 8px;">Already knows how to use</span>
+                <span class="site-pill">X</span>
+                <span class="site-pill">LinkedIn</span>
+                <span class="site-pill">Gmail</span>
+                <span class="site-pill">GitHub</span>
+                <span class="site-pill">Notion</span>
+                <span class="site-pill">Figma</span>
+                <span class="site-pill">Slack</span>
+                <span class="site-pill">Reddit</span>
+                <span class="site-pill">Amazon</span>
+                <span class="site-pill">Zillow</span>
+                <span class="site-pill">Indeed</span>
+                <span class="site-pill">Google Docs</span>
+                <span class="site-pill">+ 12 more</span>
+            </div>
+
             <!-- Two tracks -->
             <section class="two-tracks" aria-label="Two ways to use Hanzi Browse">
                 <a class="track-card green" href="#use-hanzi" style="display: block; text-decoration: none; color: inherit;">
@@ -1094,8 +1134,8 @@
                     <p class="sub">One command installs it. Your agent delegates browser work — clicking, reading, filling forms in your real signed-in Chrome — and keeps its context free for code.</p>
                     <ul class="proofs">
                         <li><strong>One command setup.</strong> Detects every agent on your machine and wires Hanzi Browse into each one's MCP config.</li>
-                        <li><strong>Site knowledge built in.</strong> Verified playbooks for 20+ sites so tasks actually succeed.</li>
-                        <li><strong>Offloads the browser, not your context.</strong> A sub-agent handles the browsing loop and returns a clean answer.</li>
+                        <li><strong>Ships with a site-knowledge layer.</strong> 24 verified playbooks (X, LinkedIn, Gmail, Notion, Zillow…) auto-loaded by URL — the context big-tech agents don't have.</li>
+                        <li><strong>Offloads the browser, not your context.</strong> The sub-agent runs the loop — <em>read page → plan next action → click/type/scroll → observe → repeat until done</em> — then returns a clean answer. Your main agent fires one tool call and gets the result.</li>
                     </ul>
                     <span class="btn btn-green" data-analytics="install_cta_click">Install — it's free</span>
                 </a>
