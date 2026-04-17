@@ -13,6 +13,35 @@ export interface JudgeResult {
 
 const SYSTEM = `You are a strict test judge. Answer the user's question about the attached screenshot with exactly one word: "yes" or "no". Do not add any other text.`;
 
+/**
+ * Judge a text answer against a yes/no prompt. Used when no screenshot is
+ * available (e.g. tasks that complete without any screenshot-capturing tool).
+ */
+export async function judgeAnswer(p: {
+  answer: string;
+  prompt: string;
+  model?: string;
+}): Promise<JudgeResult> {
+  const resp = await callLLM({
+    system: [{ type: "text", text: SYSTEM.replace("attached screenshot", "provided answer text") }],
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: `${p.prompt}\n\nAgent answer:\n"""\n${p.answer}\n"""` },
+        ],
+      },
+    ],
+    tools: [],
+    model: p.model,
+    maxTokens: 10,
+  });
+  const text =
+    (resp.content.find(b => b.type === "text") as any)?.text?.toLowerCase().trim() ?? "";
+  const pass = text.startsWith("yes");
+  return { pass, rawAnswer: text };
+}
+
 export async function judgeScreenshot(p: JudgeParams): Promise<JudgeResult> {
   const resp = await callLLM({
     system: [{ type: "text", text: SYSTEM }],

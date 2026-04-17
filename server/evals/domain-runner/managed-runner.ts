@@ -13,7 +13,7 @@
 import type { TurnLog } from "../../src/agent/loop.js";
 import type { GoldenCase, CaseResult, SuccessCheck } from "./types.js";
 import { findForbiddenCall, findRequiredCall } from "./check-tool-calls.js";
-import { judgeScreenshot } from "./llm-judge.js";
+import { judgeScreenshot, judgeAnswer } from "./llm-judge.js";
 
 export interface ManagedRunnerOptions {
   apiUrl: string;              // e.g. https://api.hanzilla.co
@@ -87,15 +87,13 @@ async function checkSuccess(
     };
   }
   if (check.type === "llm_judge") {
-    if (!finalScreenshot) {
-      // No screenshot available — fall back to judging the text answer.
-      return { pass: false, reason: "llm_judge requested but no final screenshot available from managed API" };
-    }
-    const j = await judgeScreenshot({
-      screenshot: finalScreenshot,
-      prompt: check.prompt,
-    });
-    return { pass: j.pass, reason: j.pass ? "" : `judge answered: "${j.rawAnswer}"` };
+    const j = finalScreenshot
+      ? await judgeScreenshot({ screenshot: finalScreenshot, prompt: check.prompt })
+      : await judgeAnswer({ answer, prompt: check.prompt });
+    return {
+      pass: j.pass,
+      reason: j.pass ? "" : `judge answered: "${j.rawAnswer}" (judged ${finalScreenshot ? "screenshot" : "answer text"})`,
+    };
   }
   return { pass: false, reason: "unknown success_check type" };
 }
