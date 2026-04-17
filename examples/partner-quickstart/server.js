@@ -1,11 +1,11 @@
 /**
- * Hanzi Partner Quickstart — Medical AI Assistant Demo
+ * Hanzi Browse Partner Quickstart — Medical AI Assistant Demo
  *
- * Shows how a medical app can use Hanzi to read patient data from
+ * Shows how a medical app can use Hanzi Browse to read patient data from
  * any EHR (Electronic Health Record) system through the browser.
  *
  * The doctor opens their EHR in one tab and this app in another.
- * This app uses Hanzi to read the patient chart from the EHR tab.
+ * This app uses Hanzi Browse to read the patient chart from the EHR tab.
  *
  * Setup:
  *   1. Get an API key from https://api.hanzilla.co/dashboard
@@ -136,7 +136,7 @@ const HTML = `<!DOCTYPE html>
   <div class="topbar">
     <h1>MediAssist</h1>
     <span class="badge">AI Medical Assistant</span>
-    <span style="margin-left:auto; font-size:12px; opacity:0.6;">Powered by Hanzi</span>
+    <span style="margin-left:auto; font-size:12px; opacity:0.6;">Powered by Hanzi Browse</span>
   </div>
 
   <div class="container">
@@ -297,5 +297,5 @@ const HTML = `<!DOCTYPE html>
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`MediAssist demo running at http://localhost:${PORT}`);
-  console.log(`Using Hanzi API at ${BASE_URL}`);
+  console.log(`Using Hanzi Browse API at ${BASE_URL}`);
 });

@@ -1,6 +1,6 @@
 # @hanzi-browse/sdk
 
-SDK for the Hanzi browser automation platform. Control a real Chrome browser programmatically — navigate, click, read pages, fill forms — powered by AI.
+SDK for the Hanzi Browse browser automation platform. Control a real Chrome browser programmatically — navigate, click, read pages, fill forms — powered by AI.
 
 ## Install
 
@@ -35,7 +35,7 @@ console.log(result.answer);
 
 ### 2. Connect a browser
 
-The browser you want to control needs the Hanzi Chrome extension installed and paired to your workspace.
+The browser you want to control needs the Hanzi Browse Chrome extension installed and paired to your workspace.
 
 ```typescript
 // Your backend creates a pairing token

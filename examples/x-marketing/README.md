@@ -7,7 +7,7 @@ Find relevant X/Twitter conversations and draft replies — powered by Hanzi Bro
 Two-agent design. The browser agent and the strategy AI have different jobs:
 
 ```
-Browser Agent (Gemini Flash via Hanzi)     Strategy AI (Claude)
+Browser Agent (Gemini Flash via Hanzi Browse)     Strategy AI (Claude)
   │                                          │
   │ "Search X for these keywords"            │ "Here are the raw results.
   │  Browse, scroll, read, return answer.    │  Extract tweets. Draft replies."

@@ -1,7 +1,7 @@
 /**
  * @hanzi-browse/sdk
  *
- * Minimal client for the Hanzi browser automation platform.
+ * Minimal client for the Hanzi Browse browser automation platform.
  *
  * Usage:
  *   import { HanziClient } from '@hanzi-browse/sdk';

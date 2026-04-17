@@ -63,7 +63,7 @@ A free tool that finds relevant X/Twitter conversations and drafts replies. Powe
 ## Future (not now)
 - Cloud browser (always-on Chrome on server) → enables scheduling
 - Auth (email collection or Hanzi Browse login)
-- Hosted backend (separate from core Hanzi API)
+- Hosted backend (separate from core Hanzi Browse API)
 - Engagement history stored in DB (not just in-memory)
 - Voice profile auto-detection from user's X profile
 - Analytics: which keywords/reply types get engagement

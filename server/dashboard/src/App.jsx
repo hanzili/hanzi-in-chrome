@@ -200,15 +200,15 @@ function GettingStartedTab({ keys, loadKeys, setError, extensionReady, pairing, 
     setTaskStatus('error'); setTaskAnswer('Timed out after 3 minutes.');
   };
 
-  const INTEGRATION_PROMPT = `Add browser automation to this project using the Hanzi API. Read the codebase first, then ask me:
+  const INTEGRATION_PROMPT = `Add browser automation to this project using the Hanzi Browse API. Read the codebase first, then ask me:
 
-1. What browser task should Hanzi automate? (e.g. "read patient chart", "fill out a form", "extract data from a web portal")
+1. What browser task should Hanzi Browse automate? (e.g. "read patient chart", "fill out a form", "extract data from a web portal")
 2. Where in the UI should the browser pairing flow go? (e.g. settings page, onboarding, a dedicated page)
 3. Where should task results appear? (e.g. inline in the app, a chat interface, a dashboard)
 
 Then build the integration using this API reference:
 
-## Hanzi API (base URL: https://api.hanzilla.co)
+## Hanzi Browse API (base URL: https://api.hanzilla.co)
 
 Auth: \`Authorization: Bearer ${createdKey || keys[0]?.key_prefix || 'hic_live_...'}\` header on all requests.
 
@@ -242,7 +242,7 @@ GET /v1/tasks/:id/steps
 
 ### Key details
 - 20 free tasks/month, then $0.05/completed task. Errors are free.
-- User needs the Hanzi Chrome extension: https://chromewebstore.google.com/detail/iklpkemlmbhemkiojndpbhoakgikpmcd
+- User needs the Hanzi Browse Chrome extension: https://chromewebstore.google.com/detail/iklpkemlmbhemkiojndpbhoakgikpmcd
 - Sample app: https://github.com/hanzili/hanzi-browse/tree/main/examples/partner-quickstart
 
 Read the codebase to understand the stack and project structure, then ask me the 3 questions above. After I answer, build the full integration.`;
@@ -253,7 +253,7 @@ Read the codebase to understand the stack and project structure, then ask me the
       {!hasKeys && (
         <div class="card">
           <h3>Create your API key</h3>
-          <p class="step-explain">You need this to call the Hanzi API from your backend.</p>
+          <p class="step-explain">You need this to call the Hanzi Browse API from your backend.</p>
           <div class="inline-form">
             <input value={newKeyName} onInput={e => setNewKeyName(e.target.value)} placeholder="Key name (e.g. dev)" maxLength={100} onKeyDown={e => e.key === 'Enter' && createKey()} />
             <button class="btn-primary" onClick={createKey} disabled={!newKeyName.trim()}>Create key</button>
@@ -417,7 +417,7 @@ function PairAndTest({ sessions, loadSessions, extensionReady, pairing, paired, 
                 </div>
 
                 <p class="step-explain" style={{ marginTop: 8 }}>
-                  User needs the <a href="https://chromewebstore.google.com/detail/hanzi-browse/iklpkemlmbhemkiojndpbhoakgikpmcd" target="_blank">Hanzi extension</a> installed.
+                  User needs the <a href="https://chromewebstore.google.com/detail/hanzi-browse/iklpkemlmbhemkiojndpbhoakgikpmcd" target="_blank">Hanzi Browse extension</a> installed.
                   {extensionReady && !linkPaired && (
                     <>{' '}Or <button style={{ background: 'none', border: 'none', color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit', fontSize: 'inherit' }} onClick={pairBrowser} disabled={pairing}>{pairing ? 'connecting...' : 'connect this browser'}</button> instead.</>
                   )}
@@ -435,10 +435,10 @@ function PairAndTest({ sessions, loadSessions, extensionReady, pairing, paired, 
             <span class={`step-badge ${testComplete ? 'done' : 'active'}`}>{testComplete ? '✓' : '2'}</span>
             <div class="step-content">
               <h3>Run a test task</h3>
-              <p class="step-explain">Tell Hanzi what to do in the paired browser.</p>
+              <p class="step-explain">Tell Hanzi Browse what to do in the paired browser.</p>
               {!taskStatus ? (
                 <div class="inline-form">
-                  <input value={taskInput} onInput={e => setTaskInput(e.target.value)} placeholder="What should Hanzi do?" onKeyDown={e => e.key === 'Enter' && runTask()} />
+                  <input value={taskInput} onInput={e => setTaskInput(e.target.value)} placeholder="What should Hanzi Browse do?" onKeyDown={e => e.key === 'Enter' && runTask()} />
                   <button class="btn-primary" onClick={runTask} disabled={!taskInput.trim()}>Run</button>
                 </div>
               ) : taskStatus === 'running' ? (
@@ -607,7 +607,7 @@ function SettingsTab({ keys, loadKeys, setError, profile, credits, loadCredits }
       </div>
 
       <div class="card" style={{ background: '#f5f1e8' }}>
-        <h3>Building a product with Hanzi?</h3>
+        <h3>Building a product with Hanzi Browse?</h3>
         <p class="step-explain">Need volume pricing, custom SLAs, or dedicated support? We offer wholesale rates starting at $0.02/task for partners.</p>
         <a href="mailto:hanzili0217@gmail.com?subject=Partner%20pricing&body=Hi%20Hanzi%20team%2C%0A%0AI%27m%20building%20a%20product%20that%20uses%20browser%20automation.%0A%0AExpected%20volume%3A%20%0AUse%20case%3A%20%0A" class="btn-primary" style={{ display: 'inline-block', textDecoration: 'none', color: 'white', padding: '8px 16px', borderRadius: 8, fontSize: 13, marginTop: 8 }}>Contact us for partner pricing</a>
       </div>

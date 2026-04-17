@@ -5,8 +5,8 @@
  *
  * Architecture:
  *   - Server is STATELESS — all draft/product state lives in the client (localStorage)
- *   - Server provides: LLM calls, Hanzi API proxy, rate limiting, email capture
- *   - Two AI layers: Strategy AI (Claude) analyzes/drafts, Browser AI (Hanzi) searches/posts
+ *   - Server provides: LLM calls, Hanzi Browse API proxy, rate limiting, email capture
+ *   - Two AI layers: Strategy AI (Claude) analyzes/drafts, Browser AI (Hanzi Browse) searches/posts
  *
  * Setup:
  *   HANZI_API_KEY=hic_live_...  (browser automation — provided by us, many credits)
