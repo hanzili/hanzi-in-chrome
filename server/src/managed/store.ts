@@ -558,18 +558,3 @@ export function ensureDefaultWorkspace(): { workspace: Workspace; apiKey: ApiKey
   return { workspace, apiKey };
 }
 
-// --- Automation stubs (file store doesn't support automations — Postgres only) ---
-const NOT_SUPPORTED = "Automations require Postgres (set DATABASE_URL)";
-export async function createAutomation(_p: any): Promise<any> { throw new Error(NOT_SUPPORTED); }
-export async function getAutomation(_id: string): Promise<any> { return null; }
-export async function listAutomations(_wid: string): Promise<any[]> { return []; }
-export async function updateAutomation(_id: string, _wid: string, _f: any): Promise<any> { return null; }
-export async function deleteAutomation(_id: string, _wid: string): Promise<boolean> { return false; }
-export async function getDueAutomations(): Promise<any[]> { return []; }
-export async function createDraftBatch(_p: any): Promise<any[]> { return []; }
-export async function listDrafts(_wid: string, _f?: any): Promise<any[]> { return []; }
-export async function getDraft(_id: string): Promise<any> { return null; }
-export async function updateDraft(_id: string, _wid: string, _f: any): Promise<any> { return null; }
-export async function logEngagement(_p: any): Promise<void> {}
-export async function getRecentlyEngagedHandles(_wid: string, _d?: number): Promise<string[]> { return []; }
-export async function listEngagements(_wid: string, _l?: number): Promise<any[]> { return []; }
