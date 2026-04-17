@@ -112,6 +112,13 @@ export async function runAgentLoop(
   let totalUsage = { inputTokens: 0, outputTokens: 0, apiCalls: 0 };
   let lastModel: string | undefined;
 
+  // Stuck-loop detection: if the agent navigates to the same URL 3+ times in a
+  // rolling window of 5, something is wrong (dead link, anti-bot redirect, etc).
+  // Abort early so a bad page doesn't burn 50 steps and ~1.8M tokens.
+  const recentNavigates: string[] = [];
+  const NAV_WINDOW = 5;
+  const NAV_REPEAT_THRESHOLD = 3;
+
   // Build initial user message
   let userMessage = task;
   if (url) {
@@ -222,6 +229,26 @@ export async function runAgentLoop(
         : toolUse.name === "javascript_tool" ? toolUse.input.text?.slice(0, 80)
         : JSON.stringify(toolUse.input).slice(0, 80);
       console.error(`[AgentLoop] Step ${step}: ${toolUse.name}(${inputSummary})`);
+
+      // Stuck-loop check: same URL navigated to ≥3 times in the last 5 navigates.
+      if (toolUse.name === "navigate" && typeof toolUse.input?.url === "string") {
+        const u = toolUse.input.url as string;
+        recentNavigates.push(u);
+        if (recentNavigates.length > NAV_WINDOW) recentNavigates.shift();
+        const hits = recentNavigates.filter((x) => x === u).length;
+        if (hits >= NAV_REPEAT_THRESHOLD) {
+          console.error(`[AgentLoop] Stuck: navigated to ${u} ${hits}x in last ${recentNavigates.length} navigates — aborting`);
+          turns.push(currentTurn);
+          return {
+            status: "error",
+            answer: `Stuck-loop detected: agent navigated to "${u}" ${hits} times in the last ${recentNavigates.length} navigates without progress. The URL likely doesn't exist, is blocked, or the agent is confused. Task aborted early to save tokens.`,
+            steps: step,
+            usage: totalUsage,
+            model: lastModel,
+            turns,
+          };
+        }
+      }
 
       onStep?.({
         step,

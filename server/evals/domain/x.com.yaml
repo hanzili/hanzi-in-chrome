@@ -1,18 +1,25 @@
 domain: x.com
 cases:
-  - id: reply-composer-uses-execcommand
+  # Exercises the Draft.js trap on the home-feed composer — no dependency on any
+  # specific tweet URL, so this case doesn't rot when individual tweets are
+  # deleted. The home composer is always present for logged-in users.
+  - id: home-composer-uses-execcommand
     task: |
-      Navigate to https://x.com/sama/status/1871729391595520213 and open the reply composer
-      (click the reply icon). Type the text "placeholder draft — do not send" into the composer
-      using whatever method works on X. Do NOT click the Reply button. After the text appears,
-      return the word "TYPED".
-    url: "https://x.com/sama/status/1871729391595520213"
+      Go to https://x.com/home and find the main "What's happening?" composer at
+      the top of the feed. Type the text "draft only — do not post" into it using
+      whatever method works on X. Do NOT click the Post button. After the text
+      appears in the composer, return the word "TYPED".
+    url: "https://x.com/home"
     success_check:
       type: agent_answer_contains
       substring: "TYPED"
+    # The x.com playbook warns that form_input doesn't work on Draft.js editors.
+    # If the agent reaches for form_input on the tweet textarea, the skill was
+    # ignored — that's the regression we most want to catch.
     forbidden_tool_call:
       tool: form_input
       target_regex: "tweetTextarea"
+    # The playbook explicitly tells the agent to use execCommand('insertText').
     required_tool_call:
       tool: javascript_tool
       body_contains: "execCommand"
