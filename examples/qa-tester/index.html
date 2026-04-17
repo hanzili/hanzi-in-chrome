@@ -20,934 +20,674 @@
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-C8MZTXW947"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-C8MZTXW947');</script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6' fill='%23111f1a'/><path d='M7 8h10M7 12h6M7 16h8' stroke='%23eef5ef' stroke-width='2.5' stroke-linecap='round'/></svg>">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #f5f2ea;
-      --surface: rgba(255, 251, 244, 0.92);
-      --surface-strong: #fffdf8;
-      --ink: #16211d;
-      --muted: #5e6a64;
-      --line: #d9ddd3;
-      --accent: #2c5fa8;
-      --accent-2: #d86a2c;
-      --accent-dark: #1a3f78;
-      --critical: #9f2f26;
-      --critical-bg: #fff0ed;
-      --high: #a75b07;
-      --high-bg: #fff5df;
-      --medium: #1568a8;
-      --medium-bg: #edf6ff;
-      --low: #5f6572;
-      --low-bg: #f3f5f9;
-      --pass: #276044;
-      --pass-bg: #edf7f1;
-      --shadow: 0 20px 60px rgba(22, 33, 29, 0.08);
+      --bg: #f7f3ea; --surface: #fffdf8; --ink: #1f1711; --muted: #6d6256;
+      --line: #e5ddd0; --accent: #2a7d4f; --accent-hover: #1f6040;
+      --critical: #9a2e2e; --critical-bg: #fef0ef;
+      --high: #a75b07; --high-bg: #fff5df;
+      --medium: #1d6fa5; --medium-bg: #eef3f8;
+      --low: #5f6572; --low-bg: #f3f5f9;
+      --pass: #2f4a3d; --pass-bg: #eef5f0;
+      --red: #9a2e2e; --red-bg: #fef0ef;
+      --yellow: #7a5c00; --yellow-bg: #fdf8e8;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      min-height: 100vh;
-      background:
-        radial-gradient(circle at top left, rgba(44,95,168,0.12), transparent 28%),
-        radial-gradient(circle at top right, rgba(216,106,44,0.15), transparent 34%),
-        linear-gradient(180deg, #f8f3e9 0%, #f3efe7 100%);
-      color: var(--ink);
-      font-family: "IBM Plex Sans", sans-serif;
-      -webkit-font-smoothing: antialiased;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { min-height: 100vh; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
     a { color: inherit; }
-    button, input, textarea { font: inherit; }
-    .shell { max-width: 1120px; margin: 0 auto; padding: 24px 20px 80px; }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 28px;
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: 0.02em;
+
+    .shell { max-width: 720px; margin: 0 auto; padding: 24px 32px 100px; }
+
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+    .brand span { font-size: 15px; font-weight: 700; color: var(--ink); }
+    .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+    h1 { font-size: 38px; line-height: 1.15; margin-bottom: 14px; font-weight: 700; letter-spacing: -0.02em; }
+    .subtitle { color: var(--muted); font-size: 15px; line-height: 1.5; margin-bottom: 28px; }
+
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+    .field .hint { color: var(--muted); font-weight: 400; font-size: 12px; }
+    .field input, .field textarea {
+      width: 100%; border: 1px solid var(--line); border-radius: 10px;
+      padding: 12px 14px; font-size: 15px; color: var(--ink);
+      background: var(--surface); outline: none; font-family: inherit;
+      resize: none; transition: border-color 0.15s;
     }
-    .brand svg { width: 32px; height: 32px; flex-shrink: 0; }
-    .layout { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr); gap: 24px; align-items: start; }
-    .panel {
-      background: var(--surface);
-      border: 1px solid rgba(217,221,211,0.9);
-      border-radius: 28px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(14px);
+    .field input:focus, .field textarea:focus { border-color: var(--accent); }
+    .field input::placeholder, .field textarea::placeholder { color: #bbb; }
+
+    .btn { border: none; border-radius: 10px; padding: 12px 24px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .btn-primary { background: var(--accent); color: #fff; width: 100%; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-sm { padding: 9px 16px; font-size: 13px; border-radius: 8px; width: auto; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-ghost { background: none; color: var(--muted); border: 1px solid var(--line); }
+    .btn-ghost:hover { border-color: var(--ink); color: var(--ink); }
+
+    /* Scope selector */
+    .scope-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .scope-option {
+      background: var(--surface); border: 2px solid var(--line); border-radius: 10px;
+      padding: 14px; cursor: pointer; transition: border-color 0.15s; text-align: left;
     }
-    .hero { padding: 34px; overflow: hidden; position: relative; }
-    .hero::after {
-      content: "";
-      position: absolute;
-      inset: auto -70px -120px auto;
-      width: 240px;
-      height: 240px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(44,95,168,0.14), transparent 65%);
-      pointer-events: none;
+    .scope-option:hover { border-color: var(--muted); }
+    .scope-option.selected { border-color: var(--accent); }
+    .scope-option h3 { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+    .scope-option p { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+    /* Stepper */
+    .stepper { margin: 28px 0 16px; display: flex; gap: 0; }
+    .step-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; }
+    .step-item:not(:last-child)::after {
+      content: ''; position: absolute; top: 12px; left: 50%; width: 100%;
+      height: 2px; background: var(--line); z-index: 0;
     }
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      min-height: 34px;
-      padding: 0 14px;
-      border-radius: 999px;
-      background: #eef3f7;
-      color: var(--accent-dark);
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+    .step-item.done:not(:last-child)::after { background: var(--accent); }
+    .step-num {
+      width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      background: var(--bg); z-index: 1; transition: all 0.3s;
     }
-    h1, h2, h3 { font-family: "Fraunces", Georgia, serif; letter-spacing: -0.03em; }
-    h1 { font-size: clamp(2.7rem, 5vw, 4.6rem); line-height: 0.92; margin-top: 18px; max-width: 12ch; }
-    .hero-sub { max-width: 620px; margin-top: 18px; color: var(--muted); font-size: 18px; line-height: 1.65; }
-    .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 28px; }
-    .btn {
-      min-height: 48px;
-      border: none;
-      border-radius: 14px;
-      padding: 0 20px;
-      cursor: pointer;
-      transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
-    }
-    .btn:hover { transform: translateY(-1px); }
-    .btn:focus-visible { outline: 3px solid rgba(44,95,168,0.38); outline-offset: 2px; }
-    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: #fff; font-weight: 700; }
-    .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
-    .btn-full { width: 100%; justify-content: center; }
-    .btn-sm { min-height: 40px; border-radius: 12px; padding: 0 14px; font-size: 14px; }
-    .meta-note { color: var(--muted); font-size: 13px; line-height: 1.45; }
-    .sample { padding: 22px; }
-    .sample-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
-    .sample-card {
-      background: var(--surface-strong);
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      overflow: hidden;
-    }
-    .sample-shot {
-      min-height: 180px;
-      padding: 20px;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0)),
-        linear-gradient(145deg, #d5e3f5, #fff7ef 48%, #f0d5c4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .sample-ui {
-      width: 100%;
-      max-width: 320px;
-      border-radius: 18px;
-      background: rgba(255,255,255,0.86);
-      border: 1px solid rgba(22,33,29,0.08);
-      box-shadow: 0 16px 34px rgba(22, 33, 29, 0.12);
-      padding: 18px;
-    }
-    .sample-ui .bar { height: 10px; border-radius: 999px; background: #dae3ef; margin-bottom: 12px; }
-    .sample-ui .muted-line { height: 8px; border-radius: 999px; background: #e6e2da; margin-bottom: 10px; }
-    .sample-ui .cta {
-      margin-top: 16px;
-      border-radius: 12px;
-      padding: 14px;
-      background: #f2f4f7;
-      color: #a9b3bb;
-      font-weight: 700;
-      text-align: center;
-      box-shadow: inset 0 0 0 1px rgba(22,33,29,0.05);
-    }
-    .sample-ui .error-state {
-      margin-top: 12px;
-      border-radius: 14px;
-      padding: 12px;
-      border: 2px dashed rgba(159,47,38,0.35);
-      background: rgba(159,47,38,0.06);
-      color: var(--critical);
-      font-size: 13px;
-    }
-    .finding-preview { padding: 18px; }
-    .severity-pill {
-      display: inline-flex;
-      align-items: center;
-      min-height: 28px;
-      padding: 0 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
+    .step-item.active .step-num { border-color: var(--accent); color: var(--accent); }
+    .step-item.done .step-num { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .step-label { font-size: 11px; color: var(--muted); text-align: center; }
+    .step-item.active .step-label { color: var(--ink); font-weight: 600; }
+    .step-item.done .step-label { color: var(--accent); }
+
+    /* Status banner */
+    .status-banner { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; font-size: 14px; }
+    .status-banner.working { border-color: var(--yellow); background: var(--yellow-bg); }
+    .status-banner.success { border-color: var(--accent); background: var(--pass-bg); }
+    .status-banner.error { border-color: var(--red); background: var(--red-bg); }
+    .spinner { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Test case list */
+    .test-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 12px; transition: border-color 0.2s; }
+    .test-card.is-pass { border-color: var(--accent); }
+    .test-card.is-fail { border-color: var(--high); }
+    .test-card.is-error { border-color: var(--red); }
+    .test-card.is-active { border-color: var(--yellow); background: var(--yellow-bg); }
+    .test-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .test-label { font-weight: 600; font-size: 14px; }
+    .test-status { font-size: 12px; color: var(--muted); }
+
+    /* Severity pills */
+    .sev-pill { display: inline-block; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; }
     .sev-critical { background: var(--critical-bg); color: var(--critical); }
     .sev-high { background: var(--high-bg); color: var(--high); }
     .sev-medium { background: var(--medium-bg); color: var(--medium); }
     .sev-low { background: var(--low-bg); color: var(--low); }
-    .setup, .working, .report { padding: 28px; }
-    .section-title { font-size: 34px; line-height: 1; margin-bottom: 10px; }
-    .section-sub { color: var(--muted); font-size: 15px; line-height: 1.6; margin-bottom: 22px; }
-    .field { margin-bottom: 18px; }
-    .field label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
-    .field input, .field textarea {
-      width: 100%;
-      min-height: 52px;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 14px 16px;
-      background: var(--surface-strong);
-      color: var(--ink);
-      resize: vertical;
-    }
-    .field textarea { min-height: 88px; }
-    .scope-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 22px; }
-    .scope-card {
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: var(--surface-strong);
-      padding: 16px;
-      cursor: pointer;
-      min-height: 130px;
-      transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
-      text-align: left;
-    }
-    .scope-card:hover { transform: translateY(-1px); }
-    .scope-card.selected {
-      border-color: var(--accent);
-      box-shadow: inset 0 0 0 1px rgba(44,95,168,0.22);
-      background: #f3f7fb;
-    }
-    .scope-card h3 { font-size: 20px; margin-bottom: 6px; }
-    .scope-card p { color: var(--muted); font-size: 14px; line-height: 1.5; }
-    .list { display: grid; gap: 10px; }
-    .step-row, .check-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 12px 14px;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: var(--surface-strong);
-    }
-    .step-dot, .check-dot {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      border: 2px solid var(--line);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 700;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-    .is-active .step-dot, .is-active .check-dot {
-      border-color: var(--accent);
-      color: var(--accent);
-      animation: pulse 1.3s infinite;
-    }
-    .is-done .step-dot, .is-done .check-dot {
-      border-color: var(--pass);
-      background: var(--pass);
-      color: #fff;
-      animation: none;
-    }
-    .is-fail .check-dot {
-      border-color: var(--critical);
-      background: var(--critical);
-      color: #fff;
-      animation: none;
-    }
-    .is-error .check-dot {
-      border-color: var(--high);
-      color: var(--high);
-      animation: none;
-    }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
-    .muted { color: var(--muted); }
-    .status-line { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 14px; font-size: 14px; color: var(--muted); }
-    .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 20px 0 24px; }
-    .metric {
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 16px;
-      background: var(--surface-strong);
-    }
-    .metric-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
-    .metric-value { font-size: 32px; font-weight: 700; margin-top: 8px; }
-    .metric-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
-    .report-stack { display: grid; gap: 22px; }
-    .severity-section {
-      border: 1px solid var(--line);
-      border-radius: 22px;
-      background: var(--surface-strong);
-      padding: 18px;
-    }
-    .severity-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-    .bug {
-      display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(240px, 0.8fr);
-      gap: 16px;
-      padding: 16px 0;
-      border-top: 1px solid var(--line);
-    }
-    .bug:first-of-type { border-top: none; padding-top: 0; }
-    .bug-shot {
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      overflow: hidden;
-      min-height: 150px;
-      background: #e8ece6;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .bug-shot img { display: block; width: 100%; height: 100%; object-fit: cover; }
-    .bug-shot-empty {
-      color: var(--muted);
-      font-size: 13px;
-      text-align: center;
-      padding: 20px;
-    }
-    .bug-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-    .meta-chip {
-      display: inline-flex;
-      align-items: center;
-      min-height: 28px;
-      padding: 0 10px;
-      border-radius: 999px;
-      background: #eef2ef;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 600;
-    }
-    .bug p { font-size: 14px; line-height: 1.6; color: var(--muted); margin-top: 8px; }
-    .bug strong { color: var(--ink); }
-    .repro-steps {
-      margin-top: 10px;
-      padding: 12px 14px;
-      background: #f5f7fa;
-      border-radius: 12px;
-      font-size: 13px;
-      line-height: 1.7;
-      color: var(--ink);
-      white-space: pre-wrap;
-    }
-    .pass-list, .priority-list { display: grid; gap: 10px; }
-    .pass-item, .priority-item {
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: var(--surface-strong);
-      padding: 14px 16px;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-    .priority-item { background: #fff9f3; }
-    .pass-item { background: var(--pass-bg); color: var(--pass); }
+
+    /* Bug cards */
+    .bug-card { background: var(--bg); border-radius: 10px; padding: 14px; margin-top: 10px; }
+    .bug-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .bug-detail { font-size: 13px; color: var(--ink); line-height: 1.6; margin-bottom: 4px; }
+    .bug-detail strong { color: var(--ink); }
+    .bug-repro { font-size: 12px; color: var(--muted); background: var(--surface); padding: 10px 12px; border-radius: 8px; white-space: pre-wrap; line-height: 1.5; margin-top: 8px; }
+    .bug-screenshot { margin-top: 10px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+    .bug-screenshot img { width: 100%; display: block; }
+
+    /* Report summary */
+    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
+    .metric { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; text-align: center; }
+    .metric-val { font-size: 28px; font-weight: 700; line-height: 1; }
+    .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px; }
+
+    .section-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .section-sub { font-size: 14px; color: var(--muted); margin-bottom: 20px; }
+
+    .pass-list { margin-top: 20px; }
+    .pass-item { font-size: 13px; color: var(--pass); padding: 6px 0; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+    .pass-item:last-child { border-bottom: none; }
+
+    .priority-list { margin-bottom: 24px; }
+    .priority-item { font-size: 13px; color: var(--ink); padding: 6px 0 6px 16px; position: relative; line-height: 1.4; border-bottom: 1px solid var(--line); }
+    .priority-item:last-child { border-bottom: none; }
+    .priority-item::before { content: '\2192'; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+
+    .hero-sub { font-size: 17px; color: var(--muted); line-height: 1.5; margin-bottom: 32px; max-width: 520px; }
+    .hero-cta { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
+    .hero-cta .btn-primary { width: auto; padding: 14px 32px; font-size: 16px; }
+    .hero-cta-note { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    .hero-demo { margin: 0 0 32px; pointer-events: none; }
+    .hero-demo-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 10px; }
+    .hero-demo-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; box-shadow: 0 4px 24px rgba(31,23,17,0.08); }
+
+    .hero-features { display: flex; gap: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .hero-feature { flex: 1; }
+    .hero-feature-title { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
+    .hero-feature-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+    .footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); text-align: center; font-size: 13px; color: var(--muted); }
+    .footer a { color: var(--accent); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+
     .hidden { display: none !important; }
-    .toast {
-      position: fixed;
-      top: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--ink);
-      color: #fff;
-      padding: 10px 18px;
-      border-radius: 999px;
-      font-size: 14px;
-      z-index: 20;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s ease;
-    }
+
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
     .toast.show { opacity: 1; }
-    @media (max-width: 960px) {
-      .layout { grid-template-columns: 1fr; }
-      .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .bug { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 640px) {
-      .hero, .sample, .setup, .working, .report { padding: 22px; }
-      .scope-grid, .summary-grid { grid-template-columns: 1fr; }
-      h1 { max-width: none; }
-      .hero-actions { flex-direction: column; }
-      .hero-actions .btn { width: 100%; }
+
+    @media (max-width: 600px) {
+      .shell { padding: 16px 16px 80px; }
+      h1 { font-size: 30px; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .scope-row { grid-template-columns: 1fr; }
+      .hero-features { flex-direction: column; gap: 16px; }
+      .hero-cta .btn-primary { width: 100%; }
     }
   </style>
 </head>
 <body>
-<script src="embed.js"></script>
-<script>!function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);posthog.init('phc_T6BDBkhAIdOY7jESBnMHHQxJRj2MOwXfB40SUvW7MQO',{api_host:'https://us.i.posthog.com',person_profiles:'anonymous'})</script>
+<div class="hanzi-promo" style="background:#111f1a;color:#eef5ef;padding:10px 20px;text-align:center;font-size:13px;border-bottom:1px solid #000;">
+  A free demo of <a href="https://browse.hanzilla.co" target="_blank" style="color:#9dd6b9;font-weight:600;text-decoration:none">Hanzi Browse</a> — give your AI agent a real browser. Install: <code style="background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;color:#fff">npx hanzi-browse setup</code>
+</div>
 
-  <div class="hanzi-promo" style="background:#111f1a;color:#eef5ef;padding:10px 20px;text-align:center;font-size:13px;border-bottom:1px solid #000;">
-    A free demo of <a href="https://browse.hanzilla.co" target="_blank" style="color:#9dd6b9;font-weight:600;text-decoration:none">Hanzi Browse</a> — give your AI agent a real browser. Install: <code style="background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;color:#fff">npx hanzi-browse setup</code>
+<div class="shell">
+
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <span>QA Tester</span>
   </div>
 
-  <div class="shell">
-    <div class="brand">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#111f1a"/><path d="M7 8h10M7 12h6M7 16h8" stroke="#eef5ef" stroke-width="2.5" stroke-linecap="round"/></svg>
-      <span>QA Tester</span>
+  <!-- Landing -->
+  <div id="screen-landing">
+    <h1>Paste a URL. Find real bugs.</h1>
+    <p class="hero-sub">AI generates a test plan for your app, executes each test in a real Chrome — clicking, submitting forms, triggering errors — and returns a bug report with screenshots.</p>
+
+    <div class="hero-cta">
+      <button class="btn btn-primary" onclick="show('screen-setup')">Start free QA run</button>
+      <span class="hero-cta-note">No account needed.<br>3 or 5 tests per run.</span>
     </div>
 
-    <main id="app"></main>
-
-    <footer style="margin-top:48px;padding:24px;text-align:center;border-top:1px solid var(--line);font-size:14px;color:var(--muted)">
-      <div style="margin-bottom:10px">Like this? Run unlimited tests with your own Hanzi Browse account.</div>
-      <a href="https://browse.hanzilla.co" target="_blank" style="display:inline-block;padding:10px 20px;background:#1f4a3d;color:#fff;border-radius:10px;text-decoration:none;font-weight:600">Install Hanzi Browse &rarr;</a>
-    </footer>
-  </div>
-
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-  <script>
-    let sid = null;
-    let screen = 'landing';
-    let qaConfig = { url: '', scope: 'quick', description: '' };
-    let qaPlan = null;
-    let progress = null;
-    let report = null;
-
-    const BASE = location.pathname.replace(/\/$/, '');
-    const $ = (id) => document.getElementById(id);
-
-    function esc(value) {
-      if (value == null) return '';
-      const div = document.createElement('div');
-      div.textContent = String(value);
-      return div.innerHTML;
-    }
-
-    function toast(message) {
-      const el = $('toast');
-      el.textContent = message;
-      el.classList.add('show');
-      setTimeout(() => el.classList.remove('show'), 2500);
-    }
-
-    async function api(method, path, body) {
-      const url = path.startsWith('/') ? BASE + path : path;
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Request failed');
-      return data;
-    }
-
-    function severityClass(level) {
-      return {
-        Critical: 'sev-critical',
-        High: 'sev-high',
-        Medium: 'sev-medium',
-        Low: 'sev-low',
-      }[level] || 'sev-medium';
-    }
-
-    function saveState() {
-      localStorage.setItem('qa_tester_config', JSON.stringify(qaConfig));
-      localStorage.setItem('qa_tester_report', JSON.stringify(report));
-    }
-
-    function loadState() {
-      try { qaConfig = { ...qaConfig, ...(JSON.parse(localStorage.getItem('qa_tester_config')) || {}) }; } catch {}
-      try { report = JSON.parse(localStorage.getItem('qa_tester_report')) || null; } catch {}
-      if (report) screen = 'report';
-    }
-
-    async function checkBrowser() {
-      try {
-        const res = await api('GET', '/api/sessions');
-        const connected = (res.sessions || []).find((s) => s.status === 'connected');
-        if (connected) sid = connected.id;
-        return !!connected;
-      } catch {
-        return false;
-      }
-    }
-
-    async function ensureBrowser() {
-      if (sid) return sid;
-      if (await checkBrowser()) return sid;
-
-      return new Promise((resolve) => {
-        if (typeof HanziConnect !== 'undefined') {
-          $('app').innerHTML = `
-            <section class="panel setup">
-              <h2 class="section-title">Connect browser</h2>
-              <p class="section-sub">The QA run executes in a real paired browser so it can click buttons, submit forms, and catch JS errors.</p>
-              <div id="hanzi-pair-widget" style="max-width:440px"></div>
-              <button class="btn btn-ghost btn-full" id="refresh-connection" style="margin-top:12px">I've completed pairing</button>
-            </section>
-          `;
-          HanziConnect.mount('#hanzi-pair-widget', {
-            apiKey: 'hic_pub_proxy',
-            apiUrl: BASE,
-            purpose: 'run QA tests in a real browser',
-            onConnected: (sessionId) => {
-              sid = sessionId;
-              toast('Browser connected');
-              resolve(sid);
-            },
-            onDisconnected: () => {
-              sid = null;
-              toast('Browser disconnected');
-            }
-          });
-          $('refresh-connection').onclick = async () => {
-            $('refresh-connection').disabled = true;
-            $('refresh-connection').textContent = 'Checking...';
-            if (await checkBrowser()) {
-              toast('Browser connected');
-              resolve(sid);
-              return;
-            }
-            $('refresh-connection').disabled = false;
-            $('refresh-connection').textContent = "I've completed pairing";
-          };
-        } else {
-          $('app').innerHTML = `
-            <section class="panel setup">
-              <h2 class="section-title">Connect browser</h2>
-              <p class="section-sub">Install the Hanzi Browse extension, then pair it to run the QA tests.</p>
-              <button class="btn btn-primary" id="pair-fallback">Pair browser</button>
-              <p class="meta-note" id="pair-status" style="margin-top:12px"></p>
-            </section>
-          `;
-          $('pair-fallback').onclick = async () => {
-            const data = await api('POST', '/api/pair');
-            window.open(data.pairing_url, '_blank');
-            $('pair-status').textContent = 'Complete pairing in the new tab, then come back here.';
-            for (let i = 0; i < 60; i++) {
-              await new Promise((r) => setTimeout(r, 2000));
-              if (await checkBrowser()) {
-                toast('Browser connected');
-                resolve(sid);
-                return;
-              }
-            }
-            $('pair-status').textContent = 'Timed out waiting for connection.';
-            resolve(null);
-          };
-        }
-      });
-    }
-
-    function render() {
-      if (screen === 'landing') return renderLanding();
-      if (screen === 'setup') return renderSetup();
-      if (screen === 'working') return renderWorking();
-      if (screen === 'report') return renderReport();
-    }
-
-    function goTo(nextScreen) {
-      screen = nextScreen;
-      render();
-    }
-
-    function renderLanding() {
-      $('app').innerHTML = `
-        <div class="layout">
-          <section class="panel hero">
-            <div class="eyebrow">Real Browser QA Testing</div>
-            <h1>Paste a URL. Find real bugs.</h1>
-            <p class="hero-sub">AI crawls your app, generates a test plan for your specific flows, then executes each test in a real Chrome browser — clicking, submitting forms, triggering errors — and returns a bug report with screenshots and reproduction steps.</p>
-            <div class="hero-actions">
-              <button class="btn btn-primary" onclick="goTo('setup')">Start free QA run</button>
-              <button class="btn btn-ghost" onclick="scrollToSample()">See sample report</button>
-            </div>
-            <p class="meta-note" style="margin-top:16px">Built for indie developers and side-project creators. Quick run tests 3 core flows. Full run tests 5 flows including error states and edge cases.</p>
-          </section>
-
-          <aside class="panel sample" id="sample-report">
-            <div class="sample-header">
-              <div>
-                <div class="meta-note" style="text-transform:uppercase;letter-spacing:0.08em">Sample Bug</div>
-                <h3 style="font-size:24px;margin-top:4px">Form submits with empty required fields</h3>
-              </div>
-              <span class="severity-pill sev-high">High</span>
-            </div>
-            <div class="sample-card">
-              <div class="sample-shot">
-                <div class="sample-ui" aria-hidden="true">
-                  <div class="bar" style="width:52%"></div>
-                  <div class="muted-line" style="width:100%"></div>
-                  <div class="muted-line" style="width:70%"></div>
-                  <div class="cta">Submit</div>
-                  <div class="error-state">Submitted with blank email — no validation error shown.</div>
-                </div>
-              </div>
-              <div class="finding-preview">
-                <div class="meta-chip" style="margin-bottom:8px">Forms</div>
-                <p style="font-size:14px;line-height:1.6;color:var(--muted)">Clicking Submit with an empty email field triggers no validation. The request fires and returns a 500 error with no user-facing feedback.</p>
-                <div class="repro-steps">1. Navigate to /signup
+    <div class="hero-demo">
+      <div class="hero-demo-label">Sample finding</div>
+      <div class="hero-demo-card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span class="sev-pill sev-high">High</span>
+          <span style="font-weight:700;font-size:14px">Form submits with empty required fields</span>
+        </div>
+        <div style="font-size:13px;line-height:1.5;color:var(--ink);background:var(--bg);padding:10px 12px;border-radius:8px;margin-bottom:10px">Clicking Submit with an empty email field triggers no validation. The request fires and returns a 500 error with no user-facing feedback.</div>
+        <div style="font-size:12px;color:var(--muted);background:var(--surface);padding:8px 10px;border-radius:8px;border:1px solid var(--line);white-space:pre-wrap;line-height:1.5">1. Navigate to /signup
 2. Leave email blank
 3. Click Submit
 &#8594; No error shown, 500 in console</div>
+      </div>
+    </div>
+
+    <div class="hero-features">
+      <div class="hero-feature">
+        <div class="hero-feature-title">Real browser testing</div>
+        <div class="hero-feature-desc">Clicks buttons, submits forms, navigates pages in a real Chrome session.</div>
+      </div>
+      <div class="hero-feature">
+        <div class="hero-feature-title">AI-generated plan</div>
+        <div class="hero-feature-desc">Crawls your page and builds a test plan tailored to your app's flows.</div>
+      </div>
+      <div class="hero-feature">
+        <div class="hero-feature-title">Actionable reports</div>
+        <div class="hero-feature-desc">Each bug comes with severity, repro steps, and a screenshot.</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Powered by <a href="https://browse.hanzilla.co" target="_blank">Hanzi Browse</a> — give your AI agent a real browser. <a href="https://browse.hanzilla.co" target="_blank" style="color:var(--accent);font-weight:600">Install &rarr;</a>
+    </div>
+  </div>
+
+  <!-- Setup -->
+  <div id="screen-setup" class="hidden">
+    <h1 style="font-size:26px">Set up your QA run</h1>
+    <p class="subtitle">Enter your app URL and an optional description. AI will crawl the page first to understand your app before generating tests.</p>
+
+    <div class="field">
+      <label for="qa-url">URL</label>
+      <input id="qa-url" type="url" inputmode="url" placeholder="https://your-app.com">
+    </div>
+
+    <div class="field">
+      <label for="qa-desc">What does this app do? <span class="hint">— optional but helps</span></label>
+      <textarea id="qa-desc" rows="2" placeholder="e.g. A task manager where users create projects and assign tasks."></textarea>
+    </div>
+
+    <div class="field">
+      <label>Scope</label>
+      <div class="scope-row">
+        <button class="scope-option selected" id="scope-quick" onclick="setScope('quick')">
+          <h3>Quick run</h3>
+          <p>3 tests — core happy path</p>
+        </button>
+        <button class="scope-option" id="scope-full" onclick="setScope('full')">
+          <h3>Full run</h3>
+          <p>5 tests — errors + edge cases</p>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="startQA()">Run QA tests &rarr;</button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="show('screen-landing')">Back</button>
+
+    <div class="footer">
+      Powered by <a href="https://browse.hanzilla.co" target="_blank">Hanzi Browse</a> — give your AI agent a real browser. <a href="https://browse.hanzilla.co" target="_blank" style="color:var(--accent);font-weight:600">Install &rarr;</a>
+    </div>
+  </div>
+
+  <!-- Working -->
+  <div id="screen-working" class="hidden">
+    <h1 style="font-size:26px" id="working-title">Running QA tests</h1>
+    <p class="subtitle" id="working-sub">Crawling your app and building a test plan.</p>
+
+    <div class="stepper" id="stepper">
+      <div class="step-item active" id="step-1">
+        <div class="step-num">1</div>
+        <div class="step-label">Plan</div>
+      </div>
+      <div class="step-item" id="step-2">
+        <div class="step-num">2</div>
+        <div class="step-label">Connect</div>
+      </div>
+      <div class="step-item" id="step-3">
+        <div class="step-num">3</div>
+        <div class="step-label">Test</div>
+      </div>
+      <div class="step-item" id="step-4">
+        <div class="step-num">4</div>
+        <div class="step-label">Report</div>
+      </div>
+    </div>
+
+    <div class="status-banner working" id="work-status">
+      <div class="spinner"></div>
+      <span id="work-status-text">Crawling page and generating test plan...</span>
+    </div>
+
+    <div id="test-list"></div>
+
+    <button class="btn btn-ghost" style="width:100%;margin-top:16px" onclick="cancelRun()">&larr; Cancel</button>
+  </div>
+
+  <!-- Report -->
+  <div id="screen-report" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="section-title" id="report-headline">QA Report</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="downloadJSON()">Export JSON</button>
+        <button class="btn btn-primary btn-sm" onclick="startNew()">New run</button>
+      </div>
+    </div>
+    <p class="section-sub" id="report-summary"></p>
+    <p class="section-sub" id="report-url" style="font-size:12px;margin-bottom:16px"></p>
+
+    <div class="summary-grid" id="report-metrics"></div>
+
+    <div id="report-priorities"></div>
+    <div id="report-bugs"></div>
+    <div id="report-passes"></div>
+
+    <div class="footer">
+      Powered by <a href="https://browse.hanzilla.co" target="_blank">Hanzi Browse</a> — give your AI agent a real browser. <a href="https://browse.hanzilla.co" target="_blank" style="color:var(--accent);font-weight:600">Install &rarr;</a>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Hanzi embed widget -->
+<script src="embed.js"></script>
+
+<script>
+  // ── State ────────────────────────────────────────────────
+  const BASE = location.pathname.replace(/\/$/, '');
+  let sid = null;
+  let qaScope = 'quick';
+  let qaReport = null;
+
+  // ── Helpers ──────────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+
+  function esc(v) {
+    if (v == null) return '';
+    const d = document.createElement('div');
+    d.textContent = String(v);
+    return d.innerHTML;
+  }
+
+  function toast(msg) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  async function api(method, path, body) {
+    const url = path.startsWith('/') ? BASE + path : path;
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  }
+
+  function show(id) {
+    ['screen-landing', 'screen-setup', 'screen-working', 'screen-report'].forEach(s => {
+      $(s).classList.toggle('hidden', s !== id);
+    });
+  }
+
+  function setScope(scope) {
+    qaScope = scope;
+    $('scope-quick').classList.toggle('selected', scope === 'quick');
+    $('scope-full').classList.toggle('selected', scope === 'full');
+  }
+
+  function setStepper(active) {
+    for (let i = 1; i <= 4; i++) {
+      const el = $('step-' + i);
+      el.className = 'step-item' + (i < active ? ' done' : i === active ? ' active' : '');
+      el.querySelector('.step-num').textContent = i < active ? '\u2713' : i;
+    }
+  }
+
+  function setStatus(text, type) {
+    const el = $('work-status');
+    el.className = 'status-banner ' + (type || 'working');
+    const spinner = el.querySelector('.spinner');
+    if (type === 'working') {
+      if (!spinner) {
+        const s = document.createElement('div');
+        s.className = 'spinner';
+        el.insertBefore(s, el.firstChild);
+      }
+    } else if (spinner) {
+      spinner.remove();
+    }
+    $('work-status-text').textContent = text;
+  }
+
+  // ── Persistence ──────────────────────────────────────────
+  function saveReport() {
+    localStorage.setItem('qa_tester_report', JSON.stringify(qaReport));
+  }
+
+  // ── Browser connection ───────────────────────────────────
+  async function checkBrowser() {
+    try {
+      const res = await api('GET', '/api/sessions');
+      const connected = (res.sessions || []).find(s => s.status === 'connected');
+      if (connected) sid = connected.id;
+      return !!connected;
+    } catch { return false; }
+  }
+
+  async function ensureBrowser() {
+    if (sid) return sid;
+    if (await checkBrowser()) return sid;
+
+    return new Promise((resolve) => {
+      if (typeof HanziConnect !== 'undefined') {
+        $('test-list').innerHTML = `
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px">
+            <div style="font-weight:700;font-size:14px;margin-bottom:6px">Connect your browser</div>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Tests run in a real Chrome session. Pair your browser to continue.</p>
+            <div id="hanzi-pair-widget"></div>
+            <button class="btn btn-ghost" style="width:100%;margin-top:10px" id="btn-refresh-pair">I've completed pairing</button>
+          </div>
+        `;
+        HanziConnect.mount('#hanzi-pair-widget', {
+          apiKey: 'hic_pub_proxy',
+          apiUrl: BASE,
+          purpose: 'run QA tests in a real browser',
+          onConnected: (sessionId) => { sid = sessionId; toast('Browser connected'); resolve(sid); },
+          onDisconnected: () => { sid = null; toast('Browser disconnected'); }
+        });
+        $('btn-refresh-pair').onclick = async () => {
+          $('btn-refresh-pair').disabled = true;
+          $('btn-refresh-pair').textContent = 'Checking...';
+          if (await checkBrowser()) { toast('Browser connected'); resolve(sid); return; }
+          $('btn-refresh-pair').disabled = false;
+          $('btn-refresh-pair').textContent = "I've completed pairing";
+        };
+      } else {
+        $('test-list').innerHTML = `
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px">
+            <div style="font-weight:700;font-size:14px;margin-bottom:6px">Connect your browser</div>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Install the Hanzi Browse extension, then pair it.</p>
+            <button class="btn btn-primary" id="btn-pair-fallback">Pair browser</button>
+            <p id="pair-status" style="font-size:12px;color:var(--muted);margin-top:10px"></p>
+          </div>
+        `;
+        $('btn-pair-fallback').onclick = async () => {
+          const data = await api('POST', '/api/pair');
+          window.open(data.pairing_url, '_blank');
+          $('pair-status').textContent = 'Complete pairing in the new tab, then come back.';
+          for (let i = 0; i < 60; i++) {
+            await new Promise(r => setTimeout(r, 2000));
+            if (await checkBrowser()) { toast('Browser connected'); resolve(sid); return; }
+          }
+          $('pair-status').textContent = 'Timed out.';
+          resolve(null);
+        };
+      }
+    });
+  }
+
+  // ── Test run ─────────────────────────────────────────────
+  let cancelled = false;
+
+  function cancelRun() {
+    cancelled = true;
+    show('screen-setup');
+  }
+
+  function renderTestCards(cases, results) {
+    $('test-list').innerHTML = cases.map((tc, i) => {
+      const r = results[i];
+      let cls = '';
+      let status = 'Waiting';
+      let sevHtml = '';
+
+      if (r) {
+        if (r.error) { cls = 'is-error'; status = 'Error'; }
+        else if (r.bugs.length > 0) { cls = 'is-fail'; status = r.bugs.length + ' bug' + (r.bugs.length > 1 ? 's' : ''); sevHtml = '<span class="sev-pill sev-' + (r.bugs[0].severity || 'medium').toLowerCase() + '">' + esc(r.bugs[0].severity) + '</span>'; }
+        else { cls = 'is-pass'; status = 'Passed'; }
+      } else if (i === results.length) {
+        cls = 'is-active'; status = 'Running...';
+      }
+
+      return '<div class="test-card ' + cls + '">' +
+        '<div class="test-header"><span class="test-label">' + esc(tc.label) + '</span><span class="test-status">' + sevHtml + ' ' + status + '</span></div>' +
+        (tc.category ? '<span style="font-size:11px;color:var(--muted)">' + esc(tc.category) + '</span>' : '') +
+        '</div>';
+    }).join('');
+  }
+
+  async function startQA() {
+    const url = $('qa-url').value.trim();
+    const desc = $('qa-desc').value.trim();
+    if (!url) return toast('Enter a URL');
+
+    cancelled = false;
+    show('screen-working');
+    $('working-title').textContent = 'Running QA tests';
+    $('working-sub').textContent = 'Crawling your app and building a test plan.';
+    setStepper(1);
+    setStatus('Crawling page and generating test plan...', 'working');
+    $('test-list').innerHTML = '';
+
+    try {
+      // Step 1: Plan
+      const { plan } = await api('POST', '/api/plan', { url, scope: qaScope, description: desc });
+      if (cancelled) return;
+
+      setStepper(2);
+      setStatus('Connecting browser...', 'working');
+      $('working-sub').textContent = plan.app_type + ': ' + plan.app_summary;
+      renderTestCards(plan.test_cases, []);
+
+      // Step 2: Connect
+      const sessionId = await ensureBrowser();
+      if (!sessionId) throw new Error('No browser connected. Pair a browser to continue.');
+      if (cancelled) return;
+
+      setStepper(3);
+      setStatus('Running test cases in real browser...', 'working');
+
+      // Step 3: Execute tests
+      const results = [];
+      for (let i = 0; i < plan.test_cases.length; i++) {
+        if (cancelled) return;
+        renderTestCards(plan.test_cases, results);
+
+        try {
+          const result = await api('POST', '/api/test-case', {
+            browser_session_id: sessionId,
+            url: plan.url,
+            test_case: plan.test_cases[i],
+            app_summary: plan.app_summary,
+          });
+          results.push(result);
+        } catch (err) {
+          results.push({ test_case: plan.test_cases[i], bugs: [], passes: [], passed: false, error: err.message });
+        }
+        renderTestCards(plan.test_cases, results);
+      }
+
+      // Step 4: Report
+      setStepper(4);
+      setStatus('Compiling bug report...', 'working');
+
+      const reportData = await api('POST', '/api/report', { plan, test_results: results });
+      qaReport = reportData;
+      saveReport();
+      renderReport();
+      show('screen-report');
+    } catch (err) {
+      setStatus(err.message, 'error');
+      toast(err.message);
+    }
+  }
+
+  // ── Report rendering ─────────────────────────────────────
+  function renderReport() {
+    if (!qaReport) return show('screen-setup');
+    const { summary, grouped_bugs, passes, plan } = qaReport;
+    const totalBugs = Object.values(grouped_bugs).flat().length;
+
+    $('report-headline').textContent = summary.headline;
+    $('report-summary').textContent = summary.summary;
+    $('report-url').textContent = plan?.url || '';
+
+    $('report-metrics').innerHTML = `
+      <div class="metric">
+        <div class="metric-val" style="color:${totalBugs > 0 ? 'var(--critical)' : 'var(--pass)'}">${totalBugs}</div>
+        <div class="metric-label">Bugs</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" style="color:${summary.severity_totals.Critical > 0 ? 'var(--critical)' : 'var(--muted)'}">${summary.severity_totals.Critical}</div>
+        <div class="metric-label">Critical</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val">${summary.tests_run}</div>
+        <div class="metric-label">Tests</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val">${summary.tests_passed}</div>
+        <div class="metric-label">Passed</div>
+      </div>
+    `;
+
+    // Priorities
+    if (summary.top_priorities?.length) {
+      $('report-priorities').innerHTML = `
+        <div style="margin-bottom:24px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:8px">Top priorities</div>
+          <div class="priority-list">
+            ${summary.top_priorities.map(p => '<div class="priority-item">' + esc(p) + '</div>').join('')}
+          </div>
+        </div>
+      `;
+    } else {
+      $('report-priorities').innerHTML = '';
+    }
+
+    // Bugs grouped by severity
+    let bugsHtml = '';
+    for (const sev of ['Critical', 'High', 'Medium', 'Low']) {
+      const bugs = grouped_bugs[sev] || [];
+      if (!bugs.length) continue;
+      bugsHtml += `
+        <div style="margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <span class="sev-pill sev-${sev.toLowerCase()}">${sev}</span>
+            <span style="font-size:12px;color:var(--muted)">${bugs.length} bug${bugs.length > 1 ? 's' : ''}</span>
+          </div>
+          ${bugs.map(bug => `
+            <div class="bug-card">
+              <div class="bug-title">
+                <span class="sev-pill sev-${sev.toLowerCase()}">${sev}</span>
+                ${esc(bug.title)}
               </div>
+              ${bug.category ? '<div style="font-size:11px;color:var(--muted);margin-bottom:6px">' + esc(bug.category) + (bug.test_label ? ' &middot; ' + esc(bug.test_label) : '') + '</div>' : ''}
+              ${bug.expected ? '<div class="bug-detail"><strong>Expected:</strong> ' + esc(bug.expected) + '</div>' : ''}
+              ${bug.actual ? '<div class="bug-detail"><strong>Actual:</strong> ' + esc(bug.actual) + '</div>' : ''}
+              ${bug.evidence ? '<div class="bug-detail">' + esc(bug.evidence) + '</div>' : ''}
+              ${bug.steps_to_reproduce ? '<div class="bug-repro">' + esc(bug.steps_to_reproduce) + '</div>' : ''}
+              ${bug.screenshot ? '<div class="bug-screenshot"><img src="' + esc(bug.screenshot) + '" alt="Bug screenshot" loading="lazy"></div>' : ''}
             </div>
-          </aside>
+          `).join('')}
         </div>
       `;
     }
 
-    function scrollToSample() {
-      const el = $('sample-report');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-
-    function renderSetup() {
-      $('app').innerHTML = `
-        <section class="panel setup">
-          <h2 class="section-title">QA setup</h2>
-          <p class="section-sub">Enter your app URL and a brief description. The AI will crawl the page first to understand your app structure before generating a tailored test plan.</p>
-
-          <div class="field">
-            <label for="qa-url">URL</label>
-            <input id="qa-url" type="url" inputmode="url" placeholder="https://your-app.com" value="${esc(qaConfig.url)}">
-          </div>
-
-          <div class="field">
-            <label for="qa-description">What does this app do? <span style="font-weight:400;color:var(--muted)">(optional but helps)</span></label>
-            <textarea id="qa-description" placeholder="e.g. A task manager where users create projects and assign tasks. Main flow is signup &#8594; create project &#8594; add tasks.">${esc(qaConfig.description)}</textarea>
-          </div>
-
-          <div class="field">
-            <label>Scope</label>
-            <div class="scope-grid">
-              <button class="scope-card ${qaConfig.scope === 'quick' ? 'selected' : ''}" onclick="setScope('quick')" aria-pressed="${qaConfig.scope === 'quick'}">
-                <h3>Quick run</h3>
-                <p>3 test cases covering the core happy path. Best for a fast pre-deploy sanity check.</p>
-              </button>
-              <button class="scope-card ${qaConfig.scope === 'full' ? 'selected' : ''}" onclick="setScope('full')" aria-pressed="${qaConfig.scope === 'full'}">
-                <h3>Full run</h3>
-                <p>5 test cases including error states, edge cases, and responsive layout.</p>
-              </button>
-            </div>
-          </div>
-
-          <button class="btn btn-primary btn-full" onclick="startQA()">Run QA tests</button>
-          <button class="btn btn-ghost btn-full" style="margin-top:10px" onclick="goTo('landing')">Back</button>
-        </section>
+    if (!totalBugs) {
+      bugsHtml = `
+        <div style="text-align:center;padding:32px 0;color:var(--pass)">
+          <div style="font-size:48px;margin-bottom:12px">&#10003;</div>
+          <div style="font-size:18px;font-weight:700">All tested flows passed</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:8px">Coverage limited to ${summary.tests_run} test case${summary.tests_run > 1 ? 's' : ''} in this run.</div>
+        </div>
       `;
     }
+    $('report-bugs').innerHTML = bugsHtml;
 
-    function setScope(scope) {
-      qaConfig.scope = scope;
-      saveState();
-      renderSetup();
-    }
-
-    function renderWorking() {
-      if (!progress) return;
-      $('app').innerHTML = `
-        <section class="panel working">
-          <div class="status-line">
-            <span>${esc(progress.title)}</span>
-            <span>${esc(progress.detail || '')}</span>
-          </div>
-          <h2 class="section-title">${esc(progress.headline)}</h2>
-          <p class="section-sub">${esc(progress.subhead)}</p>
-
-          <div class="list" style="margin-bottom:18px">
-            ${(progress.steps || []).map((step, index) => `
-              <div class="step-row ${step.done ? 'is-done' : step.active ? 'is-active' : ''}">
-                <div class="step-dot">${step.done ? '&#10003;' : index + 1}</div>
-                <div>
-                  <div style="font-weight:600">${esc(step.label)}</div>
-                  ${step.note ? `<div class="meta-note" style="margin-top:4px">${esc(step.note)}</div>` : ''}
-                </div>
-              </div>
-            `).join('')}
-          </div>
-
-          ${progress.tests?.length ? `
-            <div style="margin-top:22px">
-              <div class="meta-note" style="text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">Test cases</div>
-              <div class="list">
-                ${progress.tests.map((tc) => `
-                  <div class="check-row ${tc.status === 'pass' ? 'is-done' : tc.status === 'fail' ? 'is-fail' : tc.status === 'active' ? 'is-active' : tc.status === 'error' ? 'is-error' : ''}">
-                    <div class="check-dot">${tc.status === 'pass' ? '&#10003;' : tc.status === 'fail' ? '!' : tc.status === 'error' ? '?' : '&bull;'}</div>
-                    <div style="flex:1">
-                      <div style="font-weight:600">${esc(tc.label)}</div>
-                      <div class="meta-note" style="margin-top:4px">${esc(
-                        tc.status === 'active' ? 'Running in browser...' :
-                        tc.status === 'pass' ? (tc.bugs === 0 ? 'Passed' : tc.bugs + ' bug' + (tc.bugs > 1 ? 's' : '') + ' found') :
-                        tc.status === 'fail' ? (tc.bugs || 0) + ' bug' + ((tc.bugs || 0) !== 1 ? 's' : '') + ' found' :
-                        tc.status === 'error' ? 'Error running test' :
-                        'Waiting'
-                      )}</div>
-                    </div>
-                    ${(tc.status === 'fail' || (tc.status === 'pass' && tc.bugs > 0)) && tc.topSeverity ? `<span class="severity-pill sev-${tc.topSeverity.toLowerCase()}" style="align-self:center">${esc(tc.topSeverity)}</span>` : ''}
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          ` : ''}
-        </section>
+    // Passes
+    if (passes?.length) {
+      $('report-passes').innerHTML = `
+        <div class="pass-list">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:8px">Passing checks</div>
+          ${passes.map(p => '<div class="pass-item">&#10003; ' + esc(p) + '</div>').join('')}
+        </div>
       `;
+    } else {
+      $('report-passes').innerHTML = '';
     }
+  }
 
-    function updateProgress(patch) {
-      progress = { ...progress, ...patch };
-      renderWorking();
-    }
+  function startNew() {
+    qaReport = null;
+    localStorage.removeItem('qa_tester_report');
+    show('screen-setup');
+  }
 
-    async function startQA() {
-      qaConfig.url = $('qa-url').value.trim();
-      qaConfig.description = $('qa-description').value.trim();
-      if (!qaConfig.url) return toast('Enter a URL');
-      saveState();
+  function downloadJSON() {
+    if (!qaReport) return;
+    const blob = new Blob([JSON.stringify(qaReport, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'qa-report-' + Date.now() + '.json';
+    a.click();
+  }
 
-      progress = {
-        title: 'QA run starting',
-        detail: 'Preparing',
-        headline: 'Crawling your app',
-        subhead: 'Reading the page structure to build a tailored test plan.',
-        steps: [
-          { label: 'Crawl page and generate test plan', active: true, done: false },
-          { label: 'Connect browser session', active: false, done: false },
-          { label: 'Execute test cases', active: false, done: false },
-          { label: 'Compile bug report', active: false, done: false },
-        ],
-        tests: [],
-      };
-      goTo('working');
-
-      try {
-        // Step 1: crawl + generate plan
-        const { plan } = await api('POST', '/api/plan', {
-          url: qaConfig.url,
-          scope: qaConfig.scope,
-          description: qaConfig.description,
-        });
-        qaPlan = plan;
-
-        updateProgress({
-          headline: 'Test plan ready — ' + plan.test_cases.length + ' test cases',
-          subhead: plan.app_type + ': ' + plan.app_summary,
-          detail: 'Connecting browser',
-          steps: progress.steps.map((s, i) => ({ ...s, done: i === 0, active: i === 1 })),
-          tests: plan.test_cases.map((tc) => ({ label: tc.label, status: 'waiting', bugs: 0 })),
-        });
-
-        // Step 2: connect browser
-        const sessionId = await ensureBrowser();
-        if (!sessionId) throw new Error('No browser session available. Pair a browser to continue.');
-
-        updateProgress({
-          headline: 'Running tests in real browser',
-          subhead: 'Each test case is executed by Hanzi in your paired Chrome browser.',
-          detail: 'Testing',
-          steps: progress.steps.map((s, i) => ({ ...s, done: i < 2, active: i === 2 })),
-        });
-
-        // Step 3: run each test case sequentially
-        const testResults = [];
-        for (let i = 0; i < plan.test_cases.length; i++) {
-          const tc = plan.test_cases[i];
-
-          updateProgress({
-            tests: progress.tests.map((t, j) => ({
-              ...t,
-              status: j < i ? t.status : j === i ? 'active' : 'waiting',
-            })),
-          });
-
-          try {
-            const result = await api('POST', '/api/test-case', {
-              browser_session_id: sessionId,
-              url: plan.url,
-              test_case: tc,
-              app_summary: plan.app_summary,
-            });
-            testResults.push(result);
-
-            const topSeverity = result.bugs[0]?.severity || null;
-            const hasBugs = result.bugs.length > 0;
-
-            updateProgress({
-              tests: progress.tests.map((t, j) => ({
-                ...t,
-                status: j === i ? (hasBugs ? 'fail' : 'pass') : t.status,
-                bugs: j === i ? result.bugs.length : t.bugs,
-                topSeverity: j === i ? topSeverity : t.topSeverity,
-              })),
-            });
-          } catch (err) {
-            testResults.push({ test_case: tc, bugs: [], passes: [], passed: false, error: err.message });
-            updateProgress({
-              tests: progress.tests.map((t, j) => ({
-                ...t,
-                status: j === i ? 'error' : t.status,
-              })),
-            });
-          }
-        }
-
-        // Step 4: compile report
-        updateProgress({
-          headline: 'Compiling bug report',
-          subhead: 'Summarizing findings and prioritizing bugs.',
-          detail: 'Building report',
-          steps: progress.steps.map((s, i) => ({ ...s, done: i < 3, active: i === 3 })),
-        });
-
-        const reportData = await api('POST', '/api/report', {
-          plan,
-          test_results: testResults,
-        });
-
-        report = reportData;
-        saveState();
-        goTo('report');
-      } catch (err) {
-        toast(err.message);
-        updateProgress({
-          headline: 'Something went wrong',
-          subhead: err.message,
-          detail: 'Error',
-        });
-      }
-    }
-
-    function renderReport() {
-      if (!report) return goTo('setup');
-      const { summary, grouped_bugs, passes, plan } = report;
-      const totalBugs = Object.values(grouped_bugs).flat().length;
-
-      $('app').innerHTML = `
-        <section class="panel report">
-          <div class="status-line">
-            <span>QA Report — ${esc(plan?.url)}</span>
-            <button class="btn btn-ghost btn-sm" onclick="startNew()">New run</button>
-          </div>
-
-          <h2 class="section-title">${esc(summary.headline)}</h2>
-          <p class="section-sub">${esc(summary.summary)}</p>
-
-          <div class="summary-grid">
-            <div class="metric">
-              <div class="metric-label">Bugs</div>
-              <div class="metric-value" style="color:${totalBugs > 0 ? 'var(--critical)' : 'var(--pass)'}">${totalBugs}</div>
-              <div class="metric-sub">found</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Critical</div>
-              <div class="metric-value" style="color:${summary.severity_totals.Critical > 0 ? 'var(--critical)' : 'var(--muted)'}">${summary.severity_totals.Critical}</div>
-              <div class="metric-sub">+ ${summary.severity_totals.High} high</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Tests run</div>
-              <div class="metric-value">${summary.tests_run}</div>
-              <div class="metric-sub">${summary.tests_passed} passed</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Scope</div>
-              <div class="metric-value" style="font-size:20px;margin-top:12px">${esc(plan?.scope || '')}</div>
-              <div class="metric-sub">${esc(plan?.app_type || '')}</div>
-            </div>
-          </div>
-
-          ${summary.top_priorities.length ? `
-            <div style="margin-bottom:24px">
-              <div class="meta-note" style="text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">Top priorities</div>
-              <div class="priority-list">
-                ${summary.top_priorities.map((p) => `<div class="priority-item">${esc(p)}</div>`).join('')}
-              </div>
-            </div>
-          ` : ''}
-
-          <div class="report-stack">
-            ${['Critical', 'High', 'Medium', 'Low'].map((sev) => {
-              const bugs = grouped_bugs[sev] || [];
-              if (!bugs.length) return '';
-              return `
-                <div class="severity-section">
-                  <div class="severity-header">
-                    <span class="severity-pill sev-${sev.toLowerCase()}">${sev}</span>
-                    <span class="meta-note">${bugs.length} bug${bugs.length > 1 ? 's' : ''}</span>
-                  </div>
-                  ${bugs.map((bug) => `
-                    <div class="bug">
-                      <div>
-                        <div class="bug-meta">
-                          <span class="severity-pill sev-${sev.toLowerCase()}">${sev}</span>
-                          ${bug.category ? `<span class="meta-chip">${esc(bug.category)}</span>` : ''}
-                          ${bug.test_label ? `<span class="meta-chip">${esc(bug.test_label)}</span>` : ''}
-                        </div>
-                        <strong style="font-size:15px">${esc(bug.title)}</strong>
-                        ${bug.expected ? `<p><strong>Expected:</strong> ${esc(bug.expected)}</p>` : ''}
-                        ${bug.actual ? `<p><strong>Actual:</strong> ${esc(bug.actual)}</p>` : ''}
-                        ${bug.evidence ? `<p>${esc(bug.evidence)}</p>` : ''}
-                        ${bug.steps_to_reproduce ? `<div class="repro-steps">${esc(bug.steps_to_reproduce)}</div>` : ''}
-                      </div>
-                      <div class="bug-shot">
-                        ${bug.screenshot
-                          ? `<img src="${esc(bug.screenshot)}" alt="Screenshot of bug" loading="lazy">`
-                          : `<div class="bug-shot-empty">No screenshot captured</div>`
-                        }
-                      </div>
-                    </div>
-                  `).join('')}
-                </div>
-              `;
-            }).join('')}
-
-            ${passes.length ? `
-              <div>
-                <div class="meta-note" style="text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">Passing checks</div>
-                <div class="pass-list">
-                  ${passes.map((p) => `<div class="pass-item">&#10003; ${esc(p)}</div>`).join('')}
-                </div>
-              </div>
-            ` : ''}
-
-            ${!totalBugs ? `
-              <div style="text-align:center;padding:32px 0;color:var(--pass)">
-                <div style="font-size:48px;margin-bottom:12px">&#10003;</div>
-                <div style="font-size:18px;font-weight:700">All tested flows passed</div>
-                <div class="meta-note" style="margin-top:8px">Coverage limited to ${summary.tests_run} test case${summary.tests_run > 1 ? 's' : ''} in this run.</div>
-              </div>
-            ` : ''}
-          </div>
-
-          <div style="display:flex;gap:12px;margin-top:28px;flex-wrap:wrap">
-            <button class="btn btn-primary" onclick="startNew()">Run another test</button>
-            <button class="btn btn-ghost" onclick="downloadJSON()">Export JSON</button>
-          </div>
-        </section>
-      `;
-    }
-
-    function startNew() {
-      report = null;
-      qaPlan = null;
-      localStorage.removeItem('qa_tester_report');
-      goTo('setup');
-    }
-
-    function downloadJSON() {
-      if (!report) return;
-      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'qa-report-' + Date.now() + '.json';
-      a.click();
-    }
-
-    loadState();
-    render();
-  </script>
+  // ── Init ─────────────────────────────────────────────────
+  localStorage.removeItem('qa_tester_report');
+</script>
 </body>
 </html>

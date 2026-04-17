@@ -471,8 +471,8 @@ app.post("/api/report", async (req, res) => {
 Be direct and actionable. Return strict JSON only.`,
       `Summarize this QA test run.
 
-App: ${plan.app_summary || plan.url}
-Scope: ${plan.scope}
+App: ${quote(plan.app_summary || plan.url)}
+Scope: ${quote(plan.scope)}
 Tests run: ${test_results.length}
 
 Bugs found:
