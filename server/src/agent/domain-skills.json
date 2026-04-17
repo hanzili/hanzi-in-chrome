@@ -1,92 +1,134 @@
 [
   {
     "domain": "mail.google.com",
-    "skill": "Gmail best practices:\n- To open an email, click directly on the email subject/preview text, NOT the checkbox or star\n- Use keyboard shortcuts: 'c' to compose, 'r' to reply, 'a' to reply all, 'f' to forward, 'e' to archive\n- To search, use the search bar at the top with operators like 'from:', 'to:', 'subject:', 'is:unread'\n- Reading pane may be on the right or below depending on user settings - check which layout is active\n- Verification codes are often in emails from 'noreply@' addresses with subjects containing 'verification', 'code', or 'confirm'"
+    "skill": "Gmail best practices:\n- To open an email, click directly on the email subject/preview text, NOT the checkbox or star\n- Use keyboard shortcuts: 'c' to compose, 'r' to reply, 'a' to reply all, 'f' to forward, 'e' to archive\n- To search, use the search bar at the top with operators like 'from:', 'to:', 'subject:', 'is:unread'\n- Reading pane may be on the right or below depending on user settings - check which layout is active\n- Verification codes are often in emails from 'noreply@' addresses with subjects containing 'verification', 'code', or 'confirm'",
+    "lastVerified": "2026-04-16",
+    "goldenTasks": "evals/domain/mail.google.com.yaml"
   },
   {
     "domain": "docs.google.com",
-    "skill": "Google Docs best practices:\n- This is a canvas-based application - use screenshots to see content, read_page may not capture all text\n- Use keyboard shortcuts: Cmd/Ctrl+B for bold, Cmd/Ctrl+I for italic, Cmd/Ctrl+K for links\n- To navigate, use Cmd/Ctrl+F to find text, then click on the result\n- For editing, click to place cursor then type - triple-click to select a paragraph\n- Access menus via the menu bar at the top (File, Edit, View, Insert, Format, etc.)"
+    "skill": "Google Docs best practices:\n- This is a canvas-based application - use screenshots to see content, read_page may not capture all text\n- Use keyboard shortcuts: Cmd/Ctrl+B for bold, Cmd/Ctrl+I for italic, Cmd/Ctrl+K for links\n- To navigate, use Cmd/Ctrl+F to find text, then click on the result\n- For editing, click to place cursor then type - triple-click to select a paragraph\n- Access menus via the menu bar at the top (File, Edit, View, Insert, Format, etc.)",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "sheets.google.com",
-    "skill": "Google Sheets best practices:\n- Click on cells to select them, double-click to edit cell content\n- Use Tab to move right, Enter to move down, arrow keys to navigate\n- Formulas start with '=' - e.g., =SUM(A1:A10), =VLOOKUP(), =IF()\n- Use Cmd/Ctrl+C and Cmd/Ctrl+V for copy/paste\n- Select ranges by clicking and dragging, or Shift+click for range selection"
+    "skill": "Google Sheets best practices:\n- Click on cells to select them, double-click to edit cell content\n- Use Tab to move right, Enter to move down, arrow keys to navigate\n- Formulas start with '=' - e.g., =SUM(A1:A10), =VLOOKUP(), =IF()\n- Use Cmd/Ctrl+C and Cmd/Ctrl+V for copy/paste\n- Select ranges by clicking and dragging, or Shift+click for range selection",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "github.com",
-    "skill": "GitHub best practices:\n- Repository navigation: Code tab for files, Issues for bug tracking, Pull requests for code review\n- To view a file, click on the filename in the file tree\n- Use 't' to open file finder, 'l' to jump to a line\n- In PRs: 'Files changed' tab shows diffs, 'Conversation' tab shows comments\n- Use the search bar with qualifiers: 'is:open is:pr', 'is:issue label:bug'"
+    "skill": "GitHub best practices:\n- Repository navigation: Code tab for files, Issues for bug tracking, Pull requests for code review\n- To view a file, click on the filename in the file tree\n- Use 't' to open file finder, 'l' to jump to a line\n- In PRs: 'Files changed' tab shows diffs, 'Conversation' tab shows comments\n- Use the search bar with qualifiers: 'is:open is:pr', 'is:issue label:bug'",
+    "lastVerified": "2026-04-16",
+    "goldenTasks": "evals/domain/github.com.yaml"
   },
   {
     "domain": "reddit.com",
     "antiBot": true,
-    "skill": "Reddit UI patterns:\n- Posts are listed in a feed - click on post title to view full post and comments\n- Comments are nested/threaded - each comment has its own reply button underneath\n- Upvote (up arrow) and downvote (down arrow) buttons are to the left of each post/comment\n- To comment, scroll to comment box at top of comments section, or click reply under a specific comment\n- Use the search bar at top to find subreddits or posts\n- r/subredditname format for community names"
+    "skill": "Reddit UI patterns:\n- Posts are listed in a feed - click on post title to view full post and comments\n- Comments are nested/threaded - each comment has its own reply button underneath\n- Upvote (up arrow) and downvote (down arrow) buttons are to the left of each post/comment\n- To comment, scroll to comment box at top of comments section, or click reply under a specific comment\n- Use the search bar at top to find subreddits or posts\n- r/subredditname format for community names",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "linkedin.com",
     "antiBot": true,
-    "skill": "LinkedIn UI patterns:\n\n## Messaging & Connections\n- To message someone: first check if you're connected (1st degree) - if not, send a connection request first\n- Connection request: go to their profile, click 'Connect' button, optionally add a note\n- Once connected, use the 'Message' button on their profile or go to Messaging tab\n- InMail (messaging non-connections) requires Premium subscription\n\n## Easy Apply Forms\n- Contact Info page is pre-filled from LinkedIn profile - don't try to modify, just click Next\n- Modal forms may need scrolling to see all content and buttons\n- Use screenshots over read_page for modals - accessibility tree often misses modal content\n\n## Navigation\n- Main tabs: Home (feed), My Network, Jobs, Messaging, Notifications\n- Job search: Jobs tab → filter by location, experience level, date posted\n- 'Easy Apply' = apply within LinkedIn; 'Apply' = external site\n- Profile sections are collapsible - click 'Show all' to expand"
+    "skill": "LinkedIn UI patterns:\n\n## Messaging & Connections\n- To message someone: first check if you're connected (1st degree) - if not, send a connection request first\n- Connection request: go to their profile, click 'Connect' button, optionally add a note\n- Once connected, use the 'Message' button on their profile or go to Messaging tab\n- InMail (messaging non-connections) requires Premium subscription\n\n## Easy Apply Forms\n- Contact Info page is pre-filled from LinkedIn profile - don't try to modify, just click Next\n- Modal forms may need scrolling to see all content and buttons\n- Use screenshots over read_page for modals - accessibility tree often misses modal content\n\n## Navigation\n- Main tabs: Home (feed), My Network, Jobs, Messaging, Notifications\n- Job search: Jobs tab → filter by location, experience level, date posted\n- 'Easy Apply' = apply within LinkedIn; 'Apply' = external site\n- Profile sections are collapsible - click 'Show all' to expand",
+    "lastVerified": "2026-04-16",
+    "goldenTasks": "evals/domain/linkedin.com.yaml"
   },
   {
     "domain": "indeed.com",
-    "skill": "Indeed best practices:\n- Search for jobs using the 'What' and 'Where' fields at the top\n- Filter results by date posted, salary, job type, experience level\n- Click job title to view full description\n- 'Apply now' or 'Apply on company site' buttons are typically on the right panel\n- Sign in to save jobs and track applications"
+    "skill": "Indeed best practices:\n- Search for jobs using the 'What' and 'Where' fields at the top\n- Filter results by date posted, salary, job type, experience level\n- Click job title to view full description\n- 'Apply now' or 'Apply on company site' buttons are typically on the right panel\n- Sign in to save jobs and track applications",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "calendar.google.com",
-    "skill": "Google Calendar best practices:\n- Click on a time slot to create a new event\n- Drag events to reschedule them\n- Click on an event to view details, edit, or delete\n- Use the mini calendar on the left to navigate to different dates\n- Keyboard: 'c' to create event, 't' to go to today, arrow keys to navigate"
+    "skill": "Google Calendar best practices:\n- Click on a time slot to create a new event\n- Drag events to reschedule them\n- Click on an event to view details, edit, or delete\n- Use the mini calendar on the left to navigate to different dates\n- Keyboard: 'c' to create event, 't' to go to today, arrow keys to navigate",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "drive.google.com",
-    "skill": "Google Drive best practices:\n- Double-click files to open them, single-click to select\n- Right-click for context menu (download, share, rename, etc.)\n- Use the search bar to find files by name or content\n- Create new items with the '+ New' button on the left\n- Drag and drop to move files between folders"
+    "skill": "Google Drive best practices:\n- Double-click files to open them, single-click to select\n- Right-click for context menu (download, share, rename, etc.)\n- Use the search bar to find files by name or content\n- Create new items with the '+ New' button on the left\n- Drag and drop to move files between folders",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "notion.so",
-    "skill": "Notion best practices:\n- Click to place cursor, type '/' to open command menu\n- Drag blocks using the ⋮⋮ handle on the left\n- Use sidebar for navigation between pages\n- Toggle blocks expand/collapse on click\n- Databases can be viewed as table, board, calendar, etc."
+    "skill": "Notion best practices:\n- Click to place cursor, type '/' to open command menu\n- Drag blocks using the ⋮⋮ handle on the left\n- Use sidebar for navigation between pages\n- Toggle blocks expand/collapse on click\n- Databases can be viewed as table, board, calendar, etc.",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "figma.com",
-    "skill": "Figma best practices:\n- This is a canvas-based design tool - always use screenshots to see content\n- Use 'V' for select tool, 'R' for rectangle, 'T' for text\n- Zoom with Cmd/Ctrl+scroll or Cmd/Ctrl++ and Cmd/Ctrl+-\n- Navigate frames in the left sidebar\n- Right-click for context menus and additional options"
+    "skill": "Figma best practices:\n- This is a canvas-based design tool - always use screenshots to see content\n- Use 'V' for select tool, 'R' for rectangle, 'T' for text\n- Zoom with Cmd/Ctrl+scroll or Cmd/Ctrl++ and Cmd/Ctrl+-\n- Navigate frames in the left sidebar\n- Right-click for context menus and additional options",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "slack.com",
-    "skill": "Slack best practices:\n- Channels listed in left sidebar - click to switch\n- Cmd/Ctrl+K to quickly switch channels/DMs\n- @ mentions notify users, # references channels\n- Thread replies keep conversations organized\n- Use the search bar to find messages, files, and people"
+    "skill": "Slack best practices:\n- Channels listed in left sidebar - click to switch\n- Cmd/Ctrl+K to quickly switch channels/DMs\n- @ mentions notify users, # references channels\n- Thread replies keep conversations organized\n- Use the search bar to find messages, files, and people",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "twitter.com",
     "antiBot": true,
-    "skill": "See x.com — twitter.com redirects to x.com."
+    "skill": "See x.com — twitter.com redirects to x.com.",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "x.com",
     "antiBot": true,
-    "skill": "X/Twitter — verified patterns (updated 2026-03-30)\n\n## Reading pages (CRITICAL)\n- X loads content asynchronously — page looks empty for 3-5 seconds after navigation.\n- read_page often returns ONLY \"To view keyboard shortcuts\" — tweets haven't loaded yet.\n- DO NOT re-navigate to the same URL. That resets loading and makes it worse.\n- Instead: wait 5 seconds, then use get_page_text — it reads visible text and is more reliable.\n- If get_page_text returns nothing, scroll down once and try again.\n\n## Search\n- URL: x.com/search?q={encoded_query}&src=typed_query&f=live\n- After navigating, wait 5 seconds, then get_page_text (NOT read_page).\n- Scroll down once to load more tweets, then get_page_text again.\n- Tweet URLs in page text follow pattern: /status/{id}\n\n## Text input (CRITICAL — Draft.js)\n- form_input DOES NOT WORK — Draft.js ignores programmatic input.\n- computer type action GARBLES TEXT.\n- ONLY RELIABLE METHOD — use javascript_tool:\n  document.querySelector('[data-testid=\"tweetTextarea_0\"]').focus();\n  document.execCommand('insertText', false, 'your reply text here');\n- Always verify text appeared by reading after insertion.\n\n## Replying to a tweet\n1. Navigate to tweet URL (x.com/{handle}/status/{id})\n2. Wait 3 seconds, read the page\n3. Click the reply/comment icon (speech bubble) in the action bar\n4. Use javascript_tool to insert text (see above)\n5. Verify text appeared, then click blue \"Reply\" button\n6. Wait 2 seconds to confirm reply posted\n\n## Known traps\n- DO NOT scroll looking for \"Post your reply\" — reply box appears after clicking comment icon\n- x.com/compose/post may open — that's fine, type and click Reply there\n- \"Leave site?\" dialog — ALWAYS click Cancel, finish posting first\n- Reply button is disabled until text is entered — verify first\n- Space replies 15+ seconds apart (rate limiting)\n- NEVER navigate to the same URL you're already on"
+    "skill": "X/Twitter — verified patterns (updated 2026-03-30)\n\n## Reading pages (CRITICAL)\n- X loads content asynchronously — page looks empty for 3-5 seconds after navigation.\n- read_page often returns ONLY \"To view keyboard shortcuts\" — tweets haven't loaded yet.\n- DO NOT re-navigate to the same URL. That resets loading and makes it worse.\n- Instead: wait 5 seconds, then use get_page_text — it reads visible text and is more reliable.\n- If get_page_text returns nothing, scroll down once and try again.\n\n## Search\n- URL: x.com/search?q={encoded_query}&src=typed_query&f=live\n- After navigating, wait 5 seconds, then get_page_text (NOT read_page).\n- Scroll down once to load more tweets, then get_page_text again.\n- Tweet URLs in page text follow pattern: /status/{id}\n\n## Text input (CRITICAL — Draft.js)\n- form_input DOES NOT WORK — Draft.js ignores programmatic input.\n- computer type action GARBLES TEXT.\n- ONLY RELIABLE METHOD — use javascript_tool:\n  document.querySelector('[data-testid=\"tweetTextarea_0\"]').focus();\n  document.execCommand('insertText', false, 'your reply text here');\n- Always verify text appeared by reading after insertion.\n\n## Replying to a tweet\n1. Navigate to tweet URL (x.com/{handle}/status/{id})\n2. Wait 3 seconds, read the page\n3. Click the reply/comment icon (speech bubble) in the action bar\n4. Use javascript_tool to insert text (see above)\n5. Verify text appeared, then click blue \"Reply\" button\n6. Wait 2 seconds to confirm reply posted\n\n## Known traps\n- DO NOT scroll looking for \"Post your reply\" — reply box appears after clicking comment icon\n- x.com/compose/post may open — that's fine, type and click Reply there\n- \"Leave site?\" dialog — ALWAYS click Cancel, finish posting first\n- Reply button is disabled until text is entered — verify first\n- Space replies 15+ seconds apart (rate limiting)\n- NEVER navigate to the same URL you're already on",
+    "lastVerified": "2026-04-16",
+    "goldenTasks": "evals/domain/x.com.yaml"
   },
   {
     "domain": "amazon.com",
-    "skill": "Amazon UI patterns:\n- Prefer the top search bar or a direct search URL for product discovery\n- The first fold may be dominated by sponsored modules or Amazon brand carousels before standard results\n- Result cards can show total price, unit price, ratings, delivery promises, variation links, and inline Add to Cart buttons all at once\n- Watch carefully for subtle labels such as 'Sponsored' or 'Featured from Amazon brands'\n- Location/shipping prompts can change delivery wording and result context, so verify destination-sensitive text before extracting prices"
+    "skill": "Amazon UI patterns:\n- Prefer the top search bar or a direct search URL for product discovery\n- The first fold may be dominated by sponsored modules or Amazon brand carousels before standard results\n- Result cards can show total price, unit price, ratings, delivery promises, variation links, and inline Add to Cart buttons all at once\n- Watch carefully for subtle labels such as 'Sponsored' or 'Featured from Amazon brands'\n- Location/shipping prompts can change delivery wording and result context, so verify destination-sensitive text before extracting prices",
+    "lastVerified": "2026-04-16",
+    "goldenTasks": "evals/domain/amazon.com.yaml"
   },
   {
     "domain": "ebay.com",
-    "skill": "eBay UI patterns:\n- Search results usually show title, condition, price, shipping, and location directly on the card\n- Headline price is often incomplete until you also check shipping cost, coupon text, and 'Best Offer' language\n- Sponsored placements and featured carousels can interrupt the organic result list\n- Use condition and shipping origin early to filter out weak matches\n- Be cautious with range prices and urgency labels like 'Last one' or watcher counts; they do not guarantee a clean fixed-price purchase path"
+    "skill": "eBay UI patterns:\n- Search results usually show title, condition, price, shipping, and location directly on the card\n- Headline price is often incomplete until you also check shipping cost, coupon text, and 'Best Offer' language\n- Sponsored placements and featured carousels can interrupt the organic result list\n- Use condition and shipping origin early to filter out weak matches\n- Be cautious with range prices and urgency labels like 'Last one' or watcher counts; they do not guarantee a clean fixed-price purchase path",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "walmart.ca",
     "antiBot": true,
-    "skill": "Walmart.ca UI patterns:\n- Search results often expose enough information to compare products before opening a product page\n- Cards commonly include brand, title, price, ratings, fulfillment messaging, and promo details such as Subscribe to Save or pickup thresholds\n- Walmart.com may first present a storefront or region-selection step and later a human-verification blocker ('Press & Hold' challenge); validation was more reliable on Walmart.ca\n- On Walmart.ca product pages, verify one-time price separately from Subscribe to Save pricing and check pickup, express delivery, and standard delivery messages individually\n- Treat promo labels, fulfillment thresholds, and returns messaging as separate signals and verify them individually\n- If you hit a 'Press & Hold' or 'verify you are human' challenge, STOP and tell the user — never attempt to bypass"
+    "skill": "Walmart.ca UI patterns:\n- Search results often expose enough information to compare products before opening a product page\n- Cards commonly include brand, title, price, ratings, fulfillment messaging, and promo details such as Subscribe to Save or pickup thresholds\n- Walmart.com may first present a storefront or region-selection step and later a human-verification blocker ('Press & Hold' challenge); validation was more reliable on Walmart.ca\n- On Walmart.ca product pages, verify one-time price separately from Subscribe to Save pricing and check pickup, express delivery, and standard delivery messages individually\n- Treat promo labels, fulfillment thresholds, and returns messaging as separate signals and verify them individually\n- If you hit a 'Press & Hold' or 'verify you are human' challenge, STOP and tell the user — never attempt to bypass",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "target.com",
-    "skill": "Target UI patterns:\n- Result cards usually include title, review count, price, promo messaging, and a persistent Add to Cart button\n- Price formatting can mix ranges, sale pricing, regular pricing, and per-unit math, so read the full price block carefully\n- Promo text such as Target gift card offers or 'Highly rated' badges appears frequently and can distract from the base price\n- Fulfillment filters are easy to see near the top, but card-level availability may still need a deeper click\n- Search results can include adjacent-category items, so confirm the exact product type from the title before acting"
+    "skill": "Target UI patterns:\n- Result cards usually include title, review count, price, promo messaging, and a persistent Add to Cart button\n- Price formatting can mix ranges, sale pricing, regular pricing, and per-unit math, so read the full price block carefully\n- Promo text such as Target gift card offers or 'Highly rated' badges appears frequently and can distract from the base price\n- Fulfillment filters are easy to see near the top, but card-level availability may still need a deeper click\n- Search results can include adjacent-category items, so confirm the exact product type from the title before acting",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "zillow.com",
     "antiBot": true,
-    "skill": "Zillow UI patterns (rentals):\n- Sign in first for full contact info and saved searches; anonymous users see degraded data\n- Use 'For Rent' in the top nav, then refine by price, beds, and 'Move-in Date'\n- Results have a split map + list view — switch to list view for cleaner data extraction\n- Listing cards include price, beds/baths, address, and 'Apply' or 'Request a tour' buttons\n- 'Request a tour' and 'Contact' buttons submit forms — draft the message and wait for explicit user approval before clicking submit\n- Never enter SSN, payment info, or background check data without confirming the user is on an official Zillow Application flow\n- Zillow frequently serves a CAPTCHA / 'Press & Hold' challenge for automated traffic — if you hit one, STOP and tell the user, do not bypass"
+    "skill": "Zillow UI patterns (rentals):\n- Sign in first for full contact info and saved searches; anonymous users see degraded data\n- Use 'For Rent' in the top nav, then refine by price, beds, and 'Move-in Date'\n- Results have a split map + list view — switch to list view for cleaner data extraction\n- Listing cards include price, beds/baths, address, and 'Apply' or 'Request a tour' buttons\n- 'Request a tour' and 'Contact' buttons submit forms — draft the message and wait for explicit user approval before clicking submit\n- Never enter SSN, payment info, or background check data without confirming the user is on an official Zillow Application flow\n- Zillow frequently serves a CAPTCHA / 'Press & Hold' challenge for automated traffic — if you hit one, STOP and tell the user, do not bypass",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "apartments.com",
-    "skill": "Apartments.com UI patterns:\n- Top filter bar: location, price, beds, move-in date, amenities — apply them before reading results\n- Listing cards include price range, beds/baths, address, and a 'Send Message' or 'Contact' button\n- Many listings have a built-in multi-step application flow — each step is clearly labeled; stop before 'Submit Application' and confirm with the user\n- 'Send Message' opens an inline form — draft the message, show it to the user, wait for approval before submitting\n- Pricing is often shown as a range ($X-$Y) because individual units vary; click into the listing for per-unit prices\n- Response times for large property managers are usually fast (hours); individual landlords slower\n- Do not enter SSN, credit-card, or bank info without explicit user confirmation that they want to proceed with a real application"
+    "skill": "Apartments.com UI patterns:\n- Top filter bar: location, price, beds, move-in date, amenities — apply them before reading results\n- Listing cards include price range, beds/baths, address, and a 'Send Message' or 'Contact' button\n- Many listings have a built-in multi-step application flow — each step is clearly labeled; stop before 'Submit Application' and confirm with the user\n- 'Send Message' opens an inline form — draft the message, show it to the user, wait for approval before submitting\n- Pricing is often shown as a range ($X-$Y) because individual units vary; click into the listing for per-unit prices\n- Response times for large property managers are usually fast (hours); individual landlords slower\n- Do not enter SSN, credit-card, or bank info without explicit user confirmation that they want to proceed with a real application",
+    "lastVerified": null,
+    "goldenTasks": null
   },
   {
     "domain": "craigslist.org",
-    "skill": "Craigslist UI patterns (apartments / housing):\n- URL pattern: https://[city].craigslist.org/search/apa?minAsk={min}&maxAsk={max}&bedrooms={n}\n- Sort by 'newest' to avoid stale listings — older listings are frequently scams or already rented\n- Listings may or may not have photos; listings without photos are higher risk, flag them\n- Contact is always via an anonymized email relay — no built-in application flow\n- Scam flags to warn the user about: price >25% below market, 'owner overseas', 'send deposit to hold', asks to text/WhatsApp before viewing, generic stock photos\n- Never follow links off craigslist for a 'verified listings site' — those are almost always phishing\n- Show the user any inquiry message before sending, and wait for explicit approval"
+    "skill": "Craigslist UI patterns (apartments / housing):\n- URL pattern: https://[city].craigslist.org/search/apa?minAsk={min}&maxAsk={max}&bedrooms={n}\n- Sort by 'newest' to avoid stale listings — older listings are frequently scams or already rented\n- Listings may or may not have photos; listings without photos are higher risk, flag them\n- Contact is always via an anonymized email relay — no built-in application flow\n- Scam flags to warn the user about: price >25% below market, 'owner overseas', 'send deposit to hold', asks to text/WhatsApp before viewing, generic stock photos\n- Never follow links off craigslist for a 'verified listings site' — those are almost always phishing\n- Show the user any inquiry message before sending, and wait for explicit approval",
+    "lastVerified": null,
+    "goldenTasks": null
   }
 ]
