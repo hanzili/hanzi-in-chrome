@@ -98,6 +98,30 @@ setInterval(() => {
   }
 }, 3600000);
 
+// Pass upstream Hanzi Browse API errors through with the real status + a
+// user-friendly message. Falls back to 500 for anything unrecognized.
+function sendHanziError(res, err, label) {
+  const status = err?.status ?? 500;
+  const upstream = err?.data?.error || err?.message || "unknown error";
+  console.log(`[${label}] ${status} — ${upstream}`);
+  if (status === 402) {
+    return res.status(402).json({
+      error: "This demo has run out of tasks for the month. Ping @hanzili on X if you want to try the real product.",
+      upstream,
+    });
+  }
+  if (status === 429) {
+    return res.status(429).json({ error: "Rate limited by Hanzi Browse — wait a moment and retry.", upstream });
+  }
+  if (status === 404) {
+    return res.status(404).json({ error: "Browser session expired or disconnected — please reconnect.", upstream });
+  }
+  if (status === 401) {
+    return res.status(500).json({ error: "Demo misconfigured (bad API key). Contact support.", upstream });
+  }
+  return res.status(status >= 400 && status < 600 ? status : 500).json({ error: upstream });
+}
+
 // ── Strategy AI (LLM calls) ──────────────────────────────────
 
 async function llm(system, user) {
@@ -266,8 +290,7 @@ List ALL tweets as a numbered list.`,
     track("search_keyword", { keyword, status: result.status, steps: result.steps }, req.ip);
     res.json({ keyword, answer: result.answer, status: result.status, steps: result.steps });
   } catch (err) {
-    console.log(`[Browser] Keyword search error: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    sendHanziError(res, err, `search-one:${req.body?.keyword || "?"}`);
   }
 });
 
@@ -392,8 +415,8 @@ Return a structured summary. Be thorough — read the full page, scroll down.`,
     console.log(`[Browser] Page read complete`);
     res.json({ content: result.answer });
   } catch (err) {
-    console.error("[Browser] Read URL error:", err.message);
-    res.status(500).json({ error: err.message });
+    sendHanziError(res, err, "read-url");
+    return;
   }
 });
 
@@ -539,8 +562,8 @@ RULES:
     track("reply_posted", { status: result.status, tweet_url }, req.ip);
     res.json({ result: result.status });
   } catch (err) {
-    console.error("[Browser] Post error:", err.message);
-    res.status(500).json({ error: err.message });
+    sendHanziError(res, err, "post");
+    return;
   }
 });
 
