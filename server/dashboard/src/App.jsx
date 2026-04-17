@@ -536,12 +536,12 @@ function RecentTasksCard() {
   useEffect(() => {
     (async () => {
       const r = await api('GET', '/v1/tasks');
-      if (r?.ok && Array.isArray(r.data?.tasks)) {
+      if (r?.status === 200 && Array.isArray(r.data?.tasks)) {
         setTasks(r.data.tasks);
-      } else if (r?.ok && Array.isArray(r.data)) {
+      } else if (r?.status === 200 && Array.isArray(r.data)) {
         setTasks(r.data);
       } else {
-        setError('Could not load recent tasks');
+        setError(r?.data?.error || 'Could not load recent tasks');
         setTasks([]);
       }
     })();
