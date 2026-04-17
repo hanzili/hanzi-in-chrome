@@ -26,7 +26,6 @@ type RouteContext = {
   taskAborts: Map<string, AbortController>;
   taskWorkspaceMap: Map<string, { workspaceId: string; startedAt: number }>;
   handleCreateTask: (body: any, apiKey: ApiKey, requestId?: string) => Promise<{ status: number; data: any }>;
-  runInternalTask: (params: { workspaceId: string; browserSessionId: string; task: string; url?: string }) => Promise<any>;
 };
 
 /** Browser session routes: /v1/browser-sessions/* */
