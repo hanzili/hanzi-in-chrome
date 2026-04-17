@@ -165,11 +165,6 @@ __POSTHOG_SNIPPET__
   </div>
 
   <main id="app"></main>
-
-  <footer style="margin-top:48px;padding:24px;text-align:center;border-top:1px solid var(--line, #e5ddd0);font-size:14px;color:var(--muted)">
-    <div style="margin-bottom:10px">Like this? Post unlimited replies with your own Hanzi Browse account.</div>
-    <a href="https://browse.hanzilla.co" target="_blank" style="display:inline-block;padding:10px 20px;background:var(--accent, #ad5a34);color:#fff;border-radius:10px;text-decoration:none;font-weight:600">Install Hanzi Browse &rarr;</a>
-  </footer>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -376,10 +371,17 @@ async function startFlow() {
   const desc = $('f-desc').value.trim();
   if (!name) return toast('Enter a product name');
 
-  // If user provided a URL, ensure browser is connected so we can read it
-  if (url && !sid) {
+  // Always pair first — and verify the session is actually CONNECTED, not
+  // just set from a prior tab-scoped value. `sid` is a module-level variable
+  // that can stick around after a session disconnects, which would cause the
+  // pairing modal to silently skip. Force a fresh check, then pair if needed.
+  // This tool needs a real browser for every meaningful step anyway (read
+  // website, search X, post replies), so expectations are set up front.
+  sid = null;
+  const alreadyConnected = await checkBrowser();
+  if (!alreadyConnected) {
     const browserSid = await ensureBrowser();
-    if (!browserSid) return toast('Browser needed to read your website');
+    if (!browserSid) return toast('Browser connection needed to continue');
   }
 
   screen = 'working';
@@ -412,19 +414,18 @@ async function startFlow() {
     steps[0].done = true;
 
     if (url) {
-      // Only read the URL if browser is already connected — don't interrupt flow for new users
-      if (sid || await checkBrowser()) {
-        steps[1].active = true;
-        renderSteps();
-        try {
-          const readResult = await api('POST', '/api/read-url', { browser_session_id: sid, url });
-          if (readResult?.content) {
-            const betterResult = await api('POST', '/api/analyze', { name, url, description: desc, page_content: readResult.content });
-            if (betterResult && !betterResult.error) product = betterResult;
-          }
-        } catch (e) { console.log('URL read failed, using basic analysis'); }
-        steps[1].done = true;
-      }
+      // We paired up front, so sid should be set here. Read the URL and
+      // rebuild the strategy with the real page content.
+      steps[1].active = true;
+      renderSteps();
+      try {
+        const readResult = await api('POST', '/api/read-url', { browser_session_id: sid, url });
+        if (readResult?.content) {
+          const betterResult = await api('POST', '/api/analyze', { name, url, description: desc, page_content: readResult.content });
+          if (betterResult && !betterResult.error) product = betterResult;
+        }
+      } catch (e) { console.log('URL read failed, using basic analysis:', e.message); }
+      steps[1].done = true;
     }
 
     save();
