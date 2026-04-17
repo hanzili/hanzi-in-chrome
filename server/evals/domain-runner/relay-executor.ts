@@ -28,6 +28,12 @@ export async function createRelayExecutor(
     { resolve: (r: ToolResult) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }
   >();
 
+  /**
+   * Inbound message handler.
+   * Protocol shape comes from server/src/managed/api.ts:338-366 —
+   * fields are on the message itself (not nested under a `tool_result` key):
+   *   { type: "tool_result", requestId, result, output, error, screenshot }
+   */
   ws.on("message", (raw) => {
     let msg: any;
     try {
@@ -35,12 +41,20 @@ export async function createRelayExecutor(
     } catch {
       return;
     }
-    const { requestId, tool_result } = msg;
-    if (!requestId || !pending.has(requestId)) return;
-    const p = pending.get(requestId)!;
+    // Only handle tool_result messages with a requestId we're waiting on.
+    if (msg?.type !== "tool_result" || !msg.requestId) return;
+    const p = pending.get(msg.requestId);
+    if (!p) return;
     clearTimeout(p.timer);
-    pending.delete(requestId);
-    p.resolve(tool_result ?? { success: false, error: "no tool_result field" });
+    pending.delete(msg.requestId);
+    p.resolve({
+      success: !msg.error,
+      output: msg.result ?? msg.output,
+      error: msg.error,
+      screenshot: msg.screenshot
+        ? { data: msg.screenshot, mediaType: "image/jpeg" }
+        : undefined,
+    });
   });
 
   return {
